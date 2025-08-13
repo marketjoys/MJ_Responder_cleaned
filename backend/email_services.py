@@ -443,6 +443,14 @@ class EmailPollingService:
             # Store in database
             await self.db.emails.insert_one(email_obj.dict())
             
+            # Mark email as read to prevent reprocessing
+            if 'uid' in email_data:
+                # Get the connection to mark as read
+                account_doc = await self.db.email_accounts.find_one({"id": email_data['account_id']})
+                if account_doc and account_doc['id'] in self.connections:
+                    connection = self.connections[account_doc['id']]
+                    connection.mark_email_as_read(email_data['uid'])
+            
             # Process through AI workflow (async)
             asyncio.create_task(self._process_email_ai_workflow(email_obj.id))
             
