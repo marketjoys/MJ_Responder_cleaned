@@ -78,14 +78,18 @@ class EmailConnection:
         
         try:
             # Check UIDVALIDITY for this mailbox
-            response = self.imap_connection.response('UIDVALIDITY')
-            if response:
-                current_uidvalidity = response[1][0].decode() if response[1] else None
-                if self.uidvalidity and self.uidvalidity != current_uidvalidity:
-                    # UIDVALIDITY changed, reset last_uid
-                    logger.warning(f"UIDVALIDITY changed for {self.email}, resetting UID tracking")
-                    self.last_uid = 0
-                self.uidvalidity = current_uidvalidity
+            try:
+                response = self.imap_connection.response('UIDVALIDITY')
+                if response and response[1] and response[1][0]:
+                    current_uidvalidity = response[1][0].decode() if isinstance(response[1][0], bytes) else str(response[1][0])
+                    if self.uidvalidity and self.uidvalidity != current_uidvalidity:
+                        # UIDVALIDITY changed, reset last_uid
+                        logger.warning(f"UIDVALIDITY changed for {self.email}, resetting UID tracking")
+                        self.last_uid = 0
+                    self.uidvalidity = current_uidvalidity
+            except Exception as uidvalidity_error:
+                logger.warning(f"⚠️  Could not parse UIDVALIDITY for {self.email}: {uidvalidity_error}")
+                pass  # Continue without UIDVALIDITY checking
             
             # Search for messages newer than last processed UID
             if self.last_uid > 0:
