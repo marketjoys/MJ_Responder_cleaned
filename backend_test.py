@@ -855,13 +855,29 @@ class EmailAssistantAPITester:
         print("🎯 REVIEW REQUEST VERIFICATION RESULTS")
         print("=" * 60)
         
-        # Bug Fix Verification
+        # Bug Fix #1: Draft Agent Clean Content
+        draft_fix_verified = any("Draft Generation" in test for test in self.test_results['passed_tests'])
+        print(f"🎯 Bug Fix #1 (Clean Draft Content): {'✅ VERIFIED' if draft_fix_verified else '❌ NEEDS ATTENTION'}")
+        
+        # Bug Fix #2: Intent Classification
+        intent_fix_verified = any("Intent Classification" in test for test in self.test_results['passed_tests'])
+        print(f"🎯 Bug Fix #2 (Intent Classification): {'✅ VERIFIED' if intent_fix_verified else '❌ NEEDS ATTENTION'}")
+        
+        # Bug Fix #3: Validation Logic
+        validation_fix_verified = any("Validation Logic" in test for test in self.test_results['passed_tests'])
+        print(f"🎯 Bug Fix #3 (Validation PASS/FAIL): {'✅ VERIFIED' if validation_fix_verified else '❌ NEEDS ATTENTION'}")
+        
+        # Bug Fix #4: Complete Workflow
+        complete_workflow_verified = any("Complete Workflow" in test for test in self.test_results['passed_tests'])
+        print(f"🎯 Bug Fix #4 (Complete Workflow): {'✅ VERIFIED' if complete_workflow_verified else '❌ NEEDS ATTENTION'}")
+        
+        # Historical Bug Fix Verification
         bug_fix_verified = "NEW Emails Only" in str(self.test_results['passed_tests'])
         print(f"🐛 Bug Fix (Only NEW emails): {'✅ VERIFIED' if bug_fix_verified else '❌ NEEDS ATTENTION'}")
         
         # Email Workflow
         workflow_working = any("Email Processing" in test for test in self.test_results['passed_tests'])
-        print(f"🤖 Complete Email Workflow: {'✅ WORKING' if workflow_working else '❌ NEEDS ATTENTION'}")
+        print(f"🤖 Email Processing Workflow: {'✅ WORKING' if workflow_working else '❌ NEEDS ATTENTION'}")
         
         # API Keys
         api_keys_working = any("API Keys" in test for test in self.test_results['passed_tests'])
