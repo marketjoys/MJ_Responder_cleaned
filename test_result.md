@@ -241,9 +241,10 @@ Sync Up with the codebase and Understand it by going through each files and comp
 
 ## test_plan:
   current_focus:
-    - "Bug fix: Only process NEW emails after polling started"
-  stuck_tasks:
-    - "Bug fix: Only process NEW emails after polling started"
+    - "Bug fix: Draft Agent should only generate email body content"
+    - "Bug fix: Intent classification and validation logic"
+    - "Automated email response workflow fixes"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
