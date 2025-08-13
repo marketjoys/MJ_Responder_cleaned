@@ -105,18 +105,23 @@ class EmailConnection:
             if typ != 'OK' or not msg_ids[0]:
                 return []
             
-            uids = msg_ids[0].split()
+            # Split and filter out empty UIDs
+            uids = [uid for uid in msg_ids[0].split() if uid]
             new_emails = []
             
             for uid in uids:
-                uid_int = int(uid.decode())
-                if uid_int <= self.last_uid:
+                try:
+                    uid_int = int(uid.decode())
+                    if uid_int <= self.last_uid:
+                        continue
+                        
+                    email_data = self._fetch_email_by_uid(uid)
+                    if email_data:
+                        new_emails.append(email_data)
+                        self.last_uid = max(self.last_uid, uid_int)
+                except (ValueError, UnicodeDecodeError) as decode_error:
+                    logger.warning(f"⚠️  Skipping invalid UID for {self.email}: {uid} - {decode_error}")
                     continue
-                    
-                email_data = self._fetch_email_by_uid(uid)
-                if email_data:
-                    new_emails.append(email_data)
-                    self.last_uid = max(self.last_uid, uid_int)
             
             logger.info(f"📧 Fetched {len(new_emails)} new emails for {self.email}")
             return new_emails
