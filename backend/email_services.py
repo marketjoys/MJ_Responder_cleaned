@@ -99,11 +99,15 @@ class EmailConnection:
                 # First time polling - get the latest UID to start from (don't process existing emails)
                 typ, all_msg_ids = self.imap_connection.uid('search', None, 'ALL')
                 if typ == 'OK' and all_msg_ids[0]:
-                    all_uids = all_msg_ids[0].split()
-                    if all_uids:
-                        # Set last_uid to the latest existing email so we only process future emails
-                        self.last_uid = int(all_uids[-1].decode())
-                        logger.info(f"🔄 First-time polling setup for {self.email}. Starting from UID {self.last_uid}")
+                    try:
+                        all_uids = [uid for uid in all_msg_ids[0].split() if uid]
+                        if all_uids:
+                            # Set last_uid to the latest existing email so we only process future emails
+                            self.last_uid = int(all_uids[-1].decode())
+                            logger.info(f"🔄 First-time polling setup for {self.email}. Starting from UID {self.last_uid}")
+                    except (ValueError, UnicodeDecodeError, IndexError) as setup_error:
+                        logger.warning(f"⚠️  Could not setup UID tracking for {self.email}: {setup_error}")
+                        self.last_uid = 0
                 return []  # Don't process any existing emails on first run
             
             if typ != 'OK' or not msg_ids[0]:
