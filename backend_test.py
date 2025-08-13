@@ -548,9 +548,36 @@ class EmailAssistantAPITester:
         print("\n" + "=" * 60)
 
 def main():
+    """Main test runner for comprehensive email auto-response system testing"""
+    print("🎯 EMAIL AUTO-RESPONSE SYSTEM - COMPREHENSIVE TESTING")
+    print("Focus: Bug fix verification, API keys, complete workflow")
+    print("=" * 60)
+    
     tester = EmailAssistantAPITester()
-    success = tester.run_all_tests()
-    return 0 if success else 1
+    
+    try:
+        success = tester.run_comprehensive_tests()
+        
+        # Cleanup resources
+        print("\n🧹 Cleaning up test resources...")
+        tester.cleanup_resources()
+        
+        # Final status
+        if success:
+            print("\n🎉 ALL CRITICAL TESTS PASSED - System is working correctly!")
+            return 0
+        else:
+            print("\n⚠️  SOME CRITICAL ISSUES FOUND - Review results above")
+            return 1
+            
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Tests interrupted by user")
+        tester.cleanup_resources()
+        return 1
+    except Exception as e:
+        print(f"\n\n💥 Unexpected error during testing: {str(e)}")
+        tester.cleanup_resources()
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
