@@ -22,8 +22,8 @@ import {
   Mail, Settings, Brain, Database, Users, BarChart3, 
   Plus, Trash2, Eye, Send, RefreshCw, MessageSquare, 
   AlertCircle, CheckCircle, Clock, Zap, Bot, Play, 
-  Pause, Activity, Inbox, Outbox, Shield, Power,
-  PowerOff, WifiOff, Wifi
+  Pause, Activity, Inbox, Shield, Power,
+  PowerOff, WifiOff, Wifi, SendHorizontal
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
