@@ -44,6 +44,7 @@ class EmailAssistantAPITester:
             if success:
                 self.tests_passed += 1
                 print(f"✅ Passed - Status: {response.status_code}")
+                self.test_results['passed_tests'].append(name)
                 try:
                     return True, response.json()
                 except:
@@ -51,13 +52,16 @@ class EmailAssistantAPITester:
             else:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
                 try:
-                    print(f"   Response: {response.text[:200]}")
+                    error_detail = response.text[:200]
+                    print(f"   Response: {error_detail}")
+                    self.test_results['critical_issues'].append(f"{name}: Expected {expected_status}, got {response.status_code} - {error_detail}")
                 except:
-                    pass
+                    self.test_results['critical_issues'].append(f"{name}: Expected {expected_status}, got {response.status_code}")
                 return False, {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
+            self.test_results['critical_issues'].append(f"{name}: Connection error - {str(e)}")
             return False, {}
 
     def test_dashboard_stats(self):
