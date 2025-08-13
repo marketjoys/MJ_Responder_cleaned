@@ -214,7 +214,7 @@ async def groq_chat_completion(messages: List[Dict], system_prompt: str = "") ->
             result = response.json()
             return result["choices"][0]["message"]["content"]
         else:
-            raise HTTPException(status_code=500, f"Groq API error: {response.text}")
+            raise HTTPException(status_code=500, detail=f"Groq API error: {response.text}")
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
     """Calculate cosine similarity between two embeddings"""
