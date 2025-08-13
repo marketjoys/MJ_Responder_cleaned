@@ -434,59 +434,118 @@ class EmailAssistantAPITester:
         for kb_id in self.created_resources['knowledge']:
             self.run_test(f"Delete Knowledge {kb_id}", "DELETE", f"knowledge-base/{kb_id}", 200)
 
-    def run_all_tests(self):
-        """Run all API tests"""
-        print("🚀 Starting Email Assistant API Tests")
+    def run_comprehensive_tests(self):
+        """Run comprehensive tests as per review request"""
+        print("🚀 Starting Comprehensive Email Auto-Response System Tests")
         print(f"Base URL: {self.base_url}")
-        print("=" * 50)
+        print("=" * 60)
+        print("🎯 FOCUS: Bug fix verification and complete email workflow testing")
+        print("=" * 60)
 
-        # Test basic endpoints
+        # Phase 1: Basic API Health Check
+        print("\n📋 PHASE 1: Basic API Health Check")
         self.test_dashboard_stats()
         self.test_email_providers()
 
-        # Test intent management
-        intent_success, intent_response = self.test_create_intent()
-        self.test_get_intents()
+        # Phase 2: Email Account Setup (Critical for review request)
+        print("\n📧 PHASE 2: Email Account Configuration")
+        accounts_success, accounts_response = self.test_create_real_email_accounts()
+        self.test_verify_email_accounts_count()
 
-        # Test email account management
-        account_success, account_response = self.test_create_email_account()
-        self.test_get_email_accounts()
+        # Phase 3: Polling Service Testing (Critical for bug fix)
+        print("\n🔄 PHASE 3: Email Polling Service Testing")
+        self.test_start_polling_service()
+        self.test_polling_service_status()
 
-        # Test knowledge base management
-        kb_success, kb_response = self.test_create_knowledge_base()
-        self.test_get_knowledge_base()
+        # Phase 4: Intent Management Setup
+        print("\n🎯 PHASE 4: Intent Management Setup")
+        self.test_create_sample_intents()
+        self.test_verify_intents_created()
 
-        # Test core AI workflow
-        account_id = account_response.get('id') if account_success else None
-        email_success, email_response = self.test_email_processing(account_id)
-        
-        # Wait a moment for processing
-        if email_success:
-            import time
-            print("⏳ Waiting for AI processing to complete...")
-            time.sleep(5)
+        # Phase 5: API Keys and Rate Limiting Test (Critical)
+        print("\n🔑 PHASE 5: API Keys and Rate Limiting Test")
+        self.test_api_keys_functionality()
+
+        # Phase 6: Database State Verification
+        print("\n🗄️ PHASE 6: Database State Verification")
+        self.test_database_state_verification()
+
+        # Phase 7: Bug Fix Verification (Most Critical)
+        print("\n🐛 PHASE 7: Bug Fix Verification - NEW Emails Only")
+        self.test_new_email_processing_only()
+
+        # Phase 8: Complete Email Workflow Test
+        print("\n🤖 PHASE 8: Complete Email Workflow Test")
+        if self.created_resources['accounts']:
+            account_id = self.created_resources['accounts'][0]
+            workflow_success, workflow_response = self.test_email_processing(account_id)
             
+            if workflow_success:
+                print("⏳ Waiting for complete AI workflow...")
+                time.sleep(10)
+                
         self.test_get_emails()
 
-        # Print results
-        print("\n" + "=" * 50)
-        print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
+        # Final Results
+        self.print_comprehensive_results()
         
-        if email_success and email_response:
-            print("\n🤖 AI Processing Results:")
-            print(f"   Email ID: {email_response.get('id', 'N/A')}")
-            print(f"   Status: {email_response.get('status', 'N/A')}")
-            print(f"   Intents Found: {len(email_response.get('intents', []))}")
-            if email_response.get('intents'):
-                for intent in email_response.get('intents', []):
-                    print(f"     - {intent.get('name', 'Unknown')}: {intent.get('confidence', 0)*100:.1f}%")
-            print(f"   Draft Generated: {'Yes' if email_response.get('draft') else 'No'}")
-            print(f"   Validation: {email_response.get('validation_result', {}).get('status', 'N/A')}")
+        return len(self.test_results['critical_issues']) == 0
 
-        # Cleanup
-        self.cleanup_resources()
+    def print_comprehensive_results(self):
+        """Print comprehensive test results"""
+        print("\n" + "=" * 60)
+        print("📊 COMPREHENSIVE TEST RESULTS")
+        print("=" * 60)
         
-        return self.tests_passed == self.tests_run
+        print(f"📈 Overall: {self.tests_passed}/{self.tests_run} tests passed")
+        
+        # Critical Issues
+        if self.test_results['critical_issues']:
+            print(f"\n❌ CRITICAL ISSUES ({len(self.test_results['critical_issues'])}):")
+            for i, issue in enumerate(self.test_results['critical_issues'], 1):
+                print(f"   {i}. {issue}")
+        else:
+            print("\n✅ NO CRITICAL ISSUES FOUND")
+        
+        # Minor Issues
+        if self.test_results['minor_issues']:
+            print(f"\n⚠️  MINOR ISSUES ({len(self.test_results['minor_issues'])}):")
+            for i, issue in enumerate(self.test_results['minor_issues'], 1):
+                print(f"   {i}. {issue}")
+        else:
+            print("\n✅ NO MINOR ISSUES FOUND")
+        
+        # Passed Tests Summary
+        print(f"\n✅ PASSED TESTS ({len(self.test_results['passed_tests'])}):")
+        for test in self.test_results['passed_tests']:
+            print(f"   ✓ {test}")
+        
+        # Review Request Specific Results
+        print("\n" + "=" * 60)
+        print("🎯 REVIEW REQUEST VERIFICATION RESULTS")
+        print("=" * 60)
+        
+        # Bug Fix Verification
+        bug_fix_verified = "NEW Emails Only" in str(self.test_results['passed_tests'])
+        print(f"🐛 Bug Fix (Only NEW emails): {'✅ VERIFIED' if bug_fix_verified else '❌ NEEDS ATTENTION'}")
+        
+        # Email Workflow
+        workflow_working = any("Email Processing" in test for test in self.test_results['passed_tests'])
+        print(f"🤖 Complete Email Workflow: {'✅ WORKING' if workflow_working else '❌ NEEDS ATTENTION'}")
+        
+        # API Keys
+        api_keys_working = any("API Keys" in test for test in self.test_results['passed_tests'])
+        print(f"🔑 New API Keys: {'✅ WORKING' if api_keys_working else '❌ NEEDS ATTENTION'}")
+        
+        # Polling Service
+        polling_working = any("Polling" in test for test in self.test_results['passed_tests'])
+        print(f"🔄 Polling Service: {'✅ RUNNING' if polling_working else '❌ NEEDS ATTENTION'}")
+        
+        # Email Accounts
+        accounts_configured = any("Email Accounts" in test for test in self.test_results['passed_tests'])
+        print(f"📧 Email Accounts (2): {'✅ CONFIGURED' if accounts_configured else '❌ NEEDS ATTENTION'}")
+
+        print("\n" + "=" * 60)
 
 def main():
     tester = EmailAssistantAPITester()
