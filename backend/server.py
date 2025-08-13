@@ -187,7 +187,7 @@ async def get_cohere_embedding(text: str) -> List[float]:
             result = response.json()
             return result["embeddings"][0]
         else:
-            raise HTTPException(status_code=500, f"Cohere API error: {response.text}")
+            raise HTTPException(status_code=500, detail=f"Cohere API error: {response.text}")
 
 async def groq_chat_completion(messages: List[Dict], system_prompt: str = "") -> str:
     """Get completion from Groq API"""
