@@ -92,9 +92,15 @@ class EmailConnection:
                 # Search for UIDs greater than last processed
                 typ, msg_ids = self.imap_connection.uid('search', None, f'UID {self.last_uid+1}:*')
             else:
-                # First time, get recent messages (last 7 days)
-                date_since = (datetime.now() - timedelta(days=7)).strftime("%d-%b-%Y")
-                typ, msg_ids = self.imap_connection.uid('search', None, f'SINCE {date_since}')
+                # First time polling - get the latest UID to start from (don't process existing emails)
+                typ, all_msg_ids = self.imap_connection.uid('search', None, 'ALL')
+                if typ == 'OK' and all_msg_ids[0]:
+                    all_uids = all_msg_ids[0].split()
+                    if all_uids:
+                        # Set last_uid to the latest existing email so we only process future emails
+                        self.last_uid = int(all_uids[-1].decode())
+                        logger.info(f"🔄 First-time polling setup for {self.email}. Starting from UID {self.last_uid}")
+                return []  # Don't process any existing emails on first run
             
             if typ != 'OK' or not msg_ids[0]:
                 return []
