@@ -249,10 +249,7 @@ Sync Up with the codebase and Understand it by going through each files and comp
   run_ui: false
 
 ## test_plan:
-  current_focus:
-    - "Bug fix: Draft Agent should only generate email body content"
-    - "Bug fix: Intent classification and validation logic"
-    - "Automated email response workflow fixes"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
