@@ -303,6 +303,320 @@ class EmailAssistantAPITester:
                         
         return False, {}
 
+    def test_draft_generation_clean_content(self):
+        """Test that Draft Agent generates ONLY clean email body content (Bug Fix #1)"""
+        print("\n🎯 Testing Draft Agent - Clean Content Only (Bug Fix #1)...")
+        
+        if not self.created_resources['accounts']:
+            print("❌ No accounts available for draft testing")
+            return False, {}
+            
+        account_id = self.created_resources['accounts'][0]
+        
+        # Test email that should generate a draft
+        email_data = {
+            "subject": "General inquiry about services",
+            "body": "Hello, I would like to know more about your services and how they can help my business. Can you provide some information?",
+            "sender": "business.owner@company.com",
+            "account_id": account_id
+        }
+        
+        success, response = self.run_test("Test Draft Generation", "POST", "emails/test", 200, email_data)
+        if success:
+            email_id = response.get('id')
+            if email_id:
+                self.created_resources['emails'].append(email_id)
+                
+                # Wait for processing to complete
+                print("⏳ Waiting for draft generation...")
+                time.sleep(10)
+                
+                # Check draft content
+                processed_success, processed_response = self.run_test("Check Draft Content", "GET", f"emails/{email_id}", 200)
+                if processed_success:
+                    draft = processed_response.get('draft', '')
+                    status = processed_response.get('status', 'unknown')
+                    
+                    print(f"   Status: {status}")
+                    print(f"   Draft length: {len(draft)} characters")
+                    
+                    if draft:
+                        # Check for unwanted content that should NOT be in draft
+                        unwanted_patterns = [
+                            '<think>',
+                            '</think>',
+                            'Subject:',
+                            'Re:',
+                            'PLAIN_TEXT:',
+                            'HTML:',
+                            '***',
+                            '---',
+                            '===',
+                            '[placeholder',
+                            'reasoning:',
+                            'analysis:'
+                        ]
+                        
+                        issues_found = []
+                        for pattern in unwanted_patterns:
+                            if pattern.lower() in draft.lower():
+                                issues_found.append(pattern)
+                        
+                        if issues_found:
+                            self.test_results['critical_issues'].append(f"Draft contains unwanted content: {', '.join(issues_found)}")
+                            print(f"❌ Draft contains unwanted content: {', '.join(issues_found)}")
+                            print(f"   Draft preview: {draft[:200]}...")
+                            return False, processed_response
+                        else:
+                            print("✅ Draft contains only clean email body content")
+                            print(f"   Draft preview: {draft[:150]}...")
+                            return True, processed_response
+                    else:
+                        self.test_results['critical_issues'].append("No draft generated")
+                        return False, processed_response
+                        
+        return False, {}
+
+    def test_intent_classification_functionality(self):
+        """Test that Intent Classification is working properly (Bug Fix #2)"""
+        print("\n🎯 Testing Intent Classification (Bug Fix #2)...")
+        
+        if not self.created_resources['accounts']:
+            print("❌ No accounts available for intent testing")
+            return False, {}
+            
+        account_id = self.created_resources['accounts'][0]
+        
+        # Test different types of emails to verify intent classification
+        test_emails = [
+            {
+                "name": "Product Inquiry",
+                "subject": "Product information request",
+                "body": "Hi, I'm interested in your product. Can you tell me about pricing and features? What plans do you offer?",
+                "expected_intent": "Product Inquiry"
+            },
+            {
+                "name": "Support Request", 
+                "subject": "Need help with technical issue",
+                "body": "I'm having trouble with the system. Something is not working correctly and I need technical support to fix this problem.",
+                "expected_intent": "Support Request"
+            }
+        ]
+        
+        classification_results = []
+        
+        for test_email in test_emails:
+            email_data = {
+                "subject": test_email["subject"],
+                "body": test_email["body"],
+                "sender": f"test.{test_email['name'].lower().replace(' ', '.')}@example.com",
+                "account_id": account_id
+            }
+            
+            success, response = self.run_test(f"Test Intent Classification - {test_email['name']}", "POST", "emails/test", 200, email_data)
+            if success:
+                email_id = response.get('id')
+                if email_id:
+                    self.created_resources['emails'].append(email_id)
+                    
+                    # Wait for classification
+                    time.sleep(6)
+                    
+                    # Check classification results
+                    processed_success, processed_response = self.run_test(f"Check Intent Classification - {test_email['name']}", "GET", f"emails/{email_id}", 200)
+                    if processed_success:
+                        intents = processed_response.get('intents', [])
+                        status = processed_response.get('status', 'unknown')
+                        
+                        print(f"   Status: {status}")
+                        print(f"   Intents found: {len(intents)}")
+                        
+                        if intents:
+                            for intent in intents:
+                                intent_name = intent.get('name', 'Unknown')
+                                confidence = intent.get('confidence', 0)
+                                print(f"     - {intent_name}: {confidence:.3f}")
+                                
+                            # Check if expected intent was found with good confidence
+                            expected_found = any(
+                                intent.get('name', '').lower() == test_email['expected_intent'].lower() and 
+                                intent.get('confidence', 0) >= 0.7 
+                                for intent in intents
+                            )
+                            
+                            classification_results.append({
+                                'test': test_email['name'],
+                                'expected': test_email['expected_intent'],
+                                'found': expected_found,
+                                'intents': intents
+                            })
+                        else:
+                            print("❌ No intents classified")
+                            classification_results.append({
+                                'test': test_email['name'],
+                                'expected': test_email['expected_intent'],
+                                'found': False,
+                                'intents': []
+                            })
+        
+        # Evaluate classification results
+        successful_classifications = sum(1 for result in classification_results if result['found'])
+        total_tests = len(classification_results)
+        
+        if successful_classifications >= total_tests * 0.8:  # 80% success rate
+            print(f"✅ Intent classification working - {successful_classifications}/{total_tests} successful")
+            return True, classification_results
+        else:
+            self.test_results['critical_issues'].append(f"Intent classification failing - only {successful_classifications}/{total_tests} successful")
+            return False, classification_results
+
+    def test_validation_logic_pass_fail(self):
+        """Test that Validation Logic correctly parses PASS/FAIL (Bug Fix #3)"""
+        print("\n🎯 Testing Validation Logic PASS/FAIL Parsing (Bug Fix #3)...")
+        
+        if not self.created_resources['accounts']:
+            print("❌ No accounts available for validation testing")
+            return False, {}
+            
+        account_id = self.created_resources['accounts'][0]
+        
+        # Test email that should generate a good draft (should PASS validation)
+        email_data = {
+            "subject": "Simple information request",
+            "body": "Hello, I would like to get some basic information about your company and services. Thank you.",
+            "sender": "simple.request@example.com",
+            "account_id": account_id
+        }
+        
+        success, response = self.run_test("Test Validation Logic", "POST", "emails/test", 200, email_data)
+        if success:
+            email_id = response.get('id')
+            if email_id:
+                self.created_resources['emails'].append(email_id)
+                
+                # Wait for complete processing including validation
+                print("⏳ Waiting for validation to complete...")
+                time.sleep(12)
+                
+                # Check validation results
+                processed_success, processed_response = self.run_test("Check Validation Results", "GET", f"emails/{email_id}", 200)
+                if processed_success:
+                    status = processed_response.get('status', 'unknown')
+                    validation_result = processed_response.get('validation_result', {})
+                    
+                    print(f"   Final Status: {status}")
+                    
+                    if validation_result:
+                        validation_status = validation_result.get('status', 'unknown')
+                        feedback = validation_result.get('feedback', '')
+                        
+                        print(f"   Validation Status: {validation_status}")
+                        print(f"   Feedback: {feedback[:100]}...")
+                        
+                        # Check if validation status is properly parsed as PASS or FAIL
+                        if validation_status in ['PASS', 'FAIL']:
+                            print("✅ Validation logic correctly parsing PASS/FAIL")
+                            
+                            # Check if final email status matches validation result
+                            expected_final_status = 'ready_to_send' if validation_status == 'PASS' else 'needs_redraft'
+                            if status == expected_final_status:
+                                print(f"✅ Email status correctly set to '{status}' based on validation")
+                                return True, processed_response
+                            else:
+                                self.test_results['critical_issues'].append(f"Email status '{status}' doesn't match validation '{validation_status}'")
+                                return False, processed_response
+                        else:
+                            self.test_results['critical_issues'].append(f"Validation status not properly parsed: '{validation_status}'")
+                            return False, processed_response
+                    else:
+                        self.test_results['critical_issues'].append("No validation result found")
+                        return False, processed_response
+                        
+        return False, {}
+
+    def test_complete_email_workflow(self):
+        """Test complete email workflow: new → classifying → drafting → ready_to_send"""
+        print("\n🎯 Testing Complete Email Workflow (new → classifying → drafting → ready_to_send)...")
+        
+        if not self.created_resources['accounts']:
+            print("❌ No accounts available for workflow testing")
+            return False, {}
+            
+        account_id = self.created_resources['accounts'][0]
+        
+        # Test email for complete workflow
+        email_data = {
+            "subject": "Business partnership inquiry",
+            "body": "Hello, I represent a growing company and we're interested in exploring potential partnership opportunities with your organization. Could you provide information about your partnership programs and how we might collaborate?",
+            "sender": "partnership.manager@growingcompany.com",
+            "account_id": account_id
+        }
+        
+        success, response = self.run_test("Test Complete Workflow", "POST", "emails/test", 200, email_data)
+        if success:
+            email_id = response.get('id')
+            if email_id:
+                self.created_resources['emails'].append(email_id)
+                
+                # Track workflow progression
+                workflow_stages = []
+                
+                # Check initial status
+                initial_success, initial_response = self.run_test("Check Initial Status", "GET", f"emails/{email_id}", 200)
+                if initial_success:
+                    initial_status = initial_response.get('status', 'unknown')
+                    workflow_stages.append(f"Initial: {initial_status}")
+                    print(f"   Initial Status: {initial_status}")
+                
+                # Wait and check progression through stages
+                for i in range(6):  # Check 6 times over 15 seconds
+                    time.sleep(2.5)
+                    
+                    stage_success, stage_response = self.run_test(f"Check Workflow Stage {i+1}", "GET", f"emails/{email_id}", 200)
+                    if stage_success:
+                        current_status = stage_response.get('status', 'unknown')
+                        if not workflow_stages or workflow_stages[-1] != f"Stage {i+1}: {current_status}":
+                            workflow_stages.append(f"Stage {i+1}: {current_status}")
+                            print(f"   Stage {i+1}: {current_status}")
+                        
+                        # If we reach a final status, break
+                        if current_status in ['ready_to_send', 'needs_redraft', 'sent', 'error']:
+                            break
+                
+                # Final check
+                final_success, final_response = self.run_test("Check Final Workflow Status", "GET", f"emails/{email_id}", 200)
+                if final_success:
+                    final_status = final_response.get('status', 'unknown')
+                    intents = final_response.get('intents', [])
+                    draft = final_response.get('draft', '')
+                    validation_result = final_response.get('validation_result', {})
+                    
+                    print(f"   Final Status: {final_status}")
+                    print(f"   Workflow Progression: {' → '.join([stage.split(': ')[1] for stage in workflow_stages])}")
+                    
+                    # Check if workflow completed successfully
+                    expected_stages = ['processing', 'classifying', 'drafting']
+                    workflow_progression = ' → '.join([stage.split(': ')[1] for stage in workflow_stages])
+                    
+                    # Verify all components are present
+                    components_present = {
+                        'intents': len(intents) > 0,
+                        'draft': len(draft) > 0,
+                        'validation': bool(validation_result)
+                    }
+                    
+                    print(f"   Components: Intents({len(intents)}), Draft({len(draft) > 0}), Validation({bool(validation_result)})")
+                    
+                    if final_status in ['ready_to_send', 'needs_redraft'] and all(components_present.values()):
+                        print("✅ Complete email workflow successful")
+                        return True, final_response
+                    else:
+                        missing_components = [k for k, v in components_present.items() if not v]
+                        self.test_results['critical_issues'].append(f"Workflow incomplete - Status: {final_status}, Missing: {missing_components}")
+                        return False, final_response
+                        
+        return False, {}
+
     def test_database_state_verification(self):
         """Verify database state and email account configurations"""
         print("\n🗄️ Verifying database state...")
