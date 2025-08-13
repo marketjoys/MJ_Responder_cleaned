@@ -35,9 +35,9 @@ app = FastAPI(title="Automated Email Assistant API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# API Keys
-GROQ_API_KEY = "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"
-COHERE_API_KEY = "bueJrETmxb8QKifUQWSKwAIqJIASZdqT3Ea3Haml"
+# API Keys from environment
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
 
 # Email provider configurations
 EMAIL_PROVIDERS = {
