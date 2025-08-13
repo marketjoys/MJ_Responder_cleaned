@@ -586,7 +586,7 @@ async def validate_draft(email_message: EmailMessage, draft: Dict[str, str], int
     """Validate draft using Agent B (Groq API)"""
     intent_descriptions = [f"- {intent['name']}: {intent['description']}" for intent in intents]
     
-    system_prompt = f"""You are Agent B - an email draft validator. Your job is to check if the draft correctly addresses the email and intents.
+    system_prompt = f"""You are Agent B - an email draft validator. Check if the draft correctly addresses the email and intents.
 
 ORIGINAL EMAIL:
 Subject: {email_message.subject}
@@ -606,22 +606,40 @@ VALIDATION CRITERIA:
 4. Are actionable next steps provided where needed?
 5. Is the response length appropriate?
 
-Respond with either:
-PASS: [Brief explanation of what the draft covers well]
-or
-FAIL: [Bullet list of specific issues that need to be addressed]"""
+IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by your explanation.
+
+Example responses:
+"PASS: The draft addresses all intents professionally and includes actionable next steps."
+"FAIL: The draft does not address the pricing inquiry and lacks specific next steps."
+
+Validate the draft now:"""
 
     messages = [
-        {"role": "user", "content": "Please validate this draft response."}
+        {"role": "user", "content": "Please validate this draft response and start with PASS: or FAIL:"}
     ]
     
     validation_response = await groq_chat_completion(messages, system_prompt)
     
-    is_pass = validation_response.startswith("PASS")
+    # Clean and properly parse the validation response
+    validation_response = validation_response.strip()
+    
+    # Remove any thinking tags if present
+    import re
+    validation_response = re.sub(r'<think>.*?</think>', '', validation_response, flags=re.DOTALL).strip()
+    
+    # Determine if it's a pass or fail
+    is_pass = validation_response.upper().startswith("PASS")
+    
+    # Extract just the feedback without the PASS:/FAIL: prefix
+    feedback = validation_response
+    if validation_response.startswith("PASS:"):
+        feedback = validation_response[5:].strip()
+    elif validation_response.startswith("FAIL:"):
+        feedback = validation_response[5:].strip()
     
     return {
         "status": "PASS" if is_pass else "FAIL",
-        "feedback": validation_response,
+        "feedback": feedback,
         "coverage_report": validation_response
     }
 
