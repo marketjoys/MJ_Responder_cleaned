@@ -507,7 +507,7 @@ async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
     return intent_scores[:3]
 
 async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, Any]]) -> Dict[str, str]:
-    """Generate email draft using Agent A (Groq API)"""
+    """Generate email draft using Agent A (Groq API) - ONLY EMAIL BODY CONTENT"""
     # Get account info
     account = await db.email_accounts.find_one({"id": email_message.account_id})
     if not account:
@@ -524,7 +524,7 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
         if intent.get('system_prompt'):
             system_prompts.append(intent['system_prompt'])
     
-    system_prompt = f"""You are Agent A - an email draft generator. Your job is to create professional email replies.
+    system_prompt = f"""You are Agent A - an email draft generator. Generate ONLY the email body content for a professional reply.
 
 ACCOUNT PERSONA: {account.get('persona', 'Professional and helpful')}
 
@@ -542,42 +542,43 @@ ADDITIONAL GUIDANCE:
 KNOWLEDGE BASE CONTEXT:
 {kb_context}
 
-INSTRUCTIONS:
-1. Create a professional, helpful reply that addresses all identified intents
-2. Keep the response concise (150-250 words unless more detail is needed)
-3. Include actionable next steps where appropriate
-4. Maintain a {account.get('persona', 'professional')} tone
-5. Do not make commitments about pricing or timelines unless specified in knowledge base
-6. Generate both plain text and HTML versions
+CRITICAL INSTRUCTIONS:
+1. Generate ONLY the email body content - no subject lines, no signatures, no placeholders
+2. Do not include any reasoning, thinking, or meta-content
+3. Keep response concise (150-250 words unless more detail is needed)
+4. Address all identified intents directly
+5. Maintain a {account.get('persona', 'professional')} tone
+6. Include actionable next steps where appropriate
+7. Do not make commitments about pricing or timelines unless specified in knowledge base
+8. Start directly with the email content (e.g., "Thank you for your inquiry...")
 
-Reply format should be:
-PLAIN_TEXT:
-[Your plain text reply here]
-
-HTML:
-[Your HTML formatted reply here]"""
+Generate the email body content now:"""
 
     messages = [
-        {"role": "user", "content": f"Please generate a reply to this email: {email_message.body}"}
+        {"role": "user", "content": f"Generate only the email body content for replying to: {email_message.body}"}
     ]
     
     response = await groq_chat_completion(messages, system_prompt)
     
-    # Parse response to extract plain text and HTML
-    plain_text = ""
-    html = ""
+    # Clean the response to remove any unwanted content
+    clean_response = response.strip()
     
-    if "PLAIN_TEXT:" in response and "HTML:" in response:
-        parts = response.split("HTML:")
-        plain_text = parts[0].replace("PLAIN_TEXT:", "").strip()
-        html = parts[1].strip()
-    else:
-        plain_text = response
-        html = f"<p>{response.replace(chr(10), '</p><p>')}</p>"
+    # Remove any <think> tags or reasoning content
+    import re
+    clean_response = re.sub(r'<think>.*?</think>', '', clean_response, flags=re.DOTALL)
+    clean_response = re.sub(r'PLAIN_TEXT:|HTML:|Subject:|Re:.*?\n', '', clean_response)
+    clean_response = re.sub(r'\*+.*?\*+', '', clean_response)  # Remove asterisk formatting
+    clean_response = re.sub(r'^-+|^=+', '', clean_response, flags=re.MULTILINE)  # Remove separator lines
+    clean_response = clean_response.strip()
+    
+    # Generate simple HTML version from plain text
+    html_version = clean_response.replace('\n\n', '</p><p>').replace('\n', '<br>')
+    if html_version and not html_version.startswith('<p>'):
+        html_version = f"<p>{html_version}</p>"
     
     return {
-        "plain_text": plain_text,
-        "html": html,
+        "plain_text": clean_response,
+        "html": html_version,
         "reasoning": f"Addressed intents: {', '.join([i['name'] for i in intents])}"
     }
 
