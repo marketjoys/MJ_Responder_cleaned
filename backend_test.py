@@ -780,16 +780,32 @@ class EmailAssistantAPITester:
         print("\n🔑 PHASE 5: API Keys and Rate Limiting Test")
         self.test_api_keys_functionality()
 
-        # Phase 6: Database State Verification
-        print("\n🗄️ PHASE 6: Database State Verification")
+        # Phase 6: CRITICAL BUG FIX TESTS (Review Request Focus)
+        print("\n🐛 PHASE 6: CRITICAL BUG FIX VERIFICATION")
+        print("Testing recently fixed issues:")
+        
+        # Bug Fix #1: Draft Agent clean content
+        self.test_draft_generation_clean_content()
+        
+        # Bug Fix #2: Intent classification
+        self.test_intent_classification_functionality()
+        
+        # Bug Fix #3: Validation logic PASS/FAIL
+        self.test_validation_logic_pass_fail()
+        
+        # Bug Fix #4: Complete workflow
+        self.test_complete_email_workflow()
+
+        # Phase 7: Database State Verification
+        print("\n🗄️ PHASE 7: Database State Verification")
         self.test_database_state_verification()
 
-        # Phase 7: Bug Fix Verification (Most Critical)
-        print("\n🐛 PHASE 7: Bug Fix Verification - NEW Emails Only")
+        # Phase 8: Bug Fix Verification (Historical emails)
+        print("\n🐛 PHASE 8: Bug Fix Verification - NEW Emails Only")
         self.test_new_email_processing_only()
 
-        # Phase 8: Complete Email Workflow Test
-        print("\n🤖 PHASE 8: Complete Email Workflow Test")
+        # Phase 9: Additional Email Workflow Test
+        print("\n🤖 PHASE 9: Additional Email Workflow Test")
         if self.created_resources['accounts']:
             account_id = self.created_resources['accounts'][0]
             workflow_success, workflow_response = self.test_email_processing(account_id)
