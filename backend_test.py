@@ -1,6 +1,7 @@
 import requests
 import sys
 import json
+import time
 from datetime import datetime
 
 class EmailAssistantAPITester:
@@ -14,6 +15,11 @@ class EmailAssistantAPITester:
             'accounts': [],
             'knowledge': [],
             'emails': []
+        }
+        self.test_results = {
+            'critical_issues': [],
+            'minor_issues': [],
+            'passed_tests': []
         }
 
     def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
