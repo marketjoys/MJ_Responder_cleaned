@@ -403,20 +403,20 @@ class EmailPollingService:
             # Fetch new emails
             new_emails = connection.fetch_new_emails()
             
+            # Always update last UID and last_polled in database (even if no new emails)
+            await self.db.email_accounts.update_one(
+                {"id": account_id},
+                {"$set": {
+                    "last_uid": connection.last_uid,
+                    "uidvalidity": connection.uidvalidity,
+                    "last_polled": datetime.utcnow()
+                }}
+            )
+            
             if new_emails:
                 # Process each new email
                 for email_data in new_emails:
                     await self._process_new_email(email_data)
-                
-                # Update last UID in database
-                await self.db.email_accounts.update_one(
-                    {"id": account_id},
-                    {"$set": {
-                        "last_uid": connection.last_uid,
-                        "uidvalidity": connection.uidvalidity,
-                        "last_polled": datetime.utcnow()
-                    }}
-                )
                 
         except Exception as e:
             logger.error(f"❌ Error polling account {account.get('email', account_id)}: {str(e)}")
