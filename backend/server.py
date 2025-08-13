@@ -110,6 +110,10 @@ class EmailAccount(BaseModel):
     is_active: bool = True
     persona: str = ""
     signature: str = ""
+    last_uid: int = 0
+    uidvalidity: Optional[str] = None
+    last_polled: Optional[datetime] = None
+    auto_send: bool = True  # Auto-send approved replies
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class EmailAccountCreate(BaseModel):
@@ -124,6 +128,7 @@ class EmailAccountCreate(BaseModel):
     password: str
     persona: str = ""
     signature: str = ""
+    auto_send: bool = True
 
 class EmailMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -137,11 +142,15 @@ class EmailMessage(BaseModel):
     body_html: str = ""
     received_at: datetime
     processed_at: Optional[datetime] = None
-    status: str = "new"  # new, processing, replied, escalated
+    sent_at: Optional[datetime] = None
+    status: str = "new"  # new, processing, replied, escalated, sent, send_failed
     intents: List[Dict[str, Any]] = []
     draft: Optional[str] = None
     draft_html: Optional[str] = None
     validation_result: Optional[Dict[str, Any]] = None
+    in_reply_to: Optional[str] = None
+    references: Optional[str] = None
+    uid: Optional[int] = None
 
 class KnowledgeBase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -165,6 +174,19 @@ class EmailTestRequest(BaseModel):
 class DraftRequest(BaseModel):
     email_id: str
     force_redraft: bool = False
+
+class SendEmailRequest(BaseModel):
+    email_id: str
+    manual_override: bool = False
+
+class PollingControlRequest(BaseModel):
+    action: str  # start, stop, status
+
+# Import email services
+from email_services import get_polling_service, EmailConnection
+
+# Global polling service
+polling_service = None
 
 # Helper Functions
 async def get_cohere_embedding(text: str) -> List[float]:
@@ -290,6 +312,21 @@ async def delete_email_account(account_id: str):
         raise HTTPException(status_code=404, detail="Email account not found")
     return {"message": "Email account deleted successfully"}
 
+@api_router.put("/email-accounts/{account_id}/toggle")
+async def toggle_email_account(account_id: str):
+    """Toggle email account active status"""
+    account = await db.email_accounts.find_one({"id": account_id})
+    if not account:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
+    new_status = not account.get("is_active", True)
+    await db.email_accounts.update_one(
+        {"id": account_id},
+        {"$set": {"is_active": new_status}}
+    )
+    
+    return {"message": f"Account {'activated' if new_status else 'deactivated'} successfully"}
+
 # Knowledge Base Routes
 @api_router.post("/knowledge-base", response_model=KnowledgeBase)
 async def create_knowledge_base(kb: KnowledgeBaseCreate):
@@ -343,6 +380,105 @@ async def test_email_processing(request: EmailTestRequest):
     # Return processed email
     processed_email = await db.emails.find_one({"id": email_obj.id})
     return EmailMessage(**processed_email)
+
+@api_router.post("/emails/{email_id}/send")
+async def send_email_reply(email_id: str, request: SendEmailRequest):
+    """Send email reply"""
+    email_doc = await db.emails.find_one({"id": email_id})
+    if not email_doc:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    if email_doc['status'] not in ['ready_to_send', 'needs_redraft'] and not request.manual_override:
+        raise HTTPException(status_code=400, detail="Email not ready to send")
+    
+    # Get account
+    account_doc = await db.email_accounts.find_one({"id": email_doc['account_id']})
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
+    # Create connection and send
+    connection = EmailConnection(account_doc)
+    
+    # Extract sender email
+    sender_email = email_doc['sender']
+    if '<' in sender_email:
+        sender_email = sender_email.split('<')[1].split('>')[0]
+    
+    # Prepare reply subject
+    subject = email_doc['subject']
+    if not subject.lower().startswith('re:'):
+        subject = f"Re: {subject}"
+    
+    # Send email
+    success = connection.send_email(
+        to_email=sender_email,
+        subject=subject,
+        body=email_doc['draft'],
+        body_html=email_doc['draft_html'],
+        message_id_to_reply=email_doc['message_id'],
+        references=email_doc.get('references', '')
+    )
+    
+    if success:
+        # Update status to sent
+        await db.emails.update_one(
+            {"id": email_id},
+            {"$set": {
+                "status": "sent",
+                "sent_at": datetime.utcnow()
+            }}
+        )
+        return {"message": "Email sent successfully"}
+    else:
+        # Mark as failed to send
+        await db.emails.update_one(
+            {"id": email_id},
+            {"$set": {"status": "send_failed"}}
+        )
+        raise HTTPException(status_code=500, detail="Failed to send email")
+
+# Email Polling Control Routes
+@api_router.post("/polling/control")
+async def control_email_polling(request: PollingControlRequest):
+    """Control email polling service"""
+    global polling_service
+    
+    if request.action == "start":
+        if polling_service and polling_service.is_running:
+            return {"message": "Email polling is already running"}
+        
+        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
+        # Start polling in background
+        asyncio.create_task(polling_service.start_polling())
+        return {"message": "Email polling started"}
+    
+    elif request.action == "stop":
+        if polling_service:
+            polling_service.stop_polling()
+            return {"message": "Email polling stopped"}
+        return {"message": "Email polling was not running"}
+    
+    elif request.action == "status":
+        if polling_service and polling_service.is_running:
+            return {
+                "status": "running",
+                "active_connections": len(polling_service.connections)
+            }
+        return {"status": "stopped"}
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'start', 'stop', or 'status'")
+
+@api_router.get("/polling/status")
+async def get_polling_status():
+    """Get polling service status"""
+    global polling_service
+    if polling_service and polling_service.is_running:
+        return {
+            "status": "running",
+            "active_connections": len(polling_service.connections)
+        }
+    return {"status": "stopped"}
 
 async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
     """Classify email intents using Cohere embeddings"""
@@ -630,15 +766,24 @@ async def get_dashboard_stats():
     total_emails = await db.emails.count_documents({})
     processed_emails = await db.emails.count_documents({"status": {"$in": ["ready_to_send", "sent"]}})
     escalated_emails = await db.emails.count_documents({"status": "escalate"})
+    sent_emails = await db.emails.count_documents({"status": "sent"})
     total_intents = await db.intents.count_documents({})
     total_accounts = await db.email_accounts.count_documents({})
+    active_accounts = await db.email_accounts.count_documents({"is_active": True})
+    
+    # Polling status
+    global polling_service
+    polling_status = "running" if polling_service and polling_service.is_running else "stopped"
     
     return {
         "total_emails": total_emails,
         "processed_emails": processed_emails,
+        "sent_emails": sent_emails,
         "escalated_emails": escalated_emails,
         "total_intents": total_intents,
         "total_accounts": total_accounts,
+        "active_accounts": active_accounts,
+        "polling_status": polling_status,
         "processing_rate": processed_emails / total_emails * 100 if total_emails > 0 else 0
     }
 
@@ -662,4 +807,7 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global polling_service
+    if polling_service:
+        polling_service.stop_polling()
     client.close()
