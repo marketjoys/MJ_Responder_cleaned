@@ -627,8 +627,8 @@ Validate the draft now:"""
     import re
     validation_response = re.sub(r'<think>.*?</think>', '', validation_response, flags=re.DOTALL).strip()
     
-    # Determine if it's a pass or fail
-    is_pass = validation_response.upper().startswith("PASS")
+    # Determine if it's a pass or fail - check the entire response
+    is_pass = "PASS:" in validation_response.upper() or validation_response.upper().startswith("PASS")
     
     # Extract just the feedback without the PASS:/FAIL: prefix
     feedback = validation_response
