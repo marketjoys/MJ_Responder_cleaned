@@ -261,6 +261,22 @@ class EmailConnection:
         
         return f"thread-{thread_hash}"
     
+    def mark_email_as_read(self, uid: int) -> bool:
+        """Mark email as read by UID"""
+        try:
+            if not self.imap_connection:
+                if not self.connect_imap():
+                    return False
+            
+            # Mark as seen (read)
+            self.imap_connection.uid('store', str(uid), '+FLAGS', '(\\Seen)')
+            logger.info(f"📖 Marked email UID {uid} as read for {self.email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error marking email UID {uid} as read for {self.email}: {str(e)}")
+            return False
+    
     def send_email(self, to_email: str, subject: str, body: str, body_html: str = None, 
                    in_reply_to: str = None, references: str = None, 
                    message_id_to_reply: str = None) -> bool:
