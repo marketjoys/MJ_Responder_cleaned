@@ -15,12 +15,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Separator } from './components/ui/separator';
+import { Switch } from './components/ui/switch';
 
 // Icons
 import { 
   Mail, Settings, Brain, Database, Users, BarChart3, 
   Plus, Trash2, Eye, Send, RefreshCw, MessageSquare, 
-  AlertCircle, CheckCircle, Clock, Zap, Bot
+  AlertCircle, CheckCircle, Clock, Zap, Bot, Play, 
+  Pause, Activity, Inbox, Outbox, Shield, Power,
+  PowerOff, WifiOff, Wifi
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -39,6 +42,7 @@ function App() {
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/emails" element={<EmailProcessing />} />
           <Route path="/test" element={<EmailTesting />} />
+          <Route path="/monitoring" element={<EmailMonitoring />} />
         </Routes>
       </BrowserRouter>
     </div>
@@ -53,6 +57,7 @@ const Navigation = ({ activeTab, setActiveTab }) => {
     { id: 'accounts', label: 'Email Accounts', icon: Mail, path: '/accounts' },
     { id: 'knowledge', label: 'Knowledge Base', icon: Database, path: '/knowledge' },
     { id: 'emails', label: 'Email Processing', icon: MessageSquare, path: '/emails' },
+    { id: 'monitoring', label: 'Live Monitoring', icon: Activity, path: '/monitoring' },
     { id: 'test', label: 'Test Email', icon: Zap, path: '/test' }
   ];
 
@@ -104,9 +109,17 @@ const Layout = ({ children }) => {
 const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [pollingStatus, setPollingStatus] = useState('stopped');
 
   useEffect(() => {
     fetchStats();
+    fetchPollingStatus();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchPollingStatus();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStats = async () => {
@@ -117,6 +130,25 @@ const Dashboard = () => {
       console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPollingStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/polling/status`);
+      setPollingStatus(response.data.status);
+    } catch (error) {
+      console.error('Error fetching polling status:', error);
+    }
+  };
+
+  const controlPolling = async (action) => {
+    try {
+      await axios.post(`${API}/polling/control`, { action });
+      fetchPollingStatus();
+      fetchStats();
+    } catch (error) {
+      console.error('Error controlling polling:', error);
     }
   };
 
@@ -133,9 +165,48 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">Dashboard</h1>
-          <p className="text-slate-600">Monitor your automated email assistant performance</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800 mb-2">Dashboard</h1>
+            <p className="text-slate-600">Monitor your automated email assistant performance</p>
+          </div>
+          
+          {/* Polling Control */}
+          <div className="flex items-center gap-4">
+            <Badge 
+              variant={pollingStatus === 'running' ? 'default' : 'secondary'}
+              className="px-3 py-1"
+            >
+              {pollingStatus === 'running' ? (
+                <>
+                  <Wifi className="h-4 w-4 mr-1" />
+                  Live Polling
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-4 w-4 mr-1" />
+                  Offline
+                </>
+              )}
+            </Badge>
+            <Button
+              onClick={() => controlPolling(pollingStatus === 'running' ? 'stop' : 'start')}
+              variant={pollingStatus === 'running' ? 'destructive' : 'default'}
+              className="flex items-center gap-2"
+            >
+              {pollingStatus === 'running' ? (
+                <>
+                  <PowerOff className="h-4 w-4" />
+                  Stop Polling
+                </>
+              ) : (
+                <>
+                  <Power className="h-4 w-4" />
+                  Start Polling
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -151,11 +222,11 @@ const Dashboard = () => {
 
           <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-800">Processed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium text-green-800">Sent Emails</CardTitle>
+              <Outbox className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-900">{stats.processed_emails || 0}</div>
+              <div className="text-2xl font-bold text-green-900">{stats.sent_emails || 0}</div>
               <p className="text-xs text-green-600 mt-1">
                 {stats.processing_rate ? `${stats.processing_rate.toFixed(1)}% success rate` : ''}
               </p>
@@ -174,11 +245,13 @@ const Dashboard = () => {
 
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-purple-800">Active Intents</CardTitle>
-              <Brain className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-sm font-medium text-purple-800">Active Accounts</CardTitle>
+              <Shield className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-900">{stats.total_intents || 0}</div>
+              <div className="text-2xl font-bold text-purple-900">
+                {stats.active_accounts || 0}/{stats.total_accounts || 0}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -193,8 +266,16 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button 
-                onClick={() => window.location.href = '/test'} 
+                onClick={() => window.location.href = '/monitoring'} 
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Live Email Monitoring
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/test'} 
+                variant="outline" 
+                className="w-full"
               >
                 <Zap className="h-4 w-4 mr-2" />
                 Test Email Processing
@@ -227,9 +308,15 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
+                <span>Email Polling</span>
+                <Badge variant={pollingStatus === 'running' ? "default" : "secondary"}>
+                  {pollingStatus === 'running' ? 'Active' : 'Stopped'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
                 <span>Email Accounts</span>
-                <Badge variant={stats.total_accounts > 0 ? "default" : "secondary"}>
-                  {stats.total_accounts || 0} active
+                <Badge variant={stats.active_accounts > 0 ? "default" : "secondary"}>
+                  {stats.active_accounts || 0} active
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
@@ -244,6 +331,213 @@ const Dashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+// Email Monitoring Component
+const EmailMonitoring = () => {
+  const [emails, setEmails] = useState([]);
+  const [pollingStatus, setPollingStatus] = useState('stopped');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  useEffect(() => {
+    fetchEmails();
+    fetchPollingStatus();
+    
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        fetchEmails();
+        fetchPollingStatus();
+      }, 10000); // Refresh every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh]);
+
+  const fetchEmails = async () => {
+    try {
+      const response = await axios.get(`${API}/emails`);
+      setEmails(response.data);
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+    }
+  };
+
+  const fetchPollingStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/polling/status`);
+      setPollingStatus(response.data.status);
+    } catch (error) {
+      console.error('Error fetching polling status:', error);
+    }
+  };
+
+  const sendEmail = async (emailId) => {
+    try {
+      await axios.post(`${API}/emails/${emailId}/send`, { manual_override: false });
+      fetchEmails();
+    } catch (error) {
+      console.error('Error sending email:', error);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'sent': return 'bg-green-100 text-green-800 border-green-200';
+      case 'ready_to_send': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'processing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'needs_redraft': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'escalate': return 'bg-red-100 text-red-800 border-red-200';
+      case 'error': return 'bg-red-100 text-red-800 border-red-200';
+      case 'new': return 'bg-purple-100 text-purple-800 border-purple-200';
+      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'sent': return <CheckCircle className="h-4 w-4" />;
+      case 'ready_to_send': return <Send className="h-4 w-4" />;
+      case 'processing': return <RefreshCw className="h-4 w-4 animate-spin" />;
+      case 'needs_redraft': return <AlertCircle className="h-4 w-4" />;
+      case 'escalate': return <AlertCircle className="h-4 w-4" />;
+      case 'error': return <AlertCircle className="h-4 w-4" />;
+      case 'new': return <Inbox className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800 mb-2">Live Email Monitoring</h1>
+            <p className="text-slate-600">Real-time monitoring of email processing and responses</p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="auto-refresh">Auto Refresh</Label>
+              <Switch
+                id="auto-refresh"
+                checked={autoRefresh}
+                onCheckedChange={setAutoRefresh}
+              />
+            </div>
+            <Badge 
+              variant={pollingStatus === 'running' ? 'default' : 'secondary'}
+              className="px-3 py-1"
+            >
+              {pollingStatus === 'running' ? (
+                <>
+                  <Activity className="h-4 w-4 mr-1 animate-pulse" />
+                  Live
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-4 w-4 mr-1" />
+                  Offline
+                </>
+              )}
+            </Badge>
+          </div>
+        </div>
+
+        {pollingStatus !== 'running' && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Email polling is currently stopped. Go to Dashboard to start live email monitoring.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid gap-4">
+          {emails.slice(0, 20).map(email => (
+            <Card key={email.id} className="shadow-md hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className={getStatusColor(email.status)} variant="outline">
+                        {getStatusIcon(email.status)}
+                        <span className="ml-1">{email.status.replace('_', ' ')}</span>
+                      </Badge>
+                      <span className="text-sm text-slate-500">
+                        {new Date(email.received_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <CardTitle className="text-lg mb-1">{email.subject}</CardTitle>
+                    <CardDescription>
+                      From: {email.sender}
+                    </CardDescription>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {email.status === 'ready_to_send' && (
+                      <Button
+                        size="sm"
+                        onClick={() => sendEmail(email.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Send className="h-4 w-4 mr-1" />
+                        Send
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = '/emails'}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Quick Preview */}
+                {email.intents && email.intents.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex flex-wrap gap-2">
+                      {email.intents.map((intent, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {intent.name} ({(intent.confidence * 100).toFixed(1)}%)
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {email.draft && (
+                  <div className="mt-2 p-3 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-700 line-clamp-2">
+                      {email.draft.substring(0, 150)}...
+                    </p>
+                  </div>
+                )}
+              </CardHeader>
+            </Card>
+          ))}
+          
+          {emails.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Inbox className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-600 mb-2">No emails yet</h3>
+                <p className="text-slate-500">
+                  {pollingStatus === 'running' 
+                    ? 'Waiting for incoming emails...' 
+                    : 'Start email polling to begin monitoring'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </Layout>
@@ -535,7 +829,8 @@ const EmailAccounts = () => {
     username: '',
     password: '',
     persona: 'Professional and helpful',
-    signature: ''
+    signature: '',
+    auto_send: true
   });
 
   useEffect(() => {
@@ -573,7 +868,8 @@ const EmailAccounts = () => {
         username: '',
         password: '',
         persona: 'Professional and helpful',
-        signature: ''
+        signature: '',
+        auto_send: true
       });
       fetchAccounts();
     } catch (error) {
@@ -587,6 +883,15 @@ const EmailAccounts = () => {
       fetchAccounts();
     } catch (error) {
       console.error('Error deleting account:', error);
+    }
+  };
+
+  const toggleAccount = async (accountId) => {
+    try {
+      await axios.put(`${API}/email-accounts/${accountId}/toggle`);
+      fetchAccounts();
+    } catch (error) {
+      console.error('Error toggling account:', error);
     }
   };
 
@@ -714,6 +1019,15 @@ const EmailAccounts = () => {
                 />
               </div>
 
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="auto_send"
+                  checked={formData.auto_send}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, auto_send: checked }))}
+                />
+                <Label htmlFor="auto_send">Auto-send approved replies</Label>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
                   Cancel
@@ -739,17 +1053,29 @@ const EmailAccounts = () => {
                       <Badge variant={account.is_active ? "default" : "secondary"}>
                         {account.is_active ? "Active" : "Inactive"}
                       </Badge>
+                      {account.auto_send && (
+                        <Badge variant="outline">Auto-send</Badge>
+                      )}
                     </CardTitle>
                     <CardDescription>{account.email}</CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteAccount(account.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleAccount(account.id)}
+                    >
+                      {account.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteAccount(account.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -767,6 +1093,11 @@ const EmailAccounts = () => {
                     <div className="text-slate-600">{account.persona || "Default"}</div>
                   </div>
                 </div>
+                {account.last_polled && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    Last polled: {new Date(account.last_polled).toLocaleString()}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -1000,13 +1331,24 @@ const EmailProcessing = () => {
     }
   };
 
+  const handleSendEmail = async (emailId) => {
+    try {
+      await axios.post(`${API}/emails/${emailId}/send`, { manual_override: false });
+      fetchEmails();
+    } catch (error) {
+      console.error('Error sending email:', error);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ready_to_send': return 'bg-green-100 text-green-800 border-green-200';
-      case 'processing': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'sent': return 'bg-green-100 text-green-800 border-green-200';
+      case 'ready_to_send': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'processing': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'needs_redraft': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'escalate': return 'bg-red-100 text-red-800 border-red-200';
       case 'error': return 'bg-red-100 text-red-800 border-red-200';
+      case 'new': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   };
@@ -1044,6 +1386,15 @@ const EmailProcessing = () => {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
+                    {email.status === 'ready_to_send' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendEmail(email.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    )}
                     {(email.status === 'needs_redraft' || email.status === 'escalate') && (
                       <Button
                         variant="outline"
