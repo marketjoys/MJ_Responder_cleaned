@@ -808,6 +808,11 @@ async def startup_event():
     global polling_service
     logger.info("🚀 Starting up email assistant services...")
     
+    # Initialize all seed data
+    await initialize_email_accounts()
+    await initialize_intents()
+    await initialize_knowledge_base()
+    
     # Initialize email polling service
     try:
         polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
@@ -817,8 +822,7 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Failed to start email polling service: {str(e)}")
     
-    # Initialize email account if not exists (seed data)
-    await initialize_email_accounts()
+    logger.info("🎉 Email assistant system fully initialized and ready!")
 
 async def initialize_email_accounts():
     """Initialize default email accounts if they don't exist"""
