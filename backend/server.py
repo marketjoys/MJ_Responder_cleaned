@@ -835,7 +835,7 @@ async def initialize_email_accounts():
                 "email": "rohushanshinde@gmail.com",
                 "username": "rohushanshinde@gmail.com",
                 "password": "pajbdmcpcegppguz",  # App password from test files
-                "name": "Rohu Shanshinde",
+                "name": "AI Email Assistant",
                 "provider": "gmail",
                 "imap_server": "imap.gmail.com",
                 "imap_port": 993,
@@ -845,8 +845,8 @@ async def initialize_email_accounts():
                 "last_uid": 0,
                 "uidvalidity": None,
                 "last_polled": None,
-                "persona": "I am a helpful AI assistant. I respond professionally and courteously to all emails.",
-                "signature": "Best regards,\nAI Email Assistant",
+                "persona": "I am a helpful AI assistant representing a technology company. I respond professionally and courteously to all emails, providing accurate information and appropriate next steps.",
+                "signature": "Best regards,\nAI Email Assistant\nTechnology Solutions Team",
                 "auto_send": True,
                 "created_at": datetime.utcnow()
             }
@@ -858,6 +858,227 @@ async def initialize_email_accounts():
             
     except Exception as e:
         logger.error(f"❌ Error initializing email accounts: {str(e)}")
+
+async def initialize_intents():
+    """Initialize default intents for email classification"""
+    try:
+        existing_intents = await db.intents.count_documents({})
+        
+        if existing_intents == 0:
+            logger.info("🎯 Initializing default intents...")
+            
+            default_intents = [
+                {
+                    "name": "Sales Inquiry",
+                    "description": "Potential customer asking about products, services, or making purchase inquiries",
+                    "examples": [
+                        "I'm interested in your product",
+                        "Can you tell me more about pricing?",
+                        "I want to buy your service",
+                        "What packages do you offer?",
+                        "I need a quote for your solution"
+                    ],
+                    "system_prompt": "Respond professionally to sales inquiries. Provide helpful information, direct to appropriate resources, and suggest next steps like scheduling a demo or consultation.",
+                    "confidence_threshold": 0.75,
+                    "follow_up_hours": 4,
+                    "is_meeting_related": False
+                },
+                {
+                    "name": "Partnership Inquiry",
+                    "description": "Business partnership, collaboration, or B2B relationship proposals",
+                    "examples": [
+                        "We'd like to explore a partnership",
+                        "Let's collaborate on this project",
+                        "I represent a company interested in working together",
+                        "Business partnership opportunity",
+                        "Strategic alliance proposal"
+                    ],
+                    "system_prompt": "Handle partnership inquiries professionally. Express interest, gather initial information, and direct to appropriate decision makers or partnership team.",
+                    "confidence_threshold": 0.8,
+                    "follow_up_hours": 24,
+                    "is_meeting_related": True
+                },
+                {
+                    "name": "Support Request",
+                    "description": "Technical support, troubleshooting, or customer service issues",
+                    "examples": [
+                        "I'm having trouble with your product",
+                        "This feature isn't working",
+                        "I need help with setup",
+                        "Technical issue with the system",
+                        "How do I configure this?"
+                    ],
+                    "system_prompt": "Provide helpful support responses. Acknowledge the issue, provide initial troubleshooting steps if known, and direct to appropriate support channels.",
+                    "confidence_threshold": 0.7,
+                    "follow_up_hours": 2,
+                    "is_meeting_related": False
+                },
+                {
+                    "name": "Meeting Request",
+                    "description": "Requests to schedule meetings, calls, demos, or consultations",
+                    "examples": [
+                        "Can we schedule a meeting?",
+                        "I'd like to book a demo",
+                        "Let's set up a call",
+                        "Available for a consultation?",
+                        "When can we meet to discuss?"
+                    ],
+                    "system_prompt": "Respond positively to meeting requests. Provide available time slots or direct to scheduling system. Confirm meeting purpose and attendees.",
+                    "confidence_threshold": 0.8,
+                    "follow_up_hours": 8,
+                    "is_meeting_related": True
+                },
+                {
+                    "name": "Product Information",
+                    "description": "General questions about products, features, capabilities, or specifications",
+                    "examples": [
+                        "What does your product do?",
+                        "Tell me about the features",
+                        "How does this work?",
+                        "What are the specifications?",
+                        "Product documentation request"
+                    ],
+                    "system_prompt": "Provide clear, informative responses about products. Use knowledge base information and direct to additional resources like documentation or product pages.",
+                    "confidence_threshold": 0.7,
+                    "follow_up_hours": 12,
+                    "is_meeting_related": False
+                },
+                {
+                    "name": "Complaint or Issue",
+                    "description": "Customer complaints, dissatisfaction, or service issues",
+                    "examples": [
+                        "I'm not happy with the service",
+                        "This is not working as expected",
+                        "I want to complain about",
+                        "Very disappointed with",
+                        "This is unacceptable"
+                    ],
+                    "system_prompt": "Handle complaints with empathy and professionalism. Acknowledge concerns, apologize if appropriate, and provide clear next steps for resolution.",
+                    "confidence_threshold": 0.75,
+                    "follow_up_hours": 1,
+                    "is_meeting_related": False
+                },
+                {
+                    "name": "General Inquiry",
+                    "description": "General questions, information requests, or miscellaneous inquiries",
+                    "examples": [
+                        "I have a question about",
+                        "Can you help me understand",
+                        "I'm curious about",
+                        "General question",
+                        "Need some information"
+                    ],
+                    "system_prompt": "Provide helpful, informative responses to general inquiries. Be friendly and professional while addressing the specific question asked.",
+                    "confidence_threshold": 0.6,
+                    "follow_up_hours": 24,
+                    "is_meeting_related": False
+                },
+                {
+                    "name": "Job Application",
+                    "description": "Employment inquiries, job applications, or career-related communications",
+                    "examples": [
+                        "I'm interested in working for your company",
+                        "Applying for the position",
+                        "Resume attached for consideration",
+                        "Career opportunities",
+                        "Job opening inquiry"
+                    ],
+                    "system_prompt": "Respond professionally to job applications. Acknowledge receipt, provide information about the hiring process, and direct to appropriate HR contacts.",
+                    "confidence_threshold": 0.8,
+                    "follow_up_hours": 48,
+                    "is_meeting_related": False
+                }
+            ]
+            
+            # Create intents with embeddings
+            for intent_data in default_intents:
+                intent_obj = Intent(**intent_data)
+                
+                # Create embedding for intent description + examples
+                text_for_embedding = f"{intent_obj.description} {' '.join(intent_obj.examples)}"
+                embedding = await get_cohere_embedding(text_for_embedding)
+                
+                # Store with embedding
+                doc = intent_obj.dict()
+                doc["embedding"] = embedding
+                await db.intents.insert_one(doc)
+                
+            logger.info(f"✅ Created {len(default_intents)} default intents")
+        else:
+            logger.info(f"ℹ️  Found {existing_intents} existing intents")
+            
+    except Exception as e:
+        logger.error(f"❌ Error initializing intents: {str(e)}")
+
+async def initialize_knowledge_base():
+    """Initialize default knowledge base entries"""
+    try:
+        existing_kb = await db.knowledge_base.count_documents({})
+        
+        if existing_kb == 0:
+            logger.info("📚 Initializing knowledge base...")
+            
+            kb_entries = [
+                {
+                    "title": "Company Overview",
+                    "content": "We are a technology solutions company specializing in AI-powered email automation and business process optimization. Our mission is to help businesses streamline their email communications and improve response times through intelligent automation.",
+                    "tags": ["company", "about", "overview", "mission"]
+                },
+                {
+                    "title": "Product Features",
+                    "content": "Our AI Email Assistant offers: 1) Automated email classification and intent recognition, 2) AI-powered draft generation with customizable personas, 3) Multi-account email management, 4) Real-time email polling and processing, 5) Intelligent response validation, 6) Customizable knowledge base integration, 7) Auto-sending capabilities with manual override options.",
+                    "tags": ["product", "features", "capabilities", "automation"]
+                },
+                {
+                    "title": "Pricing Information",
+                    "content": "We offer flexible pricing plans: Starter Plan ($29/month) for up to 3 email accounts and 500 emails/month, Professional Plan ($99/month) for up to 10 accounts and 2000 emails/month, Enterprise Plan (custom pricing) for unlimited accounts and volume. All plans include 24/7 support and onboarding assistance.",
+                    "tags": ["pricing", "plans", "cost", "subscription"]
+                },
+                {
+                    "title": "Support Channels",
+                    "content": "We provide multiple support channels: 1) Email support at support@company.com, 2) Live chat available 9 AM - 6 PM EST, 3) Knowledge base with tutorials and FAQ, 4) Priority phone support for Enterprise customers, 5) Dedicated account managers for Enterprise plans. Average response time is under 2 hours.",
+                    "tags": ["support", "help", "contact", "assistance"]
+                },
+                {
+                    "title": "Meeting Scheduling",
+                    "content": "We're happy to schedule meetings for demos, consultations, or discussions. Available time slots: Monday-Friday 9 AM - 5 PM EST. Meeting types available: 1) Product demo (30 minutes), 2) Consultation call (45 minutes), 3) Technical setup call (60 minutes). Please book at calendly.com/company-meetings or reply with your preferred times.",
+                    "tags": ["meetings", "demo", "consultation", "schedule", "calendar"]
+                },
+                {
+                    "title": "Integration Capabilities",
+                    "content": "Our system integrates with: 1) All major email providers (Gmail, Outlook, Yahoo, Custom IMAP/SMTP), 2) CRM systems (Salesforce, HubSpot, Pipedrive), 3) Communication tools (Slack, Microsoft Teams), 4) Calendar systems (Google Calendar, Outlook Calendar), 5) Help desk platforms (Zendesk, ServiceNow). API documentation available for custom integrations.",
+                    "tags": ["integration", "api", "crm", "email providers", "platforms"]
+                },
+                {
+                    "title": "Security and Privacy",
+                    "content": "We prioritize security: 1) End-to-end encryption for all email data, 2) SOC 2 Type II compliance, 3) GDPR compliant data handling, 4) Multi-factor authentication, 5) Regular security audits, 6) Data residency options available. Email credentials are encrypted and stored securely. We never access email content without explicit permission.",
+                    "tags": ["security", "privacy", "compliance", "encryption", "gdpr"]
+                },
+                {
+                    "title": "Getting Started",
+                    "content": "To get started: 1) Sign up for a free trial, 2) Connect your email accounts using our secure setup wizard, 3) Configure your AI persona and response preferences, 4) Add knowledge base entries specific to your business, 5) Set up intents for your common email types, 6) Test the system with sample emails. Full onboarding typically takes 15-30 minutes.",
+                    "tags": ["onboarding", "setup", "getting started", "trial", "configuration"]
+                }
+            ]
+            
+            # Create knowledge base entries with embeddings
+            for kb_data in kb_entries:
+                kb_obj = KnowledgeBase(**kb_data)
+                
+                # Create embedding for content
+                embedding = await get_cohere_embedding(kb_obj.content)
+                
+                # Store with embedding
+                doc = kb_obj.dict()
+                doc["embedding"] = embedding
+                await db.knowledge_base.insert_one(doc)
+                
+            logger.info(f"✅ Created {len(kb_entries)} knowledge base entries")
+        else:
+            logger.info(f"ℹ️  Found {existing_kb} existing knowledge base entries")
+            
+    except Exception as e:
+        logger.error(f"❌ Error initializing knowledge base: {str(e)}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
