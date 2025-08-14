@@ -530,56 +530,15 @@ class EmailPollingService:
             logger.error(f"❌ Error processing new email: {str(e)}")
     
     async def _process_email_ai_workflow(self, email_id: str):
-        """Process email through AI workflow (same as existing process_email_async)"""
+        """Process email through AI workflow - delegate to server's process_email_async"""
         try:
-            # Get email
-            email_doc = await self.db.emails.find_one({"id": email_id})
-            if not email_doc:
-                return
-
-            # Import EmailMessage dynamically to avoid circular imports
-            from server import EmailMessage
-            email_message = EmailMessage(**email_doc)
+            # Import the function dynamically to avoid circular imports
+            import importlib
+            server_module = importlib.import_module('server')
+            process_func = getattr(server_module, 'process_email_async')
             
-            # Step 1: Classify intents - Call API endpoint
-            intents = await self._classify_email_intents(email_message.body)
-            
-            # Update email with intents
-            await self.db.emails.update_one(
-                {"id": email_id},
-                {"$set": {"intents": intents, "status": "classifying"}}
-            )
-            
-            # Step 2: Generate draft - Call API endpoint
-            draft = await self._generate_draft(email_message, intents)
-            
-            # Update email with draft
-            await self.db.emails.update_one(
-                {"id": email_id},
-                {"$set": {
-                    "draft": draft["plain_text"],
-                    "draft_html": draft["html"],
-                    "status": "drafting"
-                }}
-            )
-            
-            # Step 3: Validate draft - Call API endpoint
-            validation = await self._validate_draft(email_message, draft, intents)
-            
-            # Update email with validation
-            final_status = "ready_to_send" if validation["status"] == "PASS" else "needs_redraft"
-            await self.db.emails.update_one(
-                {"id": email_id},
-                {"$set": {
-                    "validation_result": validation,
-                    "status": final_status,
-                    "processed_at": datetime.utcnow()
-                }}
-            )
-            
-            # If ready to send, send it automatically (optional)
-            if final_status == "ready_to_send":
-                await self._auto_send_email(email_id)
+            # Delegate to server's complete AI workflow
+            await process_func(email_id)
                 
         except Exception as e:
             logger.error(f"❌ Error in AI workflow for email {email_id}: {str(e)}")
