@@ -672,16 +672,23 @@ const IntentManagement = () => {
           </Button>
         </div>
 
-        {/* Create Intent Dialog */}
-        <Dialog open={isCreating} onOpenChange={setIsCreating}>
+        {/* Create/Edit Intent Dialog */}
+        <Dialog open={isCreating || isEditing} onOpenChange={(open) => {
+          if (!open) {
+            setIsCreating(false);
+            setIsEditing(false);
+            setEditingIntent(null);
+            resetForm();
+          }
+        }}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Intent</DialogTitle>
+              <DialogTitle>{isEditing ? 'Edit Intent' : 'Create New Intent'}</DialogTitle>
               <DialogDescription>
-                Define a new intent that your AI assistant can recognize and respond to.
+                {isEditing ? 'Update the intent configuration.' : 'Define a new intent that your AI assistant can recognize and respond to.'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateIntent} className="space-y-6">
+            <form onSubmit={isEditing ? handleUpdateIntent : handleCreateIntent} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Intent Name</Label>
