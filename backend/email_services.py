@@ -669,7 +669,7 @@ class EmailPollingService:
             logger.error(f"Error classifying intents: {str(e)}")
             return []
     
-    async def _generate_draft(self, email_message: EmailMessage, intents: List[str]) -> Dict[str, str]:
+    async def _generate_draft(self, email_message, intents: List[str]) -> Dict[str, str]:
         """Generate draft response using existing function"""
         try:
             import importlib
