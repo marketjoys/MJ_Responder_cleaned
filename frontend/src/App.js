@@ -1275,11 +1275,38 @@ const KnowledgeBase = () => {
     try {
       await axios.post(`${API}/knowledge-base`, formData);
       setIsCreating(false);
-      setFormData({ title: '', content: '', tags: [] });
+      resetKnowledgeForm();
       fetchKnowledgeBase();
     } catch (error) {
       console.error('Error creating knowledge item:', error);
     }
+  };
+
+  const handleEditKnowledge = (item) => {
+    setEditingKnowledge(item);
+    setFormData({
+      title: item.title,
+      content: item.content,
+      tags: item.tags || []
+    });
+    setIsEditing(true);
+  };
+
+  const handleUpdateKnowledge = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${API}/knowledge-base/${editingKnowledge.id}`, formData);
+      setIsEditing(false);
+      setEditingKnowledge(null);
+      resetKnowledgeForm();
+      fetchKnowledgeBase();
+    } catch (error) {
+      console.error('Error updating knowledge item:', error);
+    }
+  };
+
+  const resetKnowledgeForm = () => {
+    setFormData({ title: '', content: '', tags: [] });
   };
 
   const handleDeleteKnowledge = async (kbId) => {
