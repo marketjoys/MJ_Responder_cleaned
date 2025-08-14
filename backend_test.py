@@ -373,12 +373,728 @@ class EmailAssistantTester:
         except Exception as e:
             self.log_test_result("Polling System", False, f"Exception: {str(e)}")
     
-    def test_api_endpoints(self):
-        """Test 5: API Endpoints - dashboard stats, polling status, intents, knowledge base, email accounts"""
-        print("\n🌐 Testing API Endpoints...")
+    def test_intents_crud_operations(self):
+        """Test 5: INTENTS CRUD Operations - Create, Read, Update, Delete with embedding generation"""
+        print("\n🎯 Testing INTENTS CRUD Operations...")
+        
+        created_intent_id = None
+        try:
+            # Test 5a: POST /api/intents - Create new intent
+            intent_data = {
+                "name": "Test Intent CRUD",
+                "description": "This is a test intent for CRUD operations testing",
+                "examples": ["test example 1", "test example 2", "crud testing example"],
+                "system_prompt": "Handle test intents professionally",
+                "confidence_threshold": 0.75,
+                "follow_up_hours": 12,
+                "is_meeting_related": False
+            }
+            
+            try:
+                response = requests.post(f"{API_BASE}/intents", json=intent_data, timeout=15)
+                create_passed = response.status_code in [200, 201]
+                if create_passed:
+                    created_intent = response.json()
+                    created_intent_id = created_intent.get('id')
+                    create_details = f"Status: {response.status_code}, ID: {created_intent_id}"
+                else:
+                    create_details = f"Status: {response.status_code}, Error: {response.text}"
+            except Exception as e:
+                create_passed = False
+                create_details = f"Error: {str(e)}"
+            
+            # Test 5b: GET /api/intents - List all intents
+            try:
+                response = requests.get(f"{API_BASE}/intents", timeout=10)
+                list_passed = (response.status_code == 200 and isinstance(response.json(), list))
+                if list_passed:
+                    intents_list = response.json()
+                    list_details = f"Status: {response.status_code}, Count: {len(intents_list)}"
+                else:
+                    list_details = f"Status: {response.status_code}"
+            except Exception as e:
+                list_passed = False
+                list_details = f"Error: {str(e)}"
+            
+            # Test 5c: GET /api/intents/{id} - Get specific intent
+            get_passed = False
+            if created_intent_id:
+                try:
+                    response = requests.get(f"{API_BASE}/intents/{created_intent_id}", timeout=10)
+                    get_passed = (response.status_code == 200 and 
+                                response.json().get('id') == created_intent_id)
+                    get_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    get_details = f"Error: {str(e)}"
+            else:
+                get_details = "Skipped - no created intent ID"
+            
+            # Test 5d: PUT /api/intents/{id} - Update intent and regenerate embedding
+            update_passed = False
+            if created_intent_id:
+                updated_data = intent_data.copy()
+                updated_data["description"] = "Updated test intent description for embedding regeneration"
+                updated_data["examples"] = ["updated example 1", "updated example 2"]
+                
+                try:
+                    response = requests.put(f"{API_BASE}/intents/{created_intent_id}", json=updated_data, timeout=15)
+                    update_passed = response.status_code == 200
+                    update_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    update_passed = False
+                    update_details = f"Error: {str(e)}"
+            else:
+                update_details = "Skipped - no created intent ID"
+            
+            # Test 5e: DELETE /api/intents/{id} - Delete intent
+            delete_passed = False
+            if created_intent_id:
+                try:
+                    response = requests.delete(f"{API_BASE}/intents/{created_intent_id}", timeout=10)
+                    delete_passed = response.status_code in [200, 204]
+                    delete_details = f"Status: {response.status_code}"
+                    
+                    # Verify deletion by trying to get the intent
+                    if delete_passed:
+                        verify_response = requests.get(f"{API_BASE}/intents/{created_intent_id}", timeout=10)
+                        delete_passed = verify_response.status_code == 404
+                        delete_details += f", Verification: {verify_response.status_code}"
+                        
+                except Exception as e:
+                    delete_passed = False
+                    delete_details = f"Error: {str(e)}"
+            else:
+                delete_details = "Skipped - no created intent ID"
+            
+            # Test 5f: Error handling - Get non-existent intent
+            try:
+                response = requests.get(f"{API_BASE}/intents/non-existent-id", timeout=10)
+                error_handling_passed = response.status_code == 404
+                error_details = f"Status: {response.status_code}"
+            except Exception as e:
+                error_handling_passed = False
+                error_details = f"Error: {str(e)}"
+            
+            all_passed = (create_passed and list_passed and get_passed and 
+                         update_passed and delete_passed and error_handling_passed)
+            
+            # Log individual results
+            self.log_test_result("Intents CRUD - Create", create_passed, create_details)
+            self.log_test_result("Intents CRUD - List", list_passed, list_details)
+            self.log_test_result("Intents CRUD - Get", get_passed, get_details)
+            self.log_test_result("Intents CRUD - Update", update_passed, update_details)
+            self.log_test_result("Intents CRUD - Delete", delete_passed, delete_details)
+            self.log_test_result("Intents CRUD - Error Handling", error_handling_passed, error_details)
+            
+            details = f"Create: {create_passed}, List: {list_passed}, Get: {get_passed}, " \
+                     f"Update: {update_passed}, Delete: {delete_passed}, Errors: {error_handling_passed}"
+            
+            self.log_test_result("INTENTS CRUD Operations", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("INTENTS CRUD Operations", False, f"Exception: {str(e)}")
+    
+    def test_knowledge_base_crud_operations(self):
+        """Test 6: KNOWLEDGE BASE CRUD Operations - Create, Read, Update, Delete with embedding generation"""
+        print("\n📚 Testing KNOWLEDGE BASE CRUD Operations...")
+        
+        created_kb_id = None
+        try:
+            # Test 6a: POST /api/knowledge-base - Create new KB entry
+            kb_data = {
+                "title": "Test Knowledge Base Entry",
+                "content": "This is a comprehensive test knowledge base entry for CRUD operations testing. It contains detailed information about testing procedures and validation methods.",
+                "tags": ["testing", "crud", "validation", "knowledge"]
+            }
+            
+            try:
+                response = requests.post(f"{API_BASE}/knowledge-base", json=kb_data, timeout=15)
+                create_passed = response.status_code in [200, 201]
+                if create_passed:
+                    created_kb = response.json()
+                    created_kb_id = created_kb.get('id')
+                    create_details = f"Status: {response.status_code}, ID: {created_kb_id}"
+                else:
+                    create_details = f"Status: {response.status_code}, Error: {response.text}"
+            except Exception as e:
+                create_passed = False
+                create_details = f"Error: {str(e)}"
+            
+            # Test 6b: GET /api/knowledge-base - List all KB entries
+            try:
+                response = requests.get(f"{API_BASE}/knowledge-base", timeout=10)
+                list_passed = (response.status_code == 200 and isinstance(response.json(), list))
+                if list_passed:
+                    kb_list = response.json()
+                    list_details = f"Status: {response.status_code}, Count: {len(kb_list)}"
+                else:
+                    list_details = f"Status: {response.status_code}"
+            except Exception as e:
+                list_passed = False
+                list_details = f"Error: {str(e)}"
+            
+            # Test 6c: GET /api/knowledge-base/{id} - Get specific KB entry
+            get_passed = False
+            if created_kb_id:
+                try:
+                    response = requests.get(f"{API_BASE}/knowledge-base/{created_kb_id}", timeout=10)
+                    get_passed = (response.status_code == 200 and 
+                                response.json().get('id') == created_kb_id)
+                    get_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    get_details = f"Error: {str(e)}"
+            else:
+                get_details = "Skipped - no created KB ID"
+            
+            # Test 6d: PUT /api/knowledge-base/{id} - Update KB entry and regenerate embedding
+            update_passed = False
+            if created_kb_id:
+                updated_data = kb_data.copy()
+                updated_data["content"] = "Updated comprehensive test knowledge base entry with new content for embedding regeneration testing. This should trigger a new embedding generation."
+                updated_data["tags"] = ["testing", "crud", "updated", "embeddings"]
+                
+                try:
+                    response = requests.put(f"{API_BASE}/knowledge-base/{created_kb_id}", json=updated_data, timeout=15)
+                    update_passed = response.status_code == 200
+                    update_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    update_passed = False
+                    update_details = f"Error: {str(e)}"
+            else:
+                update_details = "Skipped - no created KB ID"
+            
+            # Test 6e: DELETE /api/knowledge-base/{id} - Delete KB entry
+            delete_passed = False
+            if created_kb_id:
+                try:
+                    response = requests.delete(f"{API_BASE}/knowledge-base/{created_kb_id}", timeout=10)
+                    delete_passed = response.status_code in [200, 204]
+                    delete_details = f"Status: {response.status_code}"
+                    
+                    # Verify deletion
+                    if delete_passed:
+                        verify_response = requests.get(f"{API_BASE}/knowledge-base/{created_kb_id}", timeout=10)
+                        delete_passed = verify_response.status_code == 404
+                        delete_details += f", Verification: {verify_response.status_code}"
+                        
+                except Exception as e:
+                    delete_passed = False
+                    delete_details = f"Error: {str(e)}"
+            else:
+                delete_details = "Skipped - no created KB ID"
+            
+            # Test 6f: Error handling - Get non-existent KB entry
+            try:
+                response = requests.get(f"{API_BASE}/knowledge-base/non-existent-id", timeout=10)
+                error_handling_passed = response.status_code == 404
+                error_details = f"Status: {response.status_code}"
+            except Exception as e:
+                error_handling_passed = False
+                error_details = f"Error: {str(e)}"
+            
+            all_passed = (create_passed and list_passed and get_passed and 
+                         update_passed and delete_passed and error_handling_passed)
+            
+            # Log individual results
+            self.log_test_result("Knowledge Base CRUD - Create", create_passed, create_details)
+            self.log_test_result("Knowledge Base CRUD - List", list_passed, list_details)
+            self.log_test_result("Knowledge Base CRUD - Get", get_passed, get_details)
+            self.log_test_result("Knowledge Base CRUD - Update", update_passed, update_details)
+            self.log_test_result("Knowledge Base CRUD - Delete", delete_passed, delete_details)
+            self.log_test_result("Knowledge Base CRUD - Error Handling", error_handling_passed, error_details)
+            
+            details = f"Create: {create_passed}, List: {list_passed}, Get: {get_passed}, " \
+                     f"Update: {update_passed}, Delete: {delete_passed}, Errors: {error_handling_passed}"
+            
+            self.log_test_result("KNOWLEDGE BASE CRUD Operations", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("KNOWLEDGE BASE CRUD Operations", False, f"Exception: {str(e)}")
+    
+    def test_email_accounts_crud_operations(self):
+        """Test 7: EMAIL ACCOUNTS CRUD Operations - Create, Read, Update, Delete, Toggle with connection management"""
+        print("\n📧 Testing EMAIL ACCOUNTS CRUD Operations...")
+        
+        created_account_id = None
+        try:
+            # Test 7a: POST /api/email-accounts - Create new email account
+            account_data = {
+                "name": "Test Email Account",
+                "email": "test.crud@example.com",
+                "provider": "gmail",
+                "username": "test.crud@example.com",
+                "password": "test_app_password_123",
+                "persona": "Professional test assistant",
+                "signature": "Best regards,\nTest Account",
+                "auto_send": False
+            }
+            
+            try:
+                response = requests.post(f"{API_BASE}/email-accounts", json=account_data, timeout=15)
+                create_passed = response.status_code in [200, 201]
+                if create_passed:
+                    created_account = response.json()
+                    created_account_id = created_account.get('id')
+                    # Verify password is masked in response
+                    password_masked = created_account.get('password') == '***'
+                    create_details = f"Status: {response.status_code}, ID: {created_account_id}, Password masked: {password_masked}"
+                else:
+                    create_details = f"Status: {response.status_code}, Error: {response.text}"
+            except Exception as e:
+                create_passed = False
+                create_details = f"Error: {str(e)}"
+            
+            # Test 7b: GET /api/email-accounts - List all accounts (passwords masked)
+            try:
+                response = requests.get(f"{API_BASE}/email-accounts", timeout=10)
+                list_passed = (response.status_code == 200 and isinstance(response.json(), list))
+                if list_passed:
+                    accounts_list = response.json()
+                    # Verify all passwords are masked
+                    passwords_masked = all(acc.get('password') == '***' for acc in accounts_list)
+                    list_details = f"Status: {response.status_code}, Count: {len(accounts_list)}, Passwords masked: {passwords_masked}"
+                else:
+                    list_details = f"Status: {response.status_code}"
+            except Exception as e:
+                list_passed = False
+                list_details = f"Error: {str(e)}"
+            
+            # Test 7c: GET /api/email-accounts/{id} - Get specific account
+            get_passed = False
+            if created_account_id:
+                try:
+                    response = requests.get(f"{API_BASE}/email-accounts/{created_account_id}", timeout=10)
+                    get_passed = (response.status_code == 200 and 
+                                response.json().get('id') == created_account_id and
+                                response.json().get('password') == '***')
+                    get_details = f"Status: {response.status_code}, Password masked: {response.json().get('password') == '***' if response.status_code == 200 else 'N/A'}"
+                except Exception as e:
+                    get_details = f"Error: {str(e)}"
+            else:
+                get_details = "Skipped - no created account ID"
+            
+            # Test 7d: PUT /api/email-accounts/{id} - Update account and handle connection reset
+            update_passed = False
+            if created_account_id:
+                updated_data = account_data.copy()
+                updated_data["name"] = "Updated Test Email Account"
+                updated_data["persona"] = "Updated professional test assistant"
+                updated_data["password"] = "updated_test_password_456"  # This should trigger connection reset
+                
+                try:
+                    response = requests.put(f"{API_BASE}/email-accounts/{created_account_id}", json=updated_data, timeout=15)
+                    update_passed = response.status_code == 200
+                    if update_passed:
+                        updated_account = response.json()
+                        password_masked = updated_account.get('password') == '***'
+                        update_details = f"Status: {response.status_code}, Password masked: {password_masked}"
+                    else:
+                        update_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    update_passed = False
+                    update_details = f"Error: {str(e)}"
+            else:
+                update_details = "Skipped - no created account ID"
+            
+            # Test 7e: PUT /api/email-accounts/{id}/toggle - Toggle account active status
+            toggle_passed = False
+            if created_account_id:
+                try:
+                    response = requests.put(f"{API_BASE}/email-accounts/{created_account_id}/toggle", timeout=10)
+                    toggle_passed = response.status_code == 200
+                    toggle_details = f"Status: {response.status_code}"
+                    
+                    # Test toggle again to verify it works both ways
+                    if toggle_passed:
+                        response2 = requests.put(f"{API_BASE}/email-accounts/{created_account_id}/toggle", timeout=10)
+                        toggle_passed = response2.status_code == 200
+                        toggle_details += f", Second toggle: {response2.status_code}"
+                        
+                except Exception as e:
+                    toggle_passed = False
+                    toggle_details = f"Error: {str(e)}"
+            else:
+                toggle_details = "Skipped - no created account ID"
+            
+            # Test 7f: DELETE /api/email-accounts/{id} - Delete account and cleanup connections
+            delete_passed = False
+            if created_account_id:
+                try:
+                    response = requests.delete(f"{API_BASE}/email-accounts/{created_account_id}", timeout=10)
+                    delete_passed = response.status_code in [200, 204]
+                    delete_details = f"Status: {response.status_code}"
+                    
+                    # Verify deletion
+                    if delete_passed:
+                        verify_response = requests.get(f"{API_BASE}/email-accounts/{created_account_id}", timeout=10)
+                        delete_passed = verify_response.status_code == 404
+                        delete_details += f", Verification: {verify_response.status_code}"
+                        
+                except Exception as e:
+                    delete_passed = False
+                    delete_details = f"Error: {str(e)}"
+            else:
+                delete_details = "Skipped - no created account ID"
+            
+            # Test 7g: Error handling - Get non-existent account
+            try:
+                response = requests.get(f"{API_BASE}/email-accounts/non-existent-id", timeout=10)
+                error_handling_passed = response.status_code == 404
+                error_details = f"Status: {response.status_code}"
+            except Exception as e:
+                error_handling_passed = False
+                error_details = f"Error: {str(e)}"
+            
+            all_passed = (create_passed and list_passed and get_passed and 
+                         update_passed and toggle_passed and delete_passed and error_handling_passed)
+            
+            # Log individual results
+            self.log_test_result("Email Accounts CRUD - Create", create_passed, create_details)
+            self.log_test_result("Email Accounts CRUD - List", list_passed, list_details)
+            self.log_test_result("Email Accounts CRUD - Get", get_passed, get_details)
+            self.log_test_result("Email Accounts CRUD - Update", update_passed, update_details)
+            self.log_test_result("Email Accounts CRUD - Toggle", toggle_passed, toggle_details)
+            self.log_test_result("Email Accounts CRUD - Delete", delete_passed, delete_details)
+            self.log_test_result("Email Accounts CRUD - Error Handling", error_handling_passed, error_details)
+            
+            details = f"Create: {create_passed}, List: {list_passed}, Get: {get_passed}, " \
+                     f"Update: {update_passed}, Toggle: {toggle_passed}, Delete: {delete_passed}, Errors: {error_handling_passed}"
+            
+            self.log_test_result("EMAIL ACCOUNTS CRUD Operations", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("EMAIL ACCOUNTS CRUD Operations", False, f"Exception: {str(e)}")
+    
+    def test_individual_polling_control(self):
+        """Test 8: INDIVIDUAL POLLING CONTROL - Start, Stop, Status for specific accounts"""
+        print("\n🎛️ Testing INDIVIDUAL POLLING CONTROL...")
         
         try:
-            # Test 5a: GET /api/dashboard/stats
+            # Get an existing active account for testing
+            accounts_response = requests.get(f"{API_BASE}/email-accounts", timeout=10)
+            if accounts_response.status_code != 200 or not accounts_response.json():
+                self.log_test_result("Individual Polling Control", False, "No email accounts available for testing")
+                return
+            
+            test_account = accounts_response.json()[0]
+            account_id = test_account['id']
+            
+            # Test 8a: POST /api/email-accounts/{id}/polling with action "status" - Get polling status
+            try:
+                status_data = {"action": "status"}
+                response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=status_data, timeout=10)
+                status_passed = (response.status_code == 200 and 
+                               'polling_active' in response.json() and
+                               'has_connection' in response.json())
+                if status_passed:
+                    initial_status = response.json()
+                    status_details = f"Status: {response.status_code}, Active: {initial_status.get('polling_active')}"
+                else:
+                    status_details = f"Status: {response.status_code}"
+            except Exception as e:
+                status_passed = False
+                status_details = f"Error: {str(e)}"
+            
+            # Test 8b: POST /api/email-accounts/{id}/polling with action "stop" - Stop polling
+            try:
+                stop_data = {"action": "stop"}
+                response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=stop_data, timeout=10)
+                stop_passed = response.status_code == 200
+                stop_details = f"Status: {response.status_code}"
+            except Exception as e:
+                stop_passed = False
+                stop_details = f"Error: {str(e)}"
+            
+            # Test 8c: Verify polling stopped
+            verify_stop_passed = False
+            if stop_passed:
+                try:
+                    status_data = {"action": "status"}
+                    response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=status_data, timeout=10)
+                    if response.status_code == 200:
+                        status_after_stop = response.json()
+                        verify_stop_passed = not status_after_stop.get('polling_active', True)
+                        verify_stop_details = f"Status: {response.status_code}, Active after stop: {status_after_stop.get('polling_active')}"
+                    else:
+                        verify_stop_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    verify_stop_details = f"Error: {str(e)}"
+            else:
+                verify_stop_details = "Skipped - stop failed"
+            
+            # Test 8d: POST /api/email-accounts/{id}/polling with action "start" - Start polling
+            try:
+                start_data = {"action": "start"}
+                response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=start_data, timeout=10)
+                start_passed = response.status_code == 200
+                start_details = f"Status: {response.status_code}"
+            except Exception as e:
+                start_passed = False
+                start_details = f"Error: {str(e)}"
+            
+            # Test 8e: Verify polling started
+            verify_start_passed = False
+            if start_passed:
+                try:
+                    status_data = {"action": "status"}
+                    response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=status_data, timeout=10)
+                    if response.status_code == 200:
+                        status_after_start = response.json()
+                        verify_start_passed = status_after_start.get('polling_active', False)
+                        verify_start_details = f"Status: {response.status_code}, Active after start: {status_after_start.get('polling_active')}"
+                    else:
+                        verify_start_details = f"Status: {response.status_code}"
+                except Exception as e:
+                    verify_start_details = f"Error: {str(e)}"
+            else:
+                verify_start_details = "Skipped - start failed"
+            
+            # Test 8f: GET /api/polling/accounts-status - Get status for all accounts
+            try:
+                response = requests.get(f"{API_BASE}/polling/accounts-status", timeout=10)
+                all_status_passed = (response.status_code == 200 and 
+                                   'accounts' in response.json() and
+                                   'polling_service_running' in response.json())
+                if all_status_passed:
+                    all_status_data = response.json()
+                    all_status_details = f"Status: {response.status_code}, Service running: {all_status_data.get('polling_service_running')}, Accounts: {len(all_status_data.get('accounts', []))}"
+                else:
+                    all_status_details = f"Status: {response.status_code}"
+            except Exception as e:
+                all_status_passed = False
+                all_status_details = f"Error: {str(e)}"
+            
+            # Test 8g: Error handling - Invalid action
+            try:
+                invalid_data = {"action": "invalid_action"}
+                response = requests.post(f"{API_BASE}/email-accounts/{account_id}/polling", json=invalid_data, timeout=10)
+                error_handling_passed = response.status_code == 400
+                error_details = f"Status: {response.status_code}"
+            except Exception as e:
+                error_handling_passed = False
+                error_details = f"Error: {str(e)}"
+            
+            # Test 8h: Error handling - Non-existent account
+            try:
+                status_data = {"action": "status"}
+                response = requests.post(f"{API_BASE}/email-accounts/non-existent-id/polling", json=status_data, timeout=10)
+                account_error_passed = response.status_code == 404
+                account_error_details = f"Status: {response.status_code}"
+            except Exception as e:
+                account_error_passed = False
+                account_error_details = f"Error: {str(e)}"
+            
+            all_passed = (status_passed and stop_passed and verify_stop_passed and 
+                         start_passed and verify_start_passed and all_status_passed and
+                         error_handling_passed and account_error_passed)
+            
+            # Log individual results
+            self.log_test_result("Polling Control - Status Check", status_passed, status_details)
+            self.log_test_result("Polling Control - Stop", stop_passed, stop_details)
+            self.log_test_result("Polling Control - Verify Stop", verify_stop_passed, verify_stop_details)
+            self.log_test_result("Polling Control - Start", start_passed, start_details)
+            self.log_test_result("Polling Control - Verify Start", verify_start_passed, verify_start_details)
+            self.log_test_result("Polling Control - All Accounts Status", all_status_passed, all_status_details)
+            self.log_test_result("Polling Control - Invalid Action Error", error_handling_passed, error_details)
+            self.log_test_result("Polling Control - Non-existent Account Error", account_error_passed, account_error_details)
+            
+            details = f"Status: {status_passed}, Stop: {stop_passed}, Start: {start_passed}, " \
+                     f"All Status: {all_status_passed}, Error Handling: {error_handling_passed and account_error_passed}"
+            
+            self.log_test_result("INDIVIDUAL POLLING CONTROL", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("INDIVIDUAL POLLING CONTROL", False, f"Exception: {str(e)}")
+    
+    def test_integration_workflows(self):
+        """Test 9: INTEGRATION TESTS - Complete CRUD workflows and data integrity"""
+        print("\n🔄 Testing INTEGRATION WORKFLOWS...")
+        
+        try:
+            # Test 9a: Complete Intent Workflow - Create→Read→Update→Delete
+            intent_workflow_passed = True
+            intent_id = None
+            
+            try:
+                # Create
+                intent_data = {
+                    "name": "Integration Test Intent",
+                    "description": "Integration testing intent for complete workflow validation",
+                    "examples": ["integration test", "workflow validation"],
+                    "confidence_threshold": 0.8
+                }
+                response = requests.post(f"{API_BASE}/intents", json=intent_data, timeout=15)
+                if response.status_code in [200, 201]:
+                    intent_id = response.json().get('id')
+                else:
+                    intent_workflow_passed = False
+                
+                # Read
+                if intent_id:
+                    response = requests.get(f"{API_BASE}/intents/{intent_id}", timeout=10)
+                    if response.status_code != 200:
+                        intent_workflow_passed = False
+                
+                # Update
+                if intent_id:
+                    updated_data = intent_data.copy()
+                    updated_data["description"] = "Updated integration testing intent"
+                    response = requests.put(f"{API_BASE}/intents/{intent_id}", json=updated_data, timeout=15)
+                    if response.status_code != 200:
+                        intent_workflow_passed = False
+                
+                # Delete
+                if intent_id:
+                    response = requests.delete(f"{API_BASE}/intents/{intent_id}", timeout=10)
+                    if response.status_code not in [200, 204]:
+                        intent_workflow_passed = False
+                        
+            except Exception as e:
+                intent_workflow_passed = False
+            
+            intent_details = f"Complete workflow: {intent_workflow_passed}"
+            
+            # Test 9b: Complete Knowledge Base Workflow
+            kb_workflow_passed = True
+            kb_id = None
+            
+            try:
+                # Create
+                kb_data = {
+                    "title": "Integration Test KB",
+                    "content": "Integration testing knowledge base entry for workflow validation",
+                    "tags": ["integration", "testing"]
+                }
+                response = requests.post(f"{API_BASE}/knowledge-base", json=kb_data, timeout=15)
+                if response.status_code in [200, 201]:
+                    kb_id = response.json().get('id')
+                else:
+                    kb_workflow_passed = False
+                
+                # Read
+                if kb_id:
+                    response = requests.get(f"{API_BASE}/knowledge-base/{kb_id}", timeout=10)
+                    if response.status_code != 200:
+                        kb_workflow_passed = False
+                
+                # Update
+                if kb_id:
+                    updated_data = kb_data.copy()
+                    updated_data["content"] = "Updated integration testing knowledge base entry"
+                    response = requests.put(f"{API_BASE}/knowledge-base/{kb_id}", json=updated_data, timeout=15)
+                    if response.status_code != 200:
+                        kb_workflow_passed = False
+                
+                # Delete
+                if kb_id:
+                    response = requests.delete(f"{API_BASE}/knowledge-base/{kb_id}", timeout=10)
+                    if response.status_code not in [200, 204]:
+                        kb_workflow_passed = False
+                        
+            except Exception as e:
+                kb_workflow_passed = False
+            
+            kb_details = f"Complete workflow: {kb_workflow_passed}"
+            
+            # Test 9c: Complete Email Account Workflow
+            account_workflow_passed = True
+            account_id = None
+            
+            try:
+                # Create
+                account_data = {
+                    "name": "Integration Test Account",
+                    "email": "integration.test@example.com",
+                    "provider": "gmail",
+                    "username": "integration.test@example.com",
+                    "password": "integration_test_password",
+                    "auto_send": False
+                }
+                response = requests.post(f"{API_BASE}/email-accounts", json=account_data, timeout=15)
+                if response.status_code in [200, 201]:
+                    account_id = response.json().get('id')
+                else:
+                    account_workflow_passed = False
+                
+                # Read
+                if account_id:
+                    response = requests.get(f"{API_BASE}/email-accounts/{account_id}", timeout=10)
+                    if response.status_code != 200:
+                        account_workflow_passed = False
+                
+                # Update
+                if account_id:
+                    updated_data = account_data.copy()
+                    updated_data["name"] = "Updated Integration Test Account"
+                    response = requests.put(f"{API_BASE}/email-accounts/{account_id}", json=updated_data, timeout=15)
+                    if response.status_code != 200:
+                        account_workflow_passed = False
+                
+                # Toggle
+                if account_id:
+                    response = requests.put(f"{API_BASE}/email-accounts/{account_id}/toggle", timeout=10)
+                    if response.status_code != 200:
+                        account_workflow_passed = False
+                
+                # Delete
+                if account_id:
+                    response = requests.delete(f"{API_BASE}/email-accounts/{account_id}", timeout=10)
+                    if response.status_code not in [200, 204]:
+                        account_workflow_passed = False
+                        
+            except Exception as e:
+                account_workflow_passed = False
+            
+            account_details = f"Complete workflow: {account_workflow_passed}"
+            
+            # Test 9d: Data Integrity - Verify embeddings are generated and maintained
+            integrity_passed = True
+            try:
+                # Check that existing intents have embeddings
+                response = requests.get(f"{API_BASE}/intents", timeout=10)
+                if response.status_code == 200:
+                    intents = response.json()
+                    # We can't directly check embeddings via API, but we can verify the system works
+                    integrity_passed = len(intents) > 0
+                else:
+                    integrity_passed = False
+                    
+                # Check that existing KB entries have embeddings
+                response = requests.get(f"{API_BASE}/knowledge-base", timeout=10)
+                if response.status_code == 200:
+                    kb_entries = response.json()
+                    integrity_passed = integrity_passed and len(kb_entries) > 0
+                else:
+                    integrity_passed = False
+                    
+            except Exception as e:
+                integrity_passed = False
+            
+            integrity_details = f"Data integrity maintained: {integrity_passed}"
+            
+            all_passed = (intent_workflow_passed and kb_workflow_passed and 
+                         account_workflow_passed and integrity_passed)
+            
+            # Log individual results
+            self.log_test_result("Integration - Intent Workflow", intent_workflow_passed, intent_details)
+            self.log_test_result("Integration - KB Workflow", kb_workflow_passed, kb_details)
+            self.log_test_result("Integration - Account Workflow", account_workflow_passed, account_details)
+            self.log_test_result("Integration - Data Integrity", integrity_passed, integrity_details)
+            
+            details = f"Intent: {intent_workflow_passed}, KB: {kb_workflow_passed}, " \
+                     f"Account: {account_workflow_passed}, Integrity: {integrity_passed}"
+            
+            self.log_test_result("INTEGRATION WORKFLOWS", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("INTEGRATION WORKFLOWS", False, f"Exception: {str(e)}")
+    
+    def test_api_endpoints(self):
+        """Test 10: Basic API Endpoints - dashboard stats, polling status, basic endpoints"""
+        print("\n🌐 Testing Basic API Endpoints...")
+        
+        try:
+            # Test 10a: GET /api/dashboard/stats
             try:
                 response = requests.get(f"{API_BASE}/dashboard/stats", timeout=10)
                 stats_passed = (response.status_code == 200 and 
@@ -389,7 +1105,7 @@ class EmailAssistantTester:
                 stats_passed = False
                 stats_details = f"Error: {str(e)}"
             
-            # Test 5b: GET /api/polling/status
+            # Test 10b: GET /api/polling/status
             try:
                 response = requests.get(f"{API_BASE}/polling/status", timeout=10)
                 polling_status_passed = (response.status_code == 200 and 
@@ -399,37 +1115,7 @@ class EmailAssistantTester:
                 polling_status_passed = False
                 polling_details = f"Error: {str(e)}"
             
-            # Test 5c: GET /api/intents
-            try:
-                response = requests.get(f"{API_BASE}/intents", timeout=10)
-                intents_passed = (response.status_code == 200 and 
-                                isinstance(response.json(), list))
-                intents_details = f"Status: {response.status_code}, Count: {len(response.json()) if response.status_code == 200 else 0}"
-            except Exception as e:
-                intents_passed = False
-                intents_details = f"Error: {str(e)}"
-            
-            # Test 5d: GET /api/knowledge-base
-            try:
-                response = requests.get(f"{API_BASE}/knowledge-base", timeout=10)
-                kb_passed = (response.status_code == 200 and 
-                           isinstance(response.json(), list))
-                kb_details = f"Status: {response.status_code}, Count: {len(response.json()) if response.status_code == 200 else 0}"
-            except Exception as e:
-                kb_passed = False
-                kb_details = f"Error: {str(e)}"
-            
-            # Test 5e: GET /api/email-accounts
-            try:
-                response = requests.get(f"{API_BASE}/email-accounts", timeout=10)
-                accounts_passed = (response.status_code == 200 and 
-                                 isinstance(response.json(), list))
-                accounts_details = f"Status: {response.status_code}, Count: {len(response.json()) if response.status_code == 200 else 0}"
-            except Exception as e:
-                accounts_passed = False
-                accounts_details = f"Error: {str(e)}"
-            
-            # Test 5f: POST /api/emails/test
+            # Test 10c: POST /api/emails/test
             try:
                 test_data = {
                     "subject": "API Test Email",
@@ -450,25 +1136,19 @@ class EmailAssistantTester:
                 test_email_passed = False
                 test_email_details = f"Error: {str(e)}"
             
-            all_passed = (stats_passed and polling_status_passed and intents_passed and 
-                         kb_passed and accounts_passed and test_email_passed)
+            all_passed = (stats_passed and polling_status_passed and test_email_passed)
             
             # Log individual endpoint results
             self.log_test_result("API - Dashboard Stats", stats_passed, stats_details)
             self.log_test_result("API - Polling Status", polling_status_passed, polling_details)
-            self.log_test_result("API - Intents", intents_passed, intents_details)
-            self.log_test_result("API - Knowledge Base", kb_passed, kb_details)
-            self.log_test_result("API - Email Accounts", accounts_passed, accounts_details)
             self.log_test_result("API - Test Email Processing", test_email_passed, test_email_details)
             
-            details = f"Stats: {stats_passed}, Polling: {polling_status_passed}, " \
-                     f"Intents: {intents_passed}, KB: {kb_passed}, " \
-                     f"Accounts: {accounts_passed}, Test Email: {test_email_passed}"
+            details = f"Stats: {stats_passed}, Polling: {polling_status_passed}, Test Email: {test_email_passed}"
             
-            self.log_test_result("API Endpoints", all_passed, details)
+            self.log_test_result("Basic API Endpoints", all_passed, details)
             
         except Exception as e:
-            self.log_test_result("API Endpoints", False, f"Exception: {str(e)}")
+            self.log_test_result("Basic API Endpoints", False, f"Exception: {str(e)}")
     
     def print_summary(self):
         """Print test summary"""
