@@ -168,8 +168,32 @@ class AccountPollingStatus(BaseModel):
     last_polled: Optional[str] = None
     last_uid: int = 0
 
+# Define EmailMessage model here to avoid circular imports
+class EmailMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    account_id: str
+    message_id: str
+    thread_id: str
+    subject: str
+    sender: str
+    recipient: str
+    body: str
+    body_html: str = ""
+    received_at: datetime
+    in_reply_to: str = ""
+    references: str = ""
+    status: str = "new"  # new, classifying, drafting, ready_to_send, sent, error
+    intents: List[Dict[str, Any]] = []
+    draft: str = ""
+    draft_html: str = ""
+    validation_result: Optional[Dict[str, Any]] = None
+    processed_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Import email services and model
-from email_services import get_polling_service, EmailConnection, EmailMessage
+from email_services import get_polling_service, EmailConnection
 
 # Global polling service
 polling_service = None
