@@ -1137,11 +1137,16 @@ const EmailAccounts = () => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsCreating(false);
+                  setIsEditing(false);
+                  setEditingAccount(null);
+                  resetAccountForm();
+                }}>
                   Cancel
                 </Button>
                 <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600">
-                  Add Account
+                  {isEditing ? 'Update Account' : 'Add Account'}
                 </Button>
               </div>
             </form>
