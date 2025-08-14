@@ -360,6 +360,38 @@ async def get_knowledge_base():
     kb_items = await db.knowledge_base.find().to_list(1000)
     return [KnowledgeBase(**kb) for kb in kb_items]
 
+@api_router.get("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
+async def get_knowledge_base_item(kb_id: str):
+    kb_doc = await db.knowledge_base.find_one({"id": kb_id})
+    if not kb_doc:
+        raise HTTPException(status_code=404, detail="Knowledge base item not found")
+    return KnowledgeBase(**kb_doc)
+
+@api_router.put("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
+async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate):
+    # Check if KB item exists
+    existing_kb = await db.knowledge_base.find_one({"id": kb_id})
+    if not existing_kb:
+        raise HTTPException(status_code=404, detail="Knowledge base item not found")
+    
+    # Prepare update data
+    update_data = kb.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Regenerate embedding if content changed
+    if existing_kb.get('content', '') != kb.content:
+        update_data["embedding"] = await get_cohere_embedding(kb.content)
+    
+    # Update in database
+    await db.knowledge_base.update_one(
+        {"id": kb_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated KB item
+    updated_kb = await db.knowledge_base.find_one({"id": kb_id})
+    return KnowledgeBase(**updated_kb)
+
 @api_router.delete("/knowledge-base/{kb_id}")
 async def delete_knowledge_base(kb_id: str):
     result = await db.knowledge_base.delete_one({"id": kb_id})
