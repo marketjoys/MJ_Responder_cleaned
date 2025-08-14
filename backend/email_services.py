@@ -14,7 +14,7 @@ import time
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import json
 import uuid
 from email_reply_parser import EmailReplyParser
