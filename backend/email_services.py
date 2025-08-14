@@ -36,7 +36,7 @@ class EmailMessage(BaseModel):
     in_reply_to: str = ""
     references: str = ""
     status: str = "new"  # new, classifying, drafting, ready_to_send, sent, error
-    intents: List[str] = []
+    intents: List[Dict[str, Any]] = []
     draft: str = ""
     draft_html: str = ""
     validation_result: Optional[Dict[str, Any]] = None
