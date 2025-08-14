@@ -558,7 +558,7 @@ class EmailPollingService:
             
             # Get account
             account_doc = await self.db.email_accounts.find_one({"id": email_doc['account_id']})
-            if not account_doc or not account_doc.get('is_active'):
+            if not account_doc or not account_doc.get('is_active') or not account_doc.get('auto_send', True):
                 return
             
             # Create connection
