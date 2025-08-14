@@ -881,6 +881,8 @@ const EmailAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [providers, setProviders] = useState({});
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
