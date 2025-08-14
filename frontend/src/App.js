@@ -1010,16 +1010,23 @@ const EmailAccounts = () => {
           </Button>
         </div>
 
-        {/* Create Account Dialog */}
-        <Dialog open={isCreating} onOpenChange={setIsCreating}>
+        {/* Create/Edit Account Dialog */}
+        <Dialog open={isCreating || isEditing} onOpenChange={(open) => {
+          if (!open) {
+            setIsCreating(false);
+            setIsEditing(false);
+            setEditingAccount(null);
+            resetAccountForm();
+          }
+        }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add Email Account</DialogTitle>
+              <DialogTitle>{isEditing ? 'Edit Email Account' : 'Add Email Account'}</DialogTitle>
               <DialogDescription>
-                Connect a new email account for automated processing.
+                {isEditing ? 'Update email account settings.' : 'Connect a new email account for automated processing.'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateAccount} className="space-y-6">
+            <form onSubmit={isEditing ? handleUpdateAccount : handleCreateAccount} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Account Name</Label>
