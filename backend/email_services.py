@@ -685,7 +685,7 @@ class EmailPollingService:
             logger.error(f"Error generating draft: {str(e)}")
             return {"plain_text": "", "html": ""}
     
-    async def _validate_draft(self, email_message: EmailMessage, draft: Dict[str, str], intents: List[str]) -> Dict[str, Any]:
+    async def _validate_draft(self, email_message, draft: Dict[str, str], intents: List[str]) -> Dict[str, Any]:
         """Validate draft response using existing function"""
         try:
             import importlib
