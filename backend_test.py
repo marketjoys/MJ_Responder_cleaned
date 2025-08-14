@@ -209,6 +209,7 @@ class EmailAssistantTester:
                 return
             
             # Create test email
+            from server import EmailMessage
             test_email = EmailMessage(
                 account_id=account['id'],
                 message_id=f"<test-workflow-{uuid.uuid4()}@example.com>",
