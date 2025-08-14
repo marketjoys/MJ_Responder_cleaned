@@ -247,6 +247,41 @@ async def get_intents():
     intents = await db.intents.find().to_list(1000)
     return [Intent(**intent) for intent in intents]
 
+@api_router.get("/intents/{intent_id}", response_model=Intent)
+async def get_intent(intent_id: str):
+    intent_doc = await db.intents.find_one({"id": intent_id})
+    if not intent_doc:
+        raise HTTPException(status_code=404, detail="Intent not found")
+    return Intent(**intent_doc)
+
+@api_router.put("/intents/{intent_id}", response_model=Intent)
+async def update_intent(intent_id: str, intent: IntentCreate):
+    # Check if intent exists
+    existing_intent = await db.intents.find_one({"id": intent_id})
+    if not existing_intent:
+        raise HTTPException(status_code=404, detail="Intent not found")
+    
+    # Prepare update data
+    update_data = intent.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Regenerate embedding if description or examples changed
+    old_text = f"{existing_intent.get('description', '')} {' '.join(existing_intent.get('examples', []))}"
+    new_text = f"{intent.description} {' '.join(intent.examples)}"
+    
+    if old_text != new_text:
+        update_data["embedding"] = await get_cohere_embedding(new_text)
+    
+    # Update in database
+    await db.intents.update_one(
+        {"id": intent_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated intent
+    updated_intent = await db.intents.find_one({"id": intent_id})
+    return Intent(**updated_intent)
+
 @api_router.delete("/intents/{intent_id}")
 async def delete_intent(intent_id: str):
     result = await db.intents.delete_one({"id": intent_id})
