@@ -448,7 +448,10 @@ class EmailPollingService:
         try:
             # Get or create connection
             if account_id not in self.connections:
+                logger.info(f"🔌 Creating new connection for {account.get('email', account_id)}")
                 self.connections[account_id] = EmailConnection(account)
+            else:
+                logger.debug(f"🔄 Reusing existing connection for {account.get('email', account_id)}")
             
             connection = self.connections[account_id]
             
@@ -460,7 +463,7 @@ class EmailPollingService:
                 connection.uidvalidity = latest_account.get('uidvalidity', None)
                 logger.debug(f"🔄 Updated connection last_uid to {connection.last_uid} for {connection.email}")
             
-            # Fetch new emails
+            # Fetch new emails - connection will be validated/recreated if needed
             new_emails = connection.fetch_new_emails()
             
             # Always update last UID and last_polled in database (even if no new emails)
@@ -474,16 +477,23 @@ class EmailPollingService:
             )
             
             if new_emails:
+                logger.info(f"📥 Processing {len(new_emails)} new emails for {connection.email}")
                 # Process each new email
                 for email_data in new_emails:
                     await self._process_new_email(email_data)
+            else:
+                logger.debug(f"📭 No new emails for {connection.email}")
                 
         except Exception as e:
             logger.error(f"❌ Error polling account {account.get('email', account_id)}: {str(e)}")
-            # Remove connection on error to force reconnect
+            # Remove connection on error to force reconnect on next poll
             if account_id in self.connections:
-                self.connections[account_id].disconnect_imap()
+                try:
+                    self.connections[account_id].disconnect_imap()
+                except Exception as disconnect_error:
+                    logger.warning(f"⚠️  Error disconnecting IMAP for {account.get('email', account_id)}: {disconnect_error}")
                 del self.connections[account_id]
+                logger.info(f"🔌 Removed unhealthy connection for {account.get('email', account_id)}")
     
     async def _process_new_email(self, email_data: Dict[str, Any]):
         """Process a new email through the AI workflow"""
