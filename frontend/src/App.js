@@ -1176,6 +1176,14 @@ const EmailAccounts = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleEditAccount(account)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => toggleAccount(account.id)}
                     >
                       {account.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
