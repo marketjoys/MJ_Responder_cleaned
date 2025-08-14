@@ -120,6 +120,66 @@ backend:
         agent: "testing"
         comment: "POST /api/emails/test endpoint responding correctly with status 200. Successfully processes test emails through the AI workflow."
 
+  - task: "INTENTS CRUD Operations"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All INTENTS CRUD operations working perfectly: GET /api/intents (list), GET /api/intents/{id} (get specific), POST /api/intents (create with embedding), PUT /api/intents/{id} (update with embedding regeneration), DELETE /api/intents/{id} (delete). Error handling for non-existent IDs working correctly (404 responses). Embedding generation and regeneration confirmed working."
+
+  - task: "KNOWLEDGE BASE CRUD Operations"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All KNOWLEDGE BASE CRUD operations working perfectly: GET /api/knowledge-base (list), GET /api/knowledge-base/{id} (get specific), POST /api/knowledge-base (create with embedding), PUT /api/knowledge-base/{id} (update with embedding regeneration), DELETE /api/knowledge-base/{id} (delete). Error handling for non-existent IDs working correctly (404 responses). Embedding generation and regeneration confirmed working."
+
+  - task: "EMAIL ACCOUNTS CRUD Operations"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All EMAIL ACCOUNTS CRUD operations working perfectly: GET /api/email-accounts (list with password masking), GET /api/email-accounts/{id} (get specific with password masking), POST /api/email-accounts (create), PUT /api/email-accounts/{id} (update with connection reset), DELETE /api/email-accounts/{id} (delete with connection cleanup), PUT /api/email-accounts/{id}/toggle (toggle active status). Password masking in responses confirmed working. Connection management and cleanup working correctly."
+
+  - task: "INDIVIDUAL POLLING CONTROL"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Individual polling control working perfectly: POST /api/email-accounts/{id}/polling with actions 'start', 'stop', 'status' all working correctly. GET /api/polling/accounts-status returning comprehensive status for all accounts. Polling state changes verified through status checks. Error handling for invalid actions (400) and non-existent accounts (404) working correctly. Individual account control working without affecting other accounts."
+
+  - task: "INTEGRATION WORKFLOWS"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Complete CRUD workflows tested successfully: Create→Read→Update→Delete flows working for all entity types (Intents, Knowledge Base, Email Accounts). Data integrity maintained throughout operations. Embedding regeneration working correctly when content changes. Connection cleanup working properly when accounts are modified/deleted. All integration tests passing."
+
 frontend:
   - task: "Frontend Testing"
     implemented: true
