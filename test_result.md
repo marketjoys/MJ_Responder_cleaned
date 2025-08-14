@@ -137,9 +137,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "INTENTS CRUD Operations"
-    - "EMAIL ACCOUNTS CRUD Operations"
-    - "KNOWLEDGE BASE CRUD Operations"
+    - "Email Processing Workflow"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
