@@ -160,6 +160,14 @@ class SendEmailRequest(BaseModel):
 class PollingControlRequest(BaseModel):
     action: str  # start, stop, status
 
+class AccountPollingStatus(BaseModel):
+    account_id: str
+    email: str
+    polling_active: bool
+    has_connection: bool
+    last_polled: Optional[str] = None
+    last_uid: int = 0
+
 # Import email services and model
 from email_services import get_polling_service, EmailConnection, EmailMessage
 
