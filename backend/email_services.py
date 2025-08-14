@@ -21,6 +21,30 @@ from email_reply_parser import EmailReplyParser
 
 logger = logging.getLogger(__name__)
 
+# Define models here to avoid circular imports
+class EmailMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    account_id: str
+    message_id: str
+    thread_id: str
+    subject: str
+    sender: str
+    recipient: str
+    body: str
+    body_html: str = ""
+    received_at: datetime
+    in_reply_to: str = ""
+    references: str = ""
+    status: str = "new"  # new, classifying, drafting, ready_to_send, sent, error
+    intents: List[str] = []
+    draft: str = ""
+    draft_html: str = ""
+    validation_result: Optional[Dict[str, Any]] = None
+    processed_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
 class EmailConnection:
     """Handles IMAP and SMTP connections for an email account"""
     
