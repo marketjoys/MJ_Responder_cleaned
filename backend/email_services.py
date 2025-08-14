@@ -607,56 +607,6 @@ class EmailPollingService:
                 {"id": email_id},
                 {"$set": {"status": "send_failed", "error": str(e)}}
             )
-    
-    async def _classify_email_intents(self, email_body: str) -> List[str]:
-        """Classify email intents using existing function"""
-        try:
-            # Import the function dynamically to avoid circular imports
-            import importlib
-            server_module = importlib.import_module('server')
-            classify_func = getattr(server_module, 'classify_email_intents')
-            
-            intents_result = await classify_func(email_body)
-            # Convert to simple list of intent names for consistency
-            if isinstance(intents_result, list) and intents_result:
-                return [intent.get('name', str(intent)) if isinstance(intent, dict) else str(intent) for intent in intents_result]
-            return []
-        except Exception as e:
-            logger.error(f"Error classifying intents: {str(e)}")
-            return []
-    
-    async def _generate_draft(self, email_message, intents: List[str]) -> Dict[str, str]:
-        """Generate draft response using existing function"""
-        try:
-            import importlib
-            server_module = importlib.import_module('server')
-            generate_func = getattr(server_module, 'generate_draft')
-            
-            # Convert intents back to the expected format
-            intents_dict = [{"name": intent, "confidence": 0.8} for intent in intents]
-            
-            draft_result = await generate_func(email_message, intents_dict)
-            return draft_result
-        except Exception as e:
-            logger.error(f"Error generating draft: {str(e)}")
-            return {"plain_text": "", "html": ""}
-    
-    async def _validate_draft(self, email_message, draft: Dict[str, str], intents: List[str]) -> Dict[str, Any]:
-        """Validate draft response using existing function"""
-        try:
-            import importlib
-            server_module = importlib.import_module('server')
-            validate_func = getattr(server_module, 'validate_draft')
-            
-            # Convert intents back to the expected format
-            intents_dict = [{"name": intent, "confidence": 0.8} for intent in intents]
-            
-            validation_result = await validate_func(email_message, draft, intents_dict)
-            return validation_result
-        except Exception as e:
-            logger.error(f"Error validating draft: {str(e)}")
-            return {"status": "FAIL", "message": str(e)}
-
 
 # Global polling service instance
 polling_service = None
