@@ -464,7 +464,7 @@ async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
     email_embedding = await get_cohere_embedding(email_body)
     
     # Get all intents with embeddings
-    intents = await db.intents.find({"embedding": {"$exists": True}}).to_list(1000)
+    intents = await db.intents.find().to_list(1000)
     
     intent_scores = []
     for intent in intents:
