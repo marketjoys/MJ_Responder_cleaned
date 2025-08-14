@@ -922,20 +922,57 @@ const EmailAccounts = () => {
     try {
       await axios.post(`${API}/email-accounts`, formData);
       setIsCreating(false);
-      setFormData({
-        name: '',
-        email: '',
-        provider: '',
-        username: '',
-        password: '',
-        persona: 'Professional and helpful',
-        signature: '',
-        auto_send: true
-      });
+      resetAccountForm();
       fetchAccounts();
     } catch (error) {
       console.error('Error creating account:', error);
     }
+  };
+
+  const handleEditAccount = (account) => {
+    setEditingAccount(account);
+    setFormData({
+      name: account.name,
+      email: account.email,
+      provider: account.provider,
+      username: account.username,
+      password: '', // Don't pre-fill password for security
+      persona: account.persona || 'Professional and helpful',
+      signature: account.signature || '',
+      auto_send: account.auto_send
+    });
+    setIsEditing(true);
+  };
+
+  const handleUpdateAccount = async (e) => {
+    e.preventDefault();
+    try {
+      const updateData = { ...formData };
+      // If password is empty, don't send it (keep existing password)
+      if (!updateData.password.trim()) {
+        delete updateData.password;
+      }
+      await axios.put(`${API}/email-accounts/${editingAccount.id}`, updateData);
+      setIsEditing(false);
+      setEditingAccount(null);
+      resetAccountForm();
+      fetchAccounts();
+    } catch (error) {
+      console.error('Error updating account:', error);
+    }
+  };
+
+  const resetAccountForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      provider: '',
+      username: '',
+      password: '',
+      persona: 'Professional and helpful',
+      signature: '',
+      auto_send: true
+    });
   };
 
   const handleDeleteAccount = async (accountId) => {
