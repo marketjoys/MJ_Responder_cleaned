@@ -1098,9 +1098,12 @@ const EmailAccounts = () => {
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="App password or regular password"
-                    required
+                    placeholder={isEditing ? "Leave empty to keep current password" : "App password or regular password"}
+                    required={!isEditing}
                   />
+                  {isEditing && (
+                    <p className="text-xs text-slate-500 mt-1">Leave empty to keep current password</p>
+                  )}
                 </div>
               </div>
 
