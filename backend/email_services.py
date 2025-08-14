@@ -96,11 +96,24 @@ class EmailConnection:
     
     def fetch_new_emails(self) -> List[Dict[str, Any]]:
         """Fetch new emails from IMAP server"""
-        if not self.imap_connection:
+        # Check if connection exists and is healthy
+        if not self._is_connection_healthy():
             if not self.connect_imap():
+                logger.error(f"❌ Failed to establish IMAP connection for {self.email}")
                 return []
         
         try:
+            # Test connection health by sending a NOOP command
+            try:
+                self.imap_connection.noop()  # Keep alive and test connection
+                logger.debug(f"🔄 Connection confirmed healthy for {self.email}")
+            except Exception as noop_error:
+                logger.warning(f"⚠️  Connection health check failed for {self.email}: {noop_error}")
+                # Try to reconnect
+                self.disconnect_imap()
+                if not self.connect_imap():
+                    return []
+            
             # Check UIDVALIDITY for this mailbox
             try:
                 response = self.imap_connection.response('UIDVALIDITY')
