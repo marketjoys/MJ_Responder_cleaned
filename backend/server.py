@@ -318,8 +318,71 @@ async def get_email_accounts():
         account["password"] = "***"
     return [EmailAccount(**account) for account in accounts]
 
+@api_router.get("/email-accounts/{account_id}", response_model=EmailAccount)
+async def get_email_account(account_id: str):
+    account_doc = await db.email_accounts.find_one({"id": account_id})
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    # Don't return password
+    account_doc["password"] = "***"
+    return EmailAccount(**account_doc)
+
+@api_router.put("/email-accounts/{account_id}", response_model=EmailAccount)
+async def update_email_account(account_id: str, account: EmailAccountCreate):
+    # Check if account exists
+    existing_account = await db.email_accounts.find_one({"id": account_id})
+    if not existing_account:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
+    # Prepare update data
+    update_data = account.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Auto-fill provider settings if not custom
+    if account.provider != "custom" and account.provider in EMAIL_PROVIDERS:
+        provider_config = EMAIL_PROVIDERS[account.provider]
+        update_data["imap_server"] = provider_config["imap_server"]
+        update_data["imap_port"] = provider_config["imap_port"]
+        update_data["smtp_server"] = provider_config["smtp_server"]
+        update_data["smtp_port"] = provider_config["smtp_port"]
+    
+    # If connection settings changed, remove existing connection to force reconnect
+    connection_fields = ['imap_server', 'imap_port', 'smtp_server', 'smtp_port', 'username', 'password']
+    connection_changed = any(existing_account.get(field) != update_data.get(field) for field in connection_fields)
+    
+    if connection_changed:
+        global polling_service
+        if polling_service and account_id in polling_service.connections:
+            try:
+                polling_service.connections[account_id].disconnect_imap()
+                del polling_service.connections[account_id]
+                logger.info(f"🔌 Removed connection for updated account: {account.email}")
+            except Exception as e:
+                logger.warning(f"⚠️  Error removing connection during update: {str(e)}")
+    
+    # Update in database
+    await db.email_accounts.update_one(
+        {"id": account_id},
+        {"$set": update_data}
+    )
+    
+    # Return updated account (without password)
+    updated_account = await db.email_accounts.find_one({"id": account_id})
+    updated_account["password"] = "***"
+    return EmailAccount(**updated_account)
+
 @api_router.delete("/email-accounts/{account_id}")
 async def delete_email_account(account_id: str):
+    # Remove connection if exists
+    global polling_service
+    if polling_service and account_id in polling_service.connections:
+        try:
+            polling_service.connections[account_id].disconnect_imap()
+            del polling_service.connections[account_id]
+            logger.info(f"🔌 Removed connection for deleted account")
+        except Exception as e:
+            logger.warning(f"⚠️  Error removing connection during delete: {str(e)}")
+    
     result = await db.email_accounts.delete_one({"id": account_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Email account not found")
@@ -338,7 +401,81 @@ async def toggle_email_account(account_id: str):
         {"$set": {"is_active": new_status}}
     )
     
+    # If deactivating, remove connection
+    if not new_status:
+        global polling_service
+        if polling_service and account_id in polling_service.connections:
+            try:
+                polling_service.connections[account_id].disconnect_imap()
+                del polling_service.connections[account_id]
+                logger.info(f"🔌 Removed connection for deactivated account: {account.get('email')}")
+            except Exception as e:
+                logger.warning(f"⚠️  Error removing connection during deactivation: {str(e)}")
+    
     return {"message": f"Account {'activated' if new_status else 'deactivated'} successfully"}
+
+@api_router.post("/email-accounts/{account_id}/polling")
+async def control_account_polling(account_id: str, request: PollingControlRequest):
+    """Control polling for individual email account"""
+    account = await db.email_accounts.find_one({"id": account_id})
+    if not account:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
+    global polling_service
+    if not polling_service:
+        raise HTTPException(status_code=500, detail="Polling service not initialized")
+    
+    if request.action == "start":
+        # Activate account and add to polling
+        await db.email_accounts.update_one(
+            {"id": account_id},
+            {"$set": {"is_active": True}}
+        )
+        
+        # Force create new connection on next poll
+        if account_id in polling_service.connections:
+            try:
+                polling_service.connections[account_id].disconnect_imap()
+                del polling_service.connections[account_id]
+            except Exception as e:
+                logger.warning(f"⚠️  Error removing old connection: {str(e)}")
+        
+        return {"message": f"Polling started for account: {account['email']}"}
+    
+    elif request.action == "stop":
+        # Deactivate account and remove from polling
+        await db.email_accounts.update_one(
+            {"id": account_id},
+            {"$set": {"is_active": False}}
+        )
+        
+        # Remove connection
+        if account_id in polling_service.connections:
+            try:
+                polling_service.connections[account_id].disconnect_imap()
+                del polling_service.connections[account_id]
+                logger.info(f"🔌 Stopped polling for account: {account['email']}")
+            except Exception as e:
+                logger.warning(f"⚠️  Error stopping polling: {str(e)}")
+        
+        return {"message": f"Polling stopped for account: {account['email']}"}
+    
+    elif request.action == "status":
+        is_active = account.get("is_active", False)
+        has_connection = account_id in polling_service.connections
+        last_polled = account.get("last_polled")
+        
+        return {
+            "account_id": account_id,
+            "email": account["email"],
+            "polling_active": is_active,
+            "has_connection": has_connection,
+            "last_polled": last_polled.isoformat() if last_polled else None,
+            "last_uid": account.get("last_uid", 0)
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'start', 'stop', or 'status'")
 
 # Knowledge Base Routes
 @api_router.post("/knowledge-base", response_model=KnowledgeBase)
