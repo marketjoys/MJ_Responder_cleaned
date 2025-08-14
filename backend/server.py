@@ -670,6 +670,38 @@ async def get_polling_status():
         }
     return {"status": "stopped"}
 
+@api_router.get("/polling/accounts-status")
+async def get_all_accounts_polling_status():
+    """Get polling status for all accounts"""
+    global polling_service
+    
+    accounts = await db.email_accounts.find().to_list(1000)
+    account_statuses = []
+    
+    for account in accounts:
+        account_id = account["id"]
+        is_active = account.get("is_active", False)
+        has_connection = polling_service and account_id in polling_service.connections if polling_service else False
+        last_polled = account.get("last_polled")
+        
+        account_statuses.append({
+            "account_id": account_id,
+            "email": account["email"],
+            "name": account.get("name", ""),
+            "polling_active": is_active,
+            "has_connection": has_connection,
+            "last_polled": last_polled.isoformat() if last_polled else None,
+            "last_uid": account.get("last_uid", 0)
+        })
+    
+    return {
+        "polling_service_running": polling_service.is_running if polling_service else False,
+        "total_accounts": len(accounts),
+        "active_accounts": len([a for a in account_statuses if a["polling_active"]]),
+        "connected_accounts": len([a for a in account_statuses if a["has_connection"]]),
+        "accounts": account_statuses
+    }
+
 async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
     """Classify email intents using Cohere embeddings"""
     # Get email embedding
