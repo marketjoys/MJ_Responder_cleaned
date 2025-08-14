@@ -182,8 +182,8 @@ class SendEmailRequest(BaseModel):
 class PollingControlRequest(BaseModel):
     action: str  # start, stop, status
 
-# Import email services
-from email_services import get_polling_service, EmailConnection
+# Import email services and model
+from email_services import get_polling_service, EmailConnection, EmailMessage
 
 # Global polling service
 polling_service = None
