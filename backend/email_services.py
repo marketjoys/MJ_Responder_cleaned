@@ -613,81 +613,50 @@ class EmailPollingService:
             )
     
     async def _classify_email_intents(self, email_body: str) -> List[str]:
-        """Classify email intents using API"""
+        """Classify email intents using existing function"""
         try:
-            # Make HTTP request to our own API endpoint
-            import httpx
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://localhost:8001/api/emails/classify-intents",
-                    json={"body": email_body}
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    return result.get("intents", [])
-                else:
-                    logger.error(f"Intent classification failed: {response.text}")
-                    return []
+            # Import the function dynamically to avoid circular imports
+            import importlib
+            server_module = importlib.import_module('server')
+            classify_func = getattr(server_module, 'classify_email_intents')
+            
+            intents_result = await classify_func(email_body)
+            # Convert to simple list of intent names for consistency
+            if isinstance(intents_result, list) and intents_result:
+                return [intent.get('name', str(intent)) if isinstance(intent, dict) else str(intent) for intent in intents_result]
+            return []
         except Exception as e:
             logger.error(f"Error classifying intents: {str(e)}")
             return []
     
     async def _generate_draft(self, email_message: EmailMessage, intents: List[str]) -> Dict[str, str]:
-        """Generate draft response using API"""
+        """Generate draft response using existing function"""
         try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://localhost:8001/api/emails/generate-draft",
-                    json={
-                        "email": {
-                            **email_message.dict(),
-                            "received_at": email_message.received_at.isoformat(),
-                            "created_at": email_message.created_at.isoformat(),
-                            "processed_at": email_message.processed_at.isoformat() if email_message.processed_at else None,
-                            "sent_at": email_message.sent_at.isoformat() if email_message.sent_at else None,
-                        },
-                        "intents": intents
-                    }
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    return {
-                        "plain_text": result.get("plain_text", ""),
-                        "html": result.get("html", "")
-                    }
-                else:
-                    logger.error(f"Draft generation failed: {response.text}")
-                    return {"plain_text": "", "html": ""}
+            import importlib
+            server_module = importlib.import_module('server')
+            generate_func = getattr(server_module, 'generate_draft')
+            
+            # Convert intents back to the expected format
+            intents_dict = [{"name": intent, "confidence": 0.8} for intent in intents]
+            
+            draft_result = await generate_func(email_message, intents_dict)
+            return draft_result
         except Exception as e:
             logger.error(f"Error generating draft: {str(e)}")
             return {"plain_text": "", "html": ""}
     
     async def _validate_draft(self, email_message: EmailMessage, draft: Dict[str, str], intents: List[str]) -> Dict[str, Any]:
-        """Validate draft response using API"""
+        """Validate draft response using existing function"""
         try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://localhost:8001/api/emails/validate-draft",
-                    json={
-                        "email": {
-                            **email_message.dict(),
-                            "received_at": email_message.received_at.isoformat(),
-                            "created_at": email_message.created_at.isoformat(),
-                            "processed_at": email_message.processed_at.isoformat() if email_message.processed_at else None,
-                            "sent_at": email_message.sent_at.isoformat() if email_message.sent_at else None,
-                        },
-                        "draft": draft,
-                        "intents": intents
-                    }
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    return result
-                else:
-                    logger.error(f"Draft validation failed: {response.text}")
-                    return {"status": "FAIL", "message": "Validation API failed"}
+            import importlib
+            server_module = importlib.import_module('server')
+            validate_func = getattr(server_module, 'validate_draft')
+            
+            # Convert intents back to the expected format
+            intents_dict = [{"name": intent, "confidence": 0.8} for intent in intents]
+            
+            validation_result = await validate_func(email_message, draft, intents_dict)
+            return validation_result
         except Exception as e:
             logger.error(f"Error validating draft: {str(e)}")
             return {"status": "FAIL", "message": str(e)}
