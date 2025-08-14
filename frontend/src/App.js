@@ -1389,11 +1389,16 @@ const KnowledgeBase = () => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsCreating(false);
+                  setIsEditing(false);
+                  setEditingKnowledge(null);
+                  resetKnowledgeForm();
+                }}>
                   Cancel
                 </Button>
                 <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600">
-                  Add Knowledge
+                  {isEditing ? 'Update Knowledge' : 'Add Knowledge'}
                 </Button>
               </div>
             </form>
