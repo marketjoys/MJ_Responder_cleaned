@@ -802,6 +802,63 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    global polling_service
+    logger.info("🚀 Starting up email assistant services...")
+    
+    # Initialize email polling service
+    try:
+        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
+        # Start polling in background
+        asyncio.create_task(polling_service.start_polling())
+        logger.info("✅ Email polling service started automatically")
+    except Exception as e:
+        logger.error(f"❌ Failed to start email polling service: {str(e)}")
+    
+    # Initialize email account if not exists (seed data)
+    await initialize_email_accounts()
+
+async def initialize_email_accounts():
+    """Initialize default email accounts if they don't exist"""
+    try:
+        # Check if any email accounts exist
+        existing_accounts = await db.email_accounts.count_documents({})
+        
+        if existing_accounts == 0:
+            logger.info("📧 Initializing default email account...")
+            
+            # Create default Gmail account
+            default_account = {
+                "id": str(uuid.uuid4()),
+                "email": "rohushanshinde@gmail.com",
+                "username": "rohushanshinde@gmail.com",
+                "password": "pajbdmcpcegppguz",  # App password from test files
+                "name": "Rohu Shanshinde",
+                "provider": "gmail",
+                "imap_server": "imap.gmail.com",
+                "imap_port": 993,
+                "smtp_server": "smtp.gmail.com",
+                "smtp_port": 587,
+                "is_active": True,
+                "last_uid": 0,
+                "uidvalidity": None,
+                "last_polled": None,
+                "persona": "I am a helpful AI assistant. I respond professionally and courteously to all emails.",
+                "signature": "Best regards,\nAI Email Assistant",
+                "auto_send": True,
+                "created_at": datetime.utcnow()
+            }
+            
+            await db.email_accounts.insert_one(default_account)
+            logger.info(f"✅ Created default email account: {default_account['email']}")
+        else:
+            logger.info(f"ℹ️  Found {existing_accounts} existing email accounts")
+            
+    except Exception as e:
+        logger.error(f"❌ Error initializing email accounts: {str(e)}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     global polling_service
