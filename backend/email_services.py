@@ -63,6 +63,21 @@ class EmailConnection:
         self.last_uid = account_config.get('last_uid', 0)
         self.uidvalidity = account_config.get('uidvalidity', None)
         
+    def _is_connection_healthy(self) -> bool:
+        """Check if IMAP connection is healthy and ready to use"""
+        if not self.imap_connection:
+            logger.debug(f"🔍 No IMAP connection exists for {self.email}")
+            return False
+        
+        try:
+            # Try to send a NOOP command to test the connection
+            self.imap_connection.noop()
+            logger.debug(f"✅ IMAP connection healthy for {self.email}")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️  IMAP connection unhealthy for {self.email}: {str(e)}")
+            return False
+    
     def connect_imap(self) -> bool:
         """Connect to IMAP server"""
         try:
