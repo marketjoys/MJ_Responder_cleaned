@@ -496,6 +496,9 @@ class EmailPollingService:
             if existing:
                 return  # Skip duplicate
             
+            # Import EmailMessage dynamically to avoid circular imports
+            from server import EmailMessage
+            
             # Create email record
             email_obj = EmailMessage(
                 account_id=email_data['account_id'],
