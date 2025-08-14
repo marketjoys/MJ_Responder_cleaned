@@ -10,7 +10,7 @@ email_account = "rohushanshinde@gmail.com"
 password = "pajbdmcpcegppguz"
 imap_server = "imap.gmail.com"
 imap_port = 993
-current_last_uid = 790
+current_last_uid = 791  # Updated to current system value
 
 def decode_header_value(header_value):
     if not header_value:
