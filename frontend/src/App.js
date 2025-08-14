@@ -582,19 +582,54 @@ const IntentManagement = () => {
       };
       await axios.post(`${API}/intents`, intentData);
       setIsCreating(false);
-      setFormData({
-        name: '',
-        description: '',
-        examples: [''],
-        system_prompt: '',
-        confidence_threshold: 0.7,
-        follow_up_hours: 24,
-        is_meeting_related: false
-      });
+      resetForm();
       fetchIntents();
     } catch (error) {
       console.error('Error creating intent:', error);
     }
+  };
+
+  const handleEditIntent = (intent) => {
+    setEditingIntent(intent);
+    setFormData({
+      name: intent.name,
+      description: intent.description,
+      examples: intent.examples && intent.examples.length > 0 ? intent.examples : [''],
+      system_prompt: intent.system_prompt || '',
+      confidence_threshold: intent.confidence_threshold,
+      follow_up_hours: intent.follow_up_hours,
+      is_meeting_related: intent.is_meeting_related || false
+    });
+    setIsEditing(true);
+  };
+
+  const handleUpdateIntent = async (e) => {
+    e.preventDefault();
+    try {
+      const intentData = {
+        ...formData,
+        examples: formData.examples.filter(ex => ex.trim() !== '')
+      };
+      await axios.put(`${API}/intents/${editingIntent.id}`, intentData);
+      setIsEditing(false);
+      setEditingIntent(null);
+      resetForm();
+      fetchIntents();
+    } catch (error) {
+      console.error('Error updating intent:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      examples: [''],
+      system_prompt: '',
+      confidence_threshold: 0.7,
+      follow_up_hours: 24,
+      is_meeting_related: false
+    });
   };
 
   const handleDeleteIntent = async (intentId) => {
