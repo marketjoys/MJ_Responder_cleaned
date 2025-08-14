@@ -21,9 +21,6 @@ from email_reply_parser import EmailReplyParser
 
 logger = logging.getLogger(__name__)
 
-# Import EmailMessage from server to avoid duplication
-from server import EmailMessage
-
 # EmailMessage will be imported from server to avoid duplication
 
 class EmailConnection:
