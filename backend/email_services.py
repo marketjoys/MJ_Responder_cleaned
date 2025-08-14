@@ -21,6 +21,39 @@ from email_reply_parser import EmailReplyParser
 
 logger = logging.getLogger(__name__)
 
+# Import EmailMessage from server to avoid duplication
+try:
+    from server import EmailMessage
+except ImportError:
+    # Fallback definition if server import fails
+    from pydantic import BaseModel, Field
+    import uuid
+    from datetime import datetime
+    from typing import List, Dict, Any, Optional
+    
+    class EmailMessage(BaseModel):
+        id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+        account_id: str
+        message_id: str
+        thread_id: str
+        subject: str
+        sender: str
+        recipient: str
+        body: str
+        body_html: str = ""
+        received_at: datetime
+        in_reply_to: str = ""
+        references: str = ""
+        status: str = "new"  # new, classifying, drafting, ready_to_send, sent, error
+        intents: List[Dict[str, Any]] = []
+        draft: str = ""
+        draft_html: str = ""
+        validation_result: Optional[Dict[str, Any]] = None
+        processed_at: Optional[datetime] = None
+        sent_at: Optional[datetime] = None
+        error: Optional[str] = None
+        created_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Define models here to avoid circular imports
 class EmailMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
