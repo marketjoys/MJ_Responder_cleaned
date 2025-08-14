@@ -1026,6 +1026,12 @@ async def process_email_async(email_id: str):
             }}
         )
         
+        # Step 4: Auto-send if validation passed and account has auto_send enabled
+        if validation["status"] == "PASS":
+            account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
+            if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
+                await auto_send_email(email_id)
+        
     except Exception as e:
         # Update email with error status
         await db.emails.update_one(
