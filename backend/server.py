@@ -1352,6 +1352,103 @@ async def initialize_knowledge_base():
     except Exception as e:
         logger.error(f"❌ Error initializing knowledge base: {str(e)}")
 
+async def initialize_test_emails():
+    """Initialize test email data for demonstration purposes"""
+    try:
+        existing_emails = await db.emails.count_documents({})
+        
+        if existing_emails == 0:
+            logger.info("📧 Initializing test email data...")
+            
+            # Get the first email account for test emails
+            account = await db.email_accounts.find_one({})
+            if not account:
+                logger.warning("⚠️  No email accounts found, skipping test email initialization")
+                return
+            
+            test_emails = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "account_id": account["id"],
+                    "message_id": f"test-msg-{uuid.uuid4()}",
+                    "thread_id": f"test-thread-{uuid.uuid4()}",
+                    "subject": "Inquiry about your AI Email Assistant",
+                    "sender": "john.doe@example.com",
+                    "recipient": account["email"],
+                    "body": "Hi there! I'm interested in learning more about your AI Email Assistant product. Could you please provide me with information about pricing and features? I'm particularly interested in how it handles customer support emails. Thanks!",
+                    "body_html": "",
+                    "received_at": datetime.utcnow() - timedelta(hours=2),
+                    "in_reply_to": "",
+                    "references": "",
+                    "status": "new",
+                    "intents": [],
+                    "draft": "",
+                    "draft_html": "",
+                    "validation_result": None,
+                    "processed_at": None,
+                    "sent_at": None,
+                    "error": None,
+                    "created_at": datetime.utcnow() - timedelta(hours=2)
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "account_id": account["id"],
+                    "message_id": f"test-msg-{uuid.uuid4()}",
+                    "thread_id": f"test-thread-{uuid.uuid4()}",
+                    "subject": "Partnership Opportunity",
+                    "sender": "sarah.wilson@techcorp.com",
+                    "recipient": account["email"],
+                    "body": "Hello, I represent TechCorp and we're looking for strategic partnerships in the AI automation space. We believe there could be great synergy between our companies. Would you be interested in exploring a potential collaboration? I'd love to schedule a call to discuss this further.",
+                    "body_html": "",
+                    "received_at": datetime.utcnow() - timedelta(hours=1),
+                    "in_reply_to": "",
+                    "references": "",
+                    "status": "new",
+                    "intents": [],
+                    "draft": "",
+                    "draft_html": "",
+                    "validation_result": None,
+                    "processed_at": None,
+                    "sent_at": None,
+                    "error": None,
+                    "created_at": datetime.utcnow() - timedelta(hours=1)
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "account_id": account["id"],
+                    "message_id": f"test-msg-{uuid.uuid4()}",
+                    "thread_id": f"test-thread-{uuid.uuid4()}",
+                    "subject": "Technical Support Needed",
+                    "sender": "mike.johnson@company.com",
+                    "recipient": account["email"],
+                    "body": "I'm having trouble setting up the email integration with our IMAP server. The connection keeps timing out and I'm not sure what configuration settings I should be using. Can someone from your support team help me troubleshoot this issue?",
+                    "body_html": "",
+                    "received_at": datetime.utcnow() - timedelta(minutes=30),
+                    "in_reply_to": "",
+                    "references": "",
+                    "status": "new",
+                    "intents": [],
+                    "draft": "",
+                    "draft_html": "",
+                    "validation_result": None,
+                    "processed_at": None,
+                    "sent_at": None,
+                    "error": None,
+                    "created_at": datetime.utcnow() - timedelta(minutes=30)
+                }
+            ]
+            
+            # Insert test emails
+            for email_data in test_emails:
+                await db.emails.insert_one(email_data)
+            
+            logger.info(f"✅ Created {len(test_emails)} test emails")
+        else:
+            logger.info(f"ℹ️  Found {existing_emails} existing emails")
+            
+    except Exception as e:
+        logger.error(f"❌ Error initializing test emails: {str(e)}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     global polling_service
