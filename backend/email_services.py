@@ -611,6 +611,74 @@ class EmailPollingService:
                 {"id": email_id},
                 {"$set": {"status": "send_failed", "error": str(e)}}
             )
+    
+    async def _classify_email_intents(self, email_body: str) -> List[str]:
+        """Classify email intents using API"""
+        try:
+            # Make HTTP request to our own API endpoint
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://localhost:8001/api/emails/classify-intents",
+                    json={"body": email_body}
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("intents", [])
+                else:
+                    logger.error(f"Intent classification failed: {response.text}")
+                    return []
+        except Exception as e:
+            logger.error(f"Error classifying intents: {str(e)}")
+            return []
+    
+    async def _generate_draft(self, email_message: EmailMessage, intents: List[str]) -> Dict[str, str]:
+        """Generate draft response using API"""
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://localhost:8001/api/emails/generate-draft",
+                    json={
+                        "email": email_message.dict(),
+                        "intents": intents
+                    }
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    return {
+                        "plain_text": result.get("plain_text", ""),
+                        "html": result.get("html", "")
+                    }
+                else:
+                    logger.error(f"Draft generation failed: {response.text}")
+                    return {"plain_text": "", "html": ""}
+        except Exception as e:
+            logger.error(f"Error generating draft: {str(e)}")
+            return {"plain_text": "", "html": ""}
+    
+    async def _validate_draft(self, email_message: EmailMessage, draft: Dict[str, str], intents: List[str]) -> Dict[str, Any]:
+        """Validate draft response using API"""
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://localhost:8001/api/emails/validate-draft",
+                    json={
+                        "email": email_message.dict(),
+                        "draft": draft,
+                        "intents": intents
+                    }
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    return result
+                else:
+                    logger.error(f"Draft validation failed: {response.text}")
+                    return {"status": "FAIL", "message": "Validation API failed"}
+        except Exception as e:
+            logger.error(f"Error validating draft: {str(e)}")
+            return {"status": "FAIL", "message": str(e)}
 
 
 # Global polling service instance
