@@ -920,6 +920,66 @@ async def get_knowledge_context(email_body: str) -> str:
     else:
         return "No relevant knowledge base items found."
 
+async def auto_send_email(email_id: str):
+    """Auto-send approved email if account has auto_send enabled"""
+    try:
+        # Get email
+        email_doc = await db.emails.find_one({"id": email_id})
+        if not email_doc or email_doc['status'] != 'ready_to_send':
+            return
+        
+        # Get account
+        account_doc = await db.email_accounts.find_one({"id": email_doc['account_id']})
+        if not account_doc or not account_doc.get('is_active') or not account_doc.get('auto_send', True):
+            return
+        
+        # Create connection
+        connection = EmailConnection(account_doc)
+        
+        # Extract sender email
+        sender_email = email_doc['sender']
+        if '<' in sender_email:
+            sender_email = sender_email.split('<')[1].split('>')[0]
+        
+        # Prepare reply subject
+        subject = email_doc['subject']
+        if not subject.lower().startswith('re:'):
+            subject = f"Re: {subject}"
+        
+        # Send email
+        success = connection.send_email(
+            to_email=sender_email,
+            subject=subject,
+            body=email_doc['draft'],
+            body_html=email_doc['draft_html'],
+            message_id_to_reply=email_doc['message_id'],
+            references=email_doc.get('references', '')
+        )
+        
+        if success:
+            # Update status to sent
+            await db.emails.update_one(
+                {"id": email_id},
+                {"$set": {
+                    "status": "sent",
+                    "sent_at": datetime.utcnow()
+                }}
+            )
+            logger.info(f"✅ Auto-sent reply for email: {email_doc['subject']}")
+        else:
+            # Mark as failed to send
+            await db.emails.update_one(
+                {"id": email_id},
+                {"$set": {"status": "send_failed"}}
+            )
+            
+    except Exception as e:
+        logger.error(f"❌ Error auto-sending email {email_id}: {str(e)}")
+        await db.emails.update_one(
+            {"id": email_id},
+            {"$set": {"status": "send_failed", "error": str(e)}}
+        )
+
 async def process_email_async(email_id: str):
     """Background task to process email through AI workflow"""
     try:
