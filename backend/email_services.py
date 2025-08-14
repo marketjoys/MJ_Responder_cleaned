@@ -413,12 +413,20 @@ class EmailPollingService:
         self.is_running = True
         logger.info("🚀 Starting email polling service...")
         
+        poll_count = 0
         while self.is_running:
             try:
+                poll_count += 1
+                logger.info(f"🔄 Starting poll cycle #{poll_count}")
+                
                 await self._poll_all_accounts()
+                
+                logger.info(f"✅ Poll cycle #{poll_count} completed. Active connections: {len(self.connections)}")
                 await asyncio.sleep(60)  # Poll every 60 seconds
+                
             except Exception as e:
-                logger.error(f"❌ Error in polling loop: {str(e)}")
+                logger.error(f"❌ Error in polling loop (cycle #{poll_count}): {str(e)}")
+                # Continue running even if one cycle fails
                 await asyncio.sleep(60)
     
     def stop_polling(self):
