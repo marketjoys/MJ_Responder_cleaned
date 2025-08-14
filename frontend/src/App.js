@@ -1335,16 +1335,23 @@ const KnowledgeBase = () => {
           </Button>
         </div>
 
-        {/* Create Knowledge Dialog */}
-        <Dialog open={isCreating} onOpenChange={setIsCreating}>
+        {/* Create/Edit Knowledge Dialog */}
+        <Dialog open={isCreating || isEditing} onOpenChange={(open) => {
+          if (!open) {
+            setIsCreating(false);
+            setIsEditing(false);
+            setEditingKnowledge(null);
+            resetKnowledgeForm();
+          }
+        }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add Knowledge Item</DialogTitle>
+              <DialogTitle>{isEditing ? 'Edit Knowledge Item' : 'Add Knowledge Item'}</DialogTitle>
               <DialogDescription>
-                Add information that your AI assistant can reference when generating responses.
+                {isEditing ? 'Update knowledge information.' : 'Add information that your AI assistant can reference when generating responses.'}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateKnowledge} className="space-y-6">
+            <form onSubmit={isEditing ? handleUpdateKnowledge : handleCreateKnowledge} className="space-y-6">
               <div>
                 <Label htmlFor="title">Title</Label>
                 <Input
