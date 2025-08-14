@@ -1080,6 +1080,7 @@ async def startup_event():
     await initialize_email_accounts()
     await initialize_intents()
     await initialize_knowledge_base()
+    await initialize_test_emails()  # Add test email data
     
     # Initialize email polling service
     try:
