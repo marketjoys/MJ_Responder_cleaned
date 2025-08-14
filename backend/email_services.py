@@ -497,21 +497,15 @@ class EmailPollingService:
     async def _process_email_ai_workflow(self, email_id: str):
         """Process email through AI workflow (same as existing process_email_async)"""
         try:
-            # Import here to avoid circular imports
-            from server import (
-                classify_email_intents, generate_draft, validate_draft, 
-                EmailMessage
-            )
-            
             # Get email
             email_doc = await self.db.emails.find_one({"id": email_id})
             if not email_doc:
                 return
-            
+
             email_message = EmailMessage(**email_doc)
             
-            # Step 1: Classify intents
-            intents = await classify_email_intents(email_message.body)
+            # Step 1: Classify intents - Call API endpoint
+            intents = await self._classify_email_intents(email_message.body)
             
             # Update email with intents
             await self.db.emails.update_one(
@@ -519,8 +513,8 @@ class EmailPollingService:
                 {"$set": {"intents": intents, "status": "classifying"}}
             )
             
-            # Step 2: Generate draft
-            draft = await generate_draft(email_message, intents)
+            # Step 2: Generate draft - Call API endpoint
+            draft = await self._generate_draft(email_message, intents)
             
             # Update email with draft
             await self.db.emails.update_one(
@@ -532,8 +526,8 @@ class EmailPollingService:
                 }}
             )
             
-            # Step 3: Validate draft
-            validation = await validate_draft(email_message, draft, intents)
+            # Step 3: Validate draft - Call API endpoint
+            validation = await self._validate_draft(email_message, draft, intents)
             
             # Update email with validation
             final_status = "ready_to_send" if validation["status"] == "PASS" else "needs_redraft"
