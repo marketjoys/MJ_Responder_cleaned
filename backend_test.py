@@ -1196,6 +1196,15 @@ async def main():
         await tester.test_seed_data_verification()
         await tester.test_email_processing_workflow()
         await tester.test_polling_system()
+        
+        # New comprehensive CRUD tests
+        tester.test_intents_crud_operations()
+        tester.test_knowledge_base_crud_operations()
+        tester.test_email_accounts_crud_operations()
+        tester.test_individual_polling_control()
+        tester.test_integration_workflows()
+        
+        # Basic API endpoints
         tester.test_api_endpoints()
         
         # Print summary
