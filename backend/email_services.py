@@ -540,6 +540,8 @@ class EmailPollingService:
             if not email_doc:
                 return
 
+            # Import EmailMessage dynamically to avoid circular imports
+            from server import EmailMessage
             email_message = EmailMessage(**email_doc)
             
             # Step 1: Classify intents - Call API endpoint
