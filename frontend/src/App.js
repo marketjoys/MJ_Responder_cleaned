@@ -548,6 +548,8 @@ const EmailMonitoring = () => {
 const IntentManagement = () => {
   const [intents, setIntents] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingIntent, setEditingIntent] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
