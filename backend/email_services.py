@@ -640,7 +640,13 @@ class EmailPollingService:
                 response = await client.post(
                     "http://localhost:8001/api/emails/generate-draft",
                     json={
-                        "email": email_message.dict(),
+                        "email": {
+                            **email_message.dict(),
+                            "received_at": email_message.received_at.isoformat(),
+                            "created_at": email_message.created_at.isoformat(),
+                            "processed_at": email_message.processed_at.isoformat() if email_message.processed_at else None,
+                            "sent_at": email_message.sent_at.isoformat() if email_message.sent_at else None,
+                        },
                         "intents": intents
                     }
                 )
