@@ -462,8 +462,6 @@ class EmailPollingService:
                 return  # Skip duplicate
             
             # Create email record
-            from server import EmailMessage  # Import here to avoid circular imports
-            
             email_obj = EmailMessage(
                 account_id=email_data['account_id'],
                 message_id=email_data['message_id'],
