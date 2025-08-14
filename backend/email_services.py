@@ -424,6 +424,14 @@ class EmailPollingService:
             
             connection = self.connections[account_id]
             
+            # Update connection with latest account data from database
+            # This ensures we have the most recent last_uid and uidvalidity
+            latest_account = await self.db.email_accounts.find_one({"id": account_id})
+            if latest_account:
+                connection.last_uid = latest_account.get('last_uid', 0)
+                connection.uidvalidity = latest_account.get('uidvalidity', None)
+                logger.debug(f"🔄 Updated connection last_uid to {connection.last_uid} for {connection.email}")
+            
             # Fetch new emails
             new_emails = connection.fetch_new_emails()
             
