@@ -766,11 +766,16 @@ const IntentManagement = () => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreating(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setIsCreating(false);
+                  setIsEditing(false);
+                  setEditingIntent(null);
+                  resetForm();
+                }}>
                   Cancel
                 </Button>
                 <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600">
-                  Create Intent
+                  {isEditing ? 'Update Intent' : 'Create Intent'}
                 </Button>
               </div>
             </form>
