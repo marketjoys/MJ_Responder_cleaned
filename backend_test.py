@@ -16,7 +16,7 @@ import uuid
 sys.path.append('/app/backend')
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from email_services import EmailPollingService, EmailConnection, EmailMessage
+from email_services import EmailPollingService, EmailConnection
 from dotenv import load_dotenv
 
 # Load environment variables
