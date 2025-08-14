@@ -130,28 +130,6 @@ class EmailAccountCreate(BaseModel):
     signature: str = ""
     auto_send: bool = True
 
-class EmailMessage(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    account_id: str
-    message_id: str
-    thread_id: str
-    subject: str
-    sender: str
-    recipient: str
-    body: str
-    body_html: str = ""
-    received_at: datetime
-    processed_at: Optional[datetime] = None
-    sent_at: Optional[datetime] = None
-    status: str = "new"  # new, processing, replied, escalated, sent, send_failed
-    intents: List[Dict[str, Any]] = []
-    draft: Optional[str] = None
-    draft_html: Optional[str] = None
-    validation_result: Optional[Dict[str, Any]] = None
-    in_reply_to: Optional[str] = None
-    references: Optional[str] = None
-    uid: Optional[int] = None
-
 class KnowledgeBase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
