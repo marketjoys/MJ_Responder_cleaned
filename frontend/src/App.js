@@ -1249,6 +1249,8 @@ const EmailAccounts = () => {
 const KnowledgeBase = () => {
   const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingKnowledge, setEditingKnowledge] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
