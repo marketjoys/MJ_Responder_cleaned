@@ -726,10 +726,59 @@ async def get_all_accounts_polling_status():
         "accounts": account_statuses
     }
 
-async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
-    """Classify email intents using Cohere embeddings"""
+def is_bounce_or_delivery_error(email_message: EmailMessage) -> bool:
+    """Check if email is a bounce/delivery error notification that should be ignored"""
+    
+    # Check sender patterns for delivery errors
+    sender_lower = email_message.sender.lower()
+    delivery_error_senders = [
+        'mailer-daemon', 'postmaster', 'mail delivery subsystem',
+        'delivery-daemon', 'no-reply', 'noreply', 'bounce',
+        'mail-daemon', 'mailerdaemon', 'delivery@', 'bounce@'
+    ]
+    
+    for error_sender in delivery_error_senders:
+        if error_sender in sender_lower:
+            return True
+    
+    # Check subject patterns
+    subject_lower = email_message.subject.lower()
+    delivery_error_subjects = [
+        'delivery status notification', 'undelivered mail returned',
+        'mail delivery failed', 'delivery failure', 'message not delivered',
+        'returned mail', 'undeliverable', 'bounce', 'mail system error',
+        'delivery report', 'non-delivery report', 'message delivery failure',
+        'mail could not be delivered', 'delivery notification'
+    ]
+    
+    for error_subject in delivery_error_subjects:
+        if error_subject in subject_lower:
+            return True
+    
+    # Check body content for delivery error indicators
+    body_lower = email_message.body.lower()
+    delivery_error_body_patterns = [
+        '550 5.1.1', '550 5.4.1', 'smtp error', 'delivery failed',
+        'message was not delivered', 'user unknown', 'mailbox unavailable',
+        'recipient address rejected', 'dns lookup failed'
+    ]
+    
+    for error_pattern in delivery_error_body_patterns:
+        if error_pattern in body_lower:
+            return True
+    
+    return False
+
+async def classify_email_intents(email_message: EmailMessage) -> List[Dict[str, Any]]:
+    """Classify email intents using Cohere embeddings, skip delivery errors"""
+    
+    # Skip delivery error/bounce emails
+    if is_bounce_or_delivery_error(email_message):
+        logger.info(f"🚫 Skipping delivery error/bounce email: {email_message.subject}")
+        return []
+    
     # Get email embedding
-    email_embedding = await get_cohere_embedding(email_body)
+    email_embedding = await get_cohere_embedding(email_message.body)
     
     # Get all intents with embeddings
     intents = await db.intents.find().to_list(1000)
@@ -753,22 +802,53 @@ async def classify_email_intents(email_body: str) -> List[Dict[str, Any]]:
     return intent_scores[:3]
 
 async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, Any]]) -> Dict[str, str]:
-    """Generate email draft using Agent A (Groq API) - ONLY EMAIL BODY CONTENT"""
+    """Generate email draft using Agent A (Groq API) with enhanced KB usage and link insertion"""
+    
+    # Skip generating draft for delivery errors
+    if is_bounce_or_delivery_error(email_message):
+        logger.info(f"🚫 Skipping draft generation for delivery error: {email_message.subject}")
+        return {
+            "plain_text": "",
+            "html": "",
+            "reasoning": "Skipped - delivery error/bounce email detected"
+        }
+    
     # Get account info
     account = await db.email_accounts.find_one({"id": email_message.account_id})
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
-    # Get relevant knowledge base items
-    kb_context = await get_knowledge_context(email_message.body)
+    # Get enhanced knowledge base context with links
+    kb_data = await get_enhanced_knowledge_context(email_message.body, intents)
+    
+    # Get thread history to avoid duplicates
+    thread_history = await get_thread_history(email_message)
     
     # Build context
     intent_descriptions = []
     system_prompts = []
+    all_links = kb_data.get("links", [])
+    
     for intent in intents:
         intent_descriptions.append(f"- {intent['name']}: {intent['description']} (confidence: {intent['confidence']:.2f})")
         if intent.get('system_prompt'):
             system_prompts.append(intent['system_prompt'])
+    
+    # Prepare thread context
+    thread_context = ""
+    if thread_history:
+        thread_context = "THREAD HISTORY (avoid repeating exact content):\n"
+        for i, prev_email in enumerate(thread_history[:2]):  # Show last 2 emails
+            thread_context += f"Previous response {i+1}: {prev_email['draft'][:100]}...\n"
+        thread_context += "\nIMPORTANT: Provide fresh, varied content. Do not repeat previous responses exactly.\n"
+    
+    # Prepare links section
+    links_section = ""
+    if all_links:
+        links_section = f"\nRELEVANT LINKS TO INCLUDE:\n"
+        for link in all_links[:3]:  # Limit to 3 most relevant links
+            links_section += f"- {link}\n"
+        links_section += "IMPORTANT: Include relevant links naturally in your response when appropriate.\n"
     
     system_prompt = f"""You are Agent A - an email draft generator. Generate ONLY the email body content for a professional reply.
 
@@ -782,26 +862,32 @@ EMAIL CONTEXT:
 IDENTIFIED INTENTS:
 {chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents identified"}
 
-ADDITIONAL GUIDANCE:
-{chr(10).join(system_prompts) if system_prompts else ""}
+INTENT-SPECIFIC GUIDANCE:
+{chr(10).join(system_prompts) if system_prompts else "No specific guidance provided"}
 
-KNOWLEDGE BASE CONTEXT:
-{kb_context}
+{kb_data.get("context", "")}
+
+{thread_context}
+
+{links_section}
 
 CRITICAL INSTRUCTIONS:
 1. Generate ONLY the email body content - no subject lines, no signatures, no placeholders
 2. Do not include any reasoning, thinking, or meta-content
-3. Keep response concise (150-250 words unless more detail is needed)
-4. Address all identified intents directly
-5. Maintain a {account.get('persona', 'professional')} tone
-6. Include actionable next steps where appropriate
-7. Do not make commitments about pricing or timelines unless specified in knowledge base
-8. Start directly with the email content (e.g., "Thank you for your inquiry...")
+3. MUST use information from the knowledge base when relevant - this is critical
+4. Include relevant links naturally in the response when provided above
+5. Keep response comprehensive but professional (200-400 words when detailed info is needed)
+6. Address all identified intents directly using knowledge base information
+7. Maintain a {account.get('persona', 'professional')} tone
+8. Include actionable next steps where appropriate
+9. If thread history exists, provide varied content - do not repeat previous responses exactly
+10. Start directly with the email content (e.g., "Thank you for your inquiry...")
+11. When links are provided, integrate them naturally (e.g., "You can learn more at [link]" or "Please visit [link] for details")
 
-Generate the email body content now:"""
+Generate the email body content now, ensuring you use the knowledge base information and include relevant links:"""
 
     messages = [
-        {"role": "user", "content": f"Generate only the email body content for replying to: {email_message.body}"}
+        {"role": "user", "content": f"Generate a comprehensive email body response using the knowledge base information and including relevant links for: {email_message.body}"}
     ]
     
     response = await groq_chat_completion(messages, system_prompt)
@@ -813,26 +899,66 @@ Generate the email body content now:"""
     import re
     clean_response = re.sub(r'<think>.*?</think>', '', clean_response, flags=re.DOTALL)
     clean_response = re.sub(r'PLAIN_TEXT:|HTML:|Subject:|Re:.*?\n', '', clean_response)
-    clean_response = re.sub(r'\*+.*?\*+', '', clean_response)  # Remove asterisk formatting
     clean_response = re.sub(r'^-+|^=+', '', clean_response, flags=re.MULTILINE)  # Remove separator lines
     clean_response = clean_response.strip()
     
-    # Generate simple HTML version from plain text
+    # Generate enhanced HTML version from plain text with proper link formatting
     html_version = clean_response.replace('\n\n', '</p><p>').replace('\n', '<br>')
     if html_version and not html_version.startswith('<p>'):
         html_version = f"<p>{html_version}</p>"
     
+    # Make links clickable in HTML
+    url_pattern = r'(https?://[^\s<>"{}|\\^`[\]]+)'
+    html_version = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', html_version)
+    
     return {
         "plain_text": clean_response,
         "html": html_version,
-        "reasoning": f"Addressed intents: {', '.join([i['name'] for i in intents])}"
+        "reasoning": f"Used KB items: {kb_data.get('items_count', 0)}, Links included: {len(all_links)}, Intents: {', '.join([i['name'] for i in intents])}"
     }
 
 async def validate_draft(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Validate draft using Agent B (Groq API)"""
+    """Enhanced draft validation using Agent B - checks KB usage, links, and thread context"""
+    
+    # Skip validation for delivery errors
+    if is_bounce_or_delivery_error(email_message):
+        return {
+            "status": "SKIP",
+            "feedback": "Delivery error email - no response needed",
+            "coverage_report": "Email identified as delivery error/bounce notification"
+        }
+    
+    # Get enhanced KB context and links for validation
+    kb_data = await get_enhanced_knowledge_context(email_message.body, intents)
+    thread_history = await get_thread_history(email_message)
+    
     intent_descriptions = [f"- {intent['name']}: {intent['description']}" for intent in intents]
     
-    system_prompt = f"""You are Agent B - an email draft validator. Check if the draft correctly addresses the email and intents.
+    # Check for knowledge base usage
+    kb_info_present = kb_data.get("has_relevant_info", False)
+    kb_content_used = any(
+        kb_item["title"].lower() in draft['plain_text'].lower() or 
+        any(word in draft['plain_text'].lower() for word in kb_item["content"].lower().split()[:10])
+        for kb_item in [{"title": "test", "content": kb_data.get("context", "")}]
+    )
+    
+    # Check for links inclusion
+    expected_links = kb_data.get("links", [])
+    links_included = any(link in draft['plain_text'] for link in expected_links) if expected_links else True
+    
+    # Check for thread duplicate avoidance
+    avoids_duplicates = True
+    if thread_history:
+        for prev_email in thread_history:
+            prev_draft = prev_email.get('draft', '')
+            if prev_draft and len(prev_draft) > 50:
+                # Check if current draft is too similar to previous ones
+                similarity_words = set(draft['plain_text'].lower().split()) & set(prev_draft.lower().split())
+                if len(similarity_words) > len(draft['plain_text'].split()) * 0.6:  # More than 60% word overlap
+                    avoids_duplicates = False
+                    break
+    
+    system_prompt = f"""You are Agent B - an enhanced email draft validator. Check if the draft correctly addresses the email, uses knowledge base information, includes relevant links, and avoids duplicating previous responses.
 
 ORIGINAL EMAIL:
 Subject: {email_message.subject}
@@ -842,26 +968,41 @@ Body: {email_message.body}
 IDENTIFIED INTENTS TO ADDRESS:
 {chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents"}
 
+AVAILABLE KNOWLEDGE BASE INFORMATION:
+{kb_data.get("context", "No knowledge base information available")}
+
+EXPECTED LINKS TO INCLUDE:
+{chr(10).join(f"- {link}" for link in expected_links) if expected_links else "No specific links required"}
+
+THREAD HISTORY:
+{f"Previous responses exist - draft should provide varied content" if thread_history else "No previous responses in thread"}
+
 DRAFT TO VALIDATE:
 {draft['plain_text']}
 
 VALIDATION CRITERIA:
-1. Does the draft address each identified intent?
-2. Are the facts consistent and accurate?
-3. Is the tone appropriate and professional?
-4. Are actionable next steps provided where needed?
-5. Is the response length appropriate?
+1. Does the draft address each identified intent appropriately?
+2. Is relevant knowledge base information incorporated into the response?
+3. Are required links included naturally in the response?
+4. Does the response avoid duplicating previous thread responses?
+5. Is the tone appropriate and professional?
+6. Are actionable next steps provided where needed?
+7. Is the response length appropriate for the inquiry complexity?
 
-IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by your explanation.
+AUTOMATED CHECK RESULTS:
+- KB Information Available: {kb_info_present}
+- Expected Links Count: {len(expected_links)}
+- Thread History Present: {len(thread_history) > 0}
 
-Example responses:
-"PASS: The draft addresses all intents professionally and includes actionable next steps."
-"FAIL: The draft does not address the pricing inquiry and lacks specific next steps."
+IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by detailed explanation.
+
+For PASS: The draft must address intents, use available KB information, include relevant links, and provide unique content.
+For FAIL: Clearly state what's missing - KB usage, links, intent coverage, or duplicate content issues.
 
 Validate the draft now:"""
 
     messages = [
-        {"role": "user", "content": "Please validate this draft response and start with PASS: or FAIL:"}
+        {"role": "user", "content": "Please validate this draft response focusing on knowledge base usage, link inclusion, and thread uniqueness. Start with PASS: or FAIL:"}
     ]
     
     validation_response = await groq_chat_completion(messages, system_prompt)
@@ -876,6 +1017,22 @@ Validate the draft now:"""
     # Determine if it's a pass or fail - check the entire response
     is_pass = "PASS:" in validation_response.upper() or validation_response.upper().startswith("PASS")
     
+    # Additional automated checks
+    automated_issues = []
+    if kb_info_present and not any(word in draft['plain_text'].lower() for word in ["pricing", "feature", "product", "service", "support", "meeting", "demo", "consultation"]):
+        automated_issues.append("Knowledge base information not effectively utilized")
+    
+    if expected_links and not links_included:
+        automated_issues.append(f"Expected links not included: {', '.join(expected_links[:2])}")
+    
+    if not avoids_duplicates:
+        automated_issues.append("Response too similar to previous thread responses")
+    
+    # Override to FAIL if automated checks find critical issues
+    if automated_issues and is_pass:
+        is_pass = False
+        validation_response = f"FAIL: {validation_response[5:].strip()} Additionally: {'; '.join(automated_issues)}"
+    
     # Extract just the feedback without the PASS:/FAIL: prefix
     feedback = validation_response
     if validation_response.startswith("PASS:"):
@@ -886,11 +1043,60 @@ Validate the draft now:"""
     return {
         "status": "PASS" if is_pass else "FAIL",
         "feedback": feedback,
-        "coverage_report": validation_response
+        "coverage_report": validation_response,
+        "kb_usage": kb_info_present,
+        "links_included": len([link for link in expected_links if link in draft['plain_text']]),
+        "avoids_duplicates": avoids_duplicates
     }
 
-async def get_knowledge_context(email_body: str) -> str:
-    """Get relevant knowledge base context using embeddings"""
+async def extract_links_from_knowledge_and_prompts(intents: List[Dict[str, Any]], kb_context: str) -> List[str]:
+    """Extract URLs/links from knowledge base content and intent system prompts"""
+    import re
+    
+    links = []
+    
+    # Extract links from knowledge base context
+    url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    kb_links = re.findall(url_pattern, kb_context)
+    links.extend(kb_links)
+    
+    # Extract links from intent system prompts
+    for intent in intents:
+        system_prompt = intent.get('system_prompt', '')
+        prompt_links = re.findall(url_pattern, system_prompt)
+        links.extend(prompt_links)
+    
+    # Remove duplicates while preserving order
+    unique_links = []
+    for link in links:
+        if link not in unique_links:
+            unique_links.append(link)
+    
+    return unique_links
+
+async def get_thread_history(email_message: EmailMessage) -> List[Dict[str, Any]]:
+    """Get previous emails in the same thread to avoid duplicate responses"""
+    
+    # Find emails in the same thread
+    thread_emails = await db.emails.find({
+        "thread_id": email_message.thread_id,
+        "status": {"$in": ["sent", "ready_to_send"]},
+        "id": {"$ne": email_message.id}  # Exclude current email
+    }).sort("received_at", -1).limit(5).to_list(5)
+    
+    history = []
+    for email in thread_emails:
+        history.append({
+            "subject": email.get("subject", ""),
+            "draft": email.get("draft", ""),
+            "intents": [intent.get("name") for intent in email.get("intents", [])],
+            "sent_at": email.get("sent_at")
+        })
+    
+    return history
+
+async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Enhanced knowledge base context with better retrieval and link extraction"""
     # Get email embedding
     email_embedding = await get_cohere_embedding(email_body)
     
@@ -901,24 +1107,63 @@ async def get_knowledge_context(email_body: str) -> str:
     for item in kb_items:
         if "embedding" in item:
             similarity = cosine_similarity(email_embedding, item["embedding"])
-            if similarity >= 0.6:  # Threshold for relevance
+            if similarity >= 0.5:  # Lower threshold for better coverage
                 relevant_items.append({
                     "title": item["title"],
                     "content": item["content"],
+                    "tags": item.get("tags", []),
                     "similarity": similarity
                 })
     
-    # Sort by similarity and take top 3
+    # Also include items that match intent keywords
+    intent_keywords = []
+    for intent in intents:
+        intent_keywords.extend([intent['name'].lower(), intent['description'].lower()])
+    
+    for item in kb_items:
+        item_text = f"{item['title']} {item['content']}".lower()
+        for keyword in intent_keywords:
+            if keyword in item_text and not any(existing['title'] == item['title'] for existing in relevant_items):
+                relevant_items.append({
+                    "title": item["title"],
+                    "content": item["content"],
+                    "tags": item.get("tags", []),
+                    "similarity": 0.6  # Assign moderate similarity for keyword matches
+                })
+                break
+    
+    # Sort by similarity and take top 5 for better coverage
     relevant_items.sort(key=lambda x: x["similarity"], reverse=True)
-    relevant_items = relevant_items[:3]
+    relevant_items = relevant_items[:5]
+    
+    # Extract links from knowledge base
+    all_kb_text = " ".join([item["content"] for item in relevant_items])
+    links = await extract_links_from_knowledge_and_prompts(intents, all_kb_text)
     
     if relevant_items:
-        context = "RELEVANT KNOWLEDGE:\n"
+        context = "RELEVANT KNOWLEDGE BASE INFORMATION:\n"
         for item in relevant_items:
             context += f"- {item['title']}: {item['content']}\n"
-        return context
+        context += f"\nTags: {', '.join(set([tag for item in relevant_items for tag in item.get('tags', [])]))}\n"
+        
+        return {
+            "context": context,
+            "links": links,
+            "items_count": len(relevant_items),
+            "has_relevant_info": True
+        }
     else:
-        return "No relevant knowledge base items found."
+        return {
+            "context": "No highly relevant knowledge base items found. Use general professional tone.",
+            "links": links,
+            "items_count": 0,
+            "has_relevant_info": False
+        }
+
+async def get_knowledge_context(email_body: str) -> str:
+    """Legacy function for backward compatibility"""
+    result = await get_enhanced_knowledge_context(email_body, [])
+    return result["context"]
 
 async def auto_send_email(email_id: str):
     """Auto-send approved email if account has auto_send enabled"""
@@ -990,8 +1235,26 @@ async def process_email_async(email_id: str):
         
         email_message = EmailMessage(**email_doc)
         
-        # Step 1: Classify intents
-        intents = await classify_email_intents(email_message.body)
+        # Step 1: Check if this is a delivery error - skip processing if so
+        if is_bounce_or_delivery_error(email_message):
+            await db.emails.update_one(
+                {"id": email_id},
+                {"$set": {
+                    "status": "ignored", 
+                    "processed_at": datetime.utcnow(),
+                    "intents": [],
+                    "draft": "",
+                    "validation_result": {
+                        "status": "SKIP",
+                        "feedback": "Delivery error/bounce email - no response needed"
+                    }
+                }}
+            )
+            logger.info(f"🚫 Ignored delivery error email: {email_message.subject}")
+            return
+        
+        # Step 2: Classify intents (now takes EmailMessage object)
+        intents = await classify_email_intents(email_message)
         
         # Update email with intents
         await db.emails.update_one(
@@ -999,7 +1262,7 @@ async def process_email_async(email_id: str):
             {"$set": {"intents": intents, "status": "classifying"}}
         )
         
-        # Step 2: Generate draft
+        # Step 3: Generate draft
         draft = await generate_draft(email_message, intents)
         
         # Update email with draft
@@ -1012,11 +1275,18 @@ async def process_email_async(email_id: str):
             }}
         )
         
-        # Step 3: Validate draft
+        # Step 4: Validate draft
         validation = await validate_draft(email_message, draft, intents)
         
+        # Step 5: Determine final status based on validation
+        if validation["status"] == "SKIP":
+            final_status = "ignored"
+        elif validation["status"] == "PASS":
+            final_status = "ready_to_send"
+        else:
+            final_status = "needs_redraft"
+        
         # Update email with validation
-        final_status = "ready_to_send" if validation["status"] == "PASS" else "needs_redraft"
         await db.emails.update_one(
             {"id": email_id},
             {"$set": {
@@ -1026,7 +1296,7 @@ async def process_email_async(email_id: str):
             }}
         )
         
-        # Step 4: Auto-send if validation passed and account has auto_send enabled
+        # Step 6: Auto-send if validation passed and account has auto_send enabled
         if validation["status"] == "PASS":
             account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
             if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
@@ -1038,6 +1308,7 @@ async def process_email_async(email_id: str):
             {"id": email_id},
             {"$set": {"status": "error", "error": str(e)}}
         )
+        logger.error(f"❌ Error processing email {email_id}: {str(e)}")
 
 @api_router.post("/emails/{email_id}/redraft")
 async def redraft_email(email_id: str):
@@ -1217,7 +1488,7 @@ async def initialize_intents():
                         "What packages do you offer?",
                         "I need a quote for your solution"
                     ],
-                    "system_prompt": "Respond professionally to sales inquiries. Provide helpful information, direct to appropriate resources, and suggest next steps like scheduling a demo or consultation.",
+                    "system_prompt": "Respond professionally to sales inquiries. Provide helpful information, direct to appropriate resources like https://example.com/pricing for pricing details, and suggest next steps like scheduling a demo at https://example.com/demo or starting a free trial at https://example.com/trial.",
                     "confidence_threshold": 0.75,
                     "follow_up_hours": 4,
                     "is_meeting_related": False
@@ -1231,8 +1502,8 @@ async def initialize_intents():
                         "I represent a company interested in working together",
                         "Business partnership opportunity",
                         "Strategic alliance proposal"
-                    ],
-                    "system_prompt": "Handle partnership inquiries professionally. Express interest, gather initial information, and direct to appropriate decision makers or partnership team.",
+                    ],  
+                    "system_prompt": "Handle partnership inquiries professionally. Express interest, gather initial information, and direct to appropriate decision makers or partnership team. Share our partnership information at https://example.com/partners and suggest scheduling a partnership discussion call.",
                     "confidence_threshold": 0.8,
                     "follow_up_hours": 24,
                     "is_meeting_related": True
@@ -1247,7 +1518,7 @@ async def initialize_intents():
                         "Technical issue with the system",
                         "How do I configure this?"
                     ],
-                    "system_prompt": "Provide helpful support responses. Acknowledge the issue, provide initial troubleshooting steps if known, and direct to appropriate support channels.",
+                    "system_prompt": "Provide helpful support responses. Acknowledge the issue, provide initial troubleshooting steps if known, and direct to appropriate support channels. Include links to our help center at https://example.com/help and suggest submitting a support ticket at https://example.com/support for detailed assistance.",
                     "confidence_threshold": 0.7,
                     "follow_up_hours": 2,
                     "is_meeting_related": False
@@ -1262,7 +1533,7 @@ async def initialize_intents():
                         "Available for a consultation?",
                         "When can we meet to discuss?"
                     ],
-                    "system_prompt": "Respond positively to meeting requests. Provide available time slots or direct to scheduling system. Confirm meeting purpose and attendees.",
+                    "system_prompt": "Respond positively to meeting requests. Provide available time slots or direct to scheduling system at https://calendly.com/company-meetings. Confirm meeting purpose and attendees. For product demos, also include link to our demo overview at https://example.com/demo.",
                     "confidence_threshold": 0.8,
                     "follow_up_hours": 8,
                     "is_meeting_related": True
@@ -1360,42 +1631,42 @@ async def initialize_knowledge_base():
             kb_entries = [
                 {
                     "title": "Company Overview",
-                    "content": "We are a technology solutions company specializing in AI-powered email automation and business process optimization. Our mission is to help businesses streamline their email communications and improve response times through intelligent automation.",
+                    "content": "We are a technology solutions company specializing in AI-powered email automation and business process optimization. Our mission is to help businesses streamline their email communications and improve response times through intelligent automation. Visit our website at https://example.com/about for more information.",
                     "tags": ["company", "about", "overview", "mission"]
                 },
                 {
                     "title": "Product Features",
-                    "content": "Our AI Email Assistant offers: 1) Automated email classification and intent recognition, 2) AI-powered draft generation with customizable personas, 3) Multi-account email management, 4) Real-time email polling and processing, 5) Intelligent response validation, 6) Customizable knowledge base integration, 7) Auto-sending capabilities with manual override options.",
+                    "content": "Our AI Email Assistant offers: 1) Automated email classification and intent recognition, 2) AI-powered draft generation with customizable personas, 3) Multi-account email management, 4) Real-time email polling and processing, 5) Intelligent response validation, 6) Customizable knowledge base integration, 7) Auto-sending capabilities with manual override options. Learn more at https://example.com/features and see our demo at https://example.com/demo.",
                     "tags": ["product", "features", "capabilities", "automation"]
                 },
                 {
                     "title": "Pricing Information",
-                    "content": "We offer flexible pricing plans: Starter Plan ($29/month) for up to 3 email accounts and 500 emails/month, Professional Plan ($99/month) for up to 10 accounts and 2000 emails/month, Enterprise Plan (custom pricing) for unlimited accounts and volume. All plans include 24/7 support and onboarding assistance.",
+                    "content": "We offer flexible pricing plans: Starter Plan ($29/month) for up to 3 email accounts and 500 emails/month, Professional Plan ($99/month) for up to 10 accounts and 2000 emails/month, Enterprise Plan (custom pricing) for unlimited accounts and volume. All plans include 24/7 support and onboarding assistance. View detailed pricing at https://example.com/pricing and start your free trial at https://example.com/trial.",
                     "tags": ["pricing", "plans", "cost", "subscription"]
                 },
                 {
                     "title": "Support Channels",
-                    "content": "We provide multiple support channels: 1) Email support at support@company.com, 2) Live chat available 9 AM - 6 PM EST, 3) Knowledge base with tutorials and FAQ, 4) Priority phone support for Enterprise customers, 5) Dedicated account managers for Enterprise plans. Average response time is under 2 hours.",
+                    "content": "We provide multiple support channels: 1) Email support at support@company.com, 2) Live chat available 9 AM - 6 PM EST, 3) Knowledge base with tutorials and FAQ at https://example.com/help, 4) Priority phone support for Enterprise customers, 5) Dedicated account managers for Enterprise plans. Average response time is under 2 hours. Submit a support ticket at https://example.com/support.",
                     "tags": ["support", "help", "contact", "assistance"]
                 },
                 {
                     "title": "Meeting Scheduling",
-                    "content": "We're happy to schedule meetings for demos, consultations, or discussions. Available time slots: Monday-Friday 9 AM - 5 PM EST. Meeting types available: 1) Product demo (30 minutes), 2) Consultation call (45 minutes), 3) Technical setup call (60 minutes). Please book at calendly.com/company-meetings or reply with your preferred times.",
+                    "content": "We're happy to schedule meetings for demos, consultations, or discussions. Available time slots: Monday-Friday 9 AM - 5 PM EST. Meeting types available: 1) Product demo (30 minutes), 2) Consultation call (45 minutes), 3) Technical setup call (60 minutes). Please book at https://calendly.com/company-meetings or reply with your preferred times. You can also view our calendar availability at https://example.com/calendar.",
                     "tags": ["meetings", "demo", "consultation", "schedule", "calendar"]
                 },
                 {
                     "title": "Integration Capabilities",
-                    "content": "Our system integrates with: 1) All major email providers (Gmail, Outlook, Yahoo, Custom IMAP/SMTP), 2) CRM systems (Salesforce, HubSpot, Pipedrive), 3) Communication tools (Slack, Microsoft Teams), 4) Calendar systems (Google Calendar, Outlook Calendar), 5) Help desk platforms (Zendesk, ServiceNow). API documentation available for custom integrations.",
+                    "content": "Our system integrates with: 1) All major email providers (Gmail, Outlook, Yahoo, Custom IMAP/SMTP), 2) CRM systems (Salesforce, HubSpot, Pipedrive), 3) Communication tools (Slack, Microsoft Teams), 4) Calendar systems (Google Calendar, Outlook Calendar), 5) Help desk platforms (Zendesk, ServiceNow). API documentation available at https://docs.example.com/api for custom integrations. View integration guides at https://example.com/integrations.",
                     "tags": ["integration", "api", "crm", "email providers", "platforms"]
                 },
                 {
                     "title": "Security and Privacy",
-                    "content": "We prioritize security: 1) End-to-end encryption for all email data, 2) SOC 2 Type II compliance, 3) GDPR compliant data handling, 4) Multi-factor authentication, 5) Regular security audits, 6) Data residency options available. Email credentials are encrypted and stored securely. We never access email content without explicit permission.",
+                    "content": "We prioritize security: 1) End-to-end encryption for all email data, 2) SOC 2 Type II compliance, 3) GDPR compliant data handling, 4) Multi-factor authentication, 5) Regular security audits, 6) Data residency options available. Email credentials are encrypted and stored securely. We never access email content without explicit permission. Read our security whitepaper at https://example.com/security and privacy policy at https://example.com/privacy.",
                     "tags": ["security", "privacy", "compliance", "encryption", "gdpr"]
                 },
                 {
                     "title": "Getting Started",
-                    "content": "To get started: 1) Sign up for a free trial, 2) Connect your email accounts using our secure setup wizard, 3) Configure your AI persona and response preferences, 4) Add knowledge base entries specific to your business, 5) Set up intents for your common email types, 6) Test the system with sample emails. Full onboarding typically takes 15-30 minutes.",
+                    "content": "To get started: 1) Sign up for a free trial at https://example.com/signup, 2) Connect your email accounts using our secure setup wizard, 3) Configure your AI persona and response preferences, 4) Add knowledge base entries specific to your business, 5) Set up intents for your common email types, 6) Test the system with sample emails. Full onboarding typically takes 15-30 minutes. Access our getting started guide at https://example.com/getting-started and watch our tutorial videos at https://example.com/tutorials.",
                     "tags": ["onboarding", "setup", "getting started", "trial", "configuration"]
                 }
             ]
