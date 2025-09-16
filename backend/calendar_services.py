@@ -194,6 +194,298 @@ class MockCalendarService(BaseCalendarService):
             return True
         return False
 
+class CalcomCalendarService(BaseCalendarService):
+    """Cal.com implementation for calendar service"""
+    
+    def __init__(self, credentials: dict, provider_config: dict = None):
+        super().__init__(credentials, provider_config)
+        self.api_key = credentials.get('api_key')
+        self.base_url = os.environ.get('CALCOM_BASE_URL', 'https://api.cal.com/v1')
+        
+        if not self.api_key:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Cal.com API key not provided"
+            )
+        
+        self.headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Cache for event types
+        self.event_types_cache = None
+        self.cache_expiry = None
+    
+    async def _make_request(self, method: str, endpoint: str, data: dict = None, params: dict = None) -> dict:
+        """Make authenticated request to Cal.com API"""
+        url = f"{self.base_url}/{endpoint}"
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.request(
+                    method=method,
+                    url=url,
+                    headers=self.headers,
+                    json=data,
+                    params=params
+                )
+                
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 201:
+                    return response.json()
+                elif response.status_code == 401:
+                    logger.error("Cal.com API authentication failed")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Cal.com authentication failed"
+                    )
+                elif response.status_code == 429:
+                    logger.warning("Cal.com API rate limit exceeded")
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail="Cal.com rate limit exceeded, please try again later"
+                    )
+                else:
+                    logger.error(f"Cal.com API error: {response.status_code} - {response.text}")
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Cal.com API error: {response.text}"
+                    )
+                    
+        except httpx.RequestError as e:
+            logger.error(f"Network error during Cal.com API request: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cal.com service temporarily unavailable"
+            )
+    
+    async def get_calendars(self) -> List[Dict]:
+        """Retrieve list of available calendars from Cal.com"""
+        try:
+            # For Cal.com, we get the user's profile and event types
+            user_data = await self._make_request('GET', 'me')
+            event_types = await self._get_event_types()
+            
+            calendars = [{
+                'id': 'primary',
+                'name': f"Cal.com - {user_data.get('name', 'Calendar')}",
+                'description': f"Cal.com calendar for {user_data.get('email', 'user')}",
+                'timezone': user_data.get('timeZone', 'UTC'),
+                'is_primary': True,
+                'access_role': 'owner',
+                'event_types_count': len(event_types)
+            }]
+            
+            return calendars
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get Cal.com calendars: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve Cal.com calendars"
+            )
+    
+    async def create_event(self, calendar_id: str, event_data: Dict) -> Dict:
+        """Create a new Cal.com booking"""
+        try:
+            # Get available event types
+            event_types = await self._get_event_types()
+            if not event_types:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No event types configured in Cal.com"
+                )
+            
+            # Use the first available event type
+            event_type = event_types[0]
+            
+            # Prepare booking data
+            booking_data = {
+                'eventTypeId': event_type['id'],
+                'start': event_data.get('start_time'),
+                'end': event_data.get('end_time'),
+                'responses': {
+                    'name': event_data.get('attendee_name', 'Calendar User'),
+                    'email': event_data.get('attendee_email', ''),
+                    'notes': event_data.get('description', '')
+                },
+                'metadata': {
+                    'source': 'calendar_integration',
+                    'title': event_data.get('title', 'Calendar Event')
+                }
+            }
+            
+            # Add attendees if provided
+            if event_data.get('attendees'):
+                booking_data['responses']['guests'] = event_data['attendees']
+            
+            created_booking = await self._make_request('POST', 'bookings', data=booking_data)
+            
+            # Convert to standard format
+            return {
+                'id': str(created_booking.get('id')),
+                'title': event_data.get('title', created_booking.get('title', 'Cal.com Booking')),
+                'description': event_data.get('description', ''),
+                'start_time': event_data.get('start_time'),
+                'end_time': event_data.get('end_time'),
+                'location': event_data.get('location', ''),
+                'attendees': event_data.get('attendees', []),
+                'created': created_booking.get('createdAt', datetime.now(timezone.utc).isoformat()),
+                'updated': created_booking.get('updatedAt', datetime.now(timezone.utc).isoformat()),
+                'html_link': f"https://cal.com/booking/{created_booking.get('uid', '')}",
+                'recurrence': event_data.get('recurrence'),
+                'reminders': event_data.get('reminders', [])
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create Cal.com booking: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create Cal.com booking"
+            )
+    
+    async def get_events(self, calendar_id: str, start_time: str = None, 
+                        end_time: str = None, max_results: int = 250) -> List[Dict]:
+        """Retrieve Cal.com bookings as events"""
+        try:
+            params = {}
+            if start_time:
+                params['startTime'] = start_time
+            if end_time:
+                params['endTime'] = end_time
+            if max_results:
+                params['take'] = min(max_results, 250)  # Cal.com API limit
+            
+            bookings_response = await self._make_request('GET', 'bookings', params=params)
+            bookings = bookings_response.get('bookings', [])
+            
+            events = []
+            for booking in bookings:
+                try:
+                    event = {
+                        'id': str(booking.get('id')),
+                        'title': booking.get('title', 'Cal.com Booking'),
+                        'description': booking.get('description', ''),
+                        'start_time': booking.get('startTime', ''),
+                        'end_time': booking.get('endTime', ''),
+                        'location': booking.get('location', ''),
+                        'attendees': [
+                            attendee.get('email', '') 
+                            for attendee in booking.get('attendees', [])
+                            if attendee.get('email')
+                        ],
+                        'created': booking.get('createdAt', ''),
+                        'updated': booking.get('updatedAt', ''),
+                        'html_link': f"https://cal.com/booking/{booking.get('uid', '')}",
+                        'recurrence': None,  # Cal.com handles recurring bookings differently
+                        'reminders': []
+                    }
+                    events.append(event)
+                except Exception as e:
+                    logger.warning(f"Failed to parse Cal.com booking {booking.get('id')}: {e}")
+                    continue
+            
+            return events
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to get Cal.com events: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve Cal.com events"
+            )
+    
+    async def update_event(self, calendar_id: str, event_id: str, event_data: Dict) -> Dict:
+        """Update existing Cal.com booking"""
+        try:
+            update_data = {}
+            
+            if 'start_time' in event_data:
+                update_data['startTime'] = event_data['start_time']
+            if 'end_time' in event_data:
+                update_data['endTime'] = event_data['end_time']
+            if 'description' in event_data:
+                update_data['description'] = event_data['description']
+            if 'title' in event_data:
+                update_data['title'] = event_data['title']
+            
+            updated_booking = await self._make_request('PATCH', f'bookings/{event_id}', data=update_data)
+            
+            return {
+                'id': str(updated_booking.get('id')),
+                'title': updated_booking.get('title', 'Cal.com Booking'),
+                'description': updated_booking.get('description', ''),
+                'start_time': updated_booking.get('startTime', ''),
+                'end_time': updated_booking.get('endTime', ''),
+                'location': updated_booking.get('location', ''),
+                'attendees': [
+                    attendee.get('email', '') 
+                    for attendee in updated_booking.get('attendees', [])
+                    if attendee.get('email')
+                ],
+                'created': updated_booking.get('createdAt', ''),
+                'updated': updated_booking.get('updatedAt', ''),
+                'html_link': f"https://cal.com/booking/{updated_booking.get('uid', '')}",
+                'recurrence': None,
+                'reminders': []
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to update Cal.com booking: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update Cal.com booking"
+            )
+    
+    async def delete_event(self, calendar_id: str, event_id: str) -> bool:
+        """Cancel Cal.com booking"""
+        try:
+            await self._make_request('DELETE', f'bookings/{event_id}')
+            logger.info(f"Successfully cancelled Cal.com booking: {event_id}")
+            return True
+            
+        except HTTPException as e:
+            if e.status_code == 404:
+                logger.warning(f"Cal.com booking not found: {event_id}")
+                return True  # Consider already deleted
+            raise
+        except Exception as e:
+            logger.error(f"Failed to cancel Cal.com booking: {e}")
+            return False
+    
+    async def _get_event_types(self) -> List[Dict]:
+        """Get available event types from Cal.com"""
+        try:
+            # Use cache if available and not expired
+            if (self.event_types_cache and self.cache_expiry and 
+                datetime.now(timezone.utc) < self.cache_expiry):
+                return self.event_types_cache
+            
+            response = await self._make_request('GET', 'event-types')
+            event_types = response.get('event_types', [])
+            
+            # Filter active event types
+            active_event_types = [et for et in event_types if et.get('hidden') != True]
+            
+            # Cache the results for 30 minutes
+            self.event_types_cache = active_event_types
+            self.cache_expiry = datetime.now(timezone.utc) + timedelta(minutes=30)
+            
+            return active_event_types
+            
+        except Exception as e:
+            logger.error(f"Failed to get Cal.com event types: {e}")
+            return []
+
 class CalendarServiceFactory:
     """Factory for creating calendar service instances"""
     
