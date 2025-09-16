@@ -244,11 +244,17 @@ export const CalendarEvents = ({ Layout }) => {
                       <SelectValue placeholder="Select calendar" />
                     </SelectTrigger>
                     <SelectContent>
-                      {calendars.map(calendar => (
-                        <SelectItem key={calendar.id} value={calendar.id}>
-                          {calendar.name} ({calendar.provider_name})
+                      {calendars && calendars.length > 0 ? (
+                        calendars.map(calendar => (
+                          <SelectItem key={calendar.id} value={calendar.id}>
+                            {calendar.name} ({calendar.provider_name})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          No calendars available - Please set up calendar providers first
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
