@@ -1669,7 +1669,7 @@ async def auto_send_email(email_id: str):
         )
 
 async def process_email_async(email_id: str):
-    """Background task to process email through AI workflow"""
+    """Background task to process email through AI workflow with calendar integration"""
     try:
         # Get email
         email_doc = await db.emails.find_one({"id": email_id})
@@ -1677,6 +1677,36 @@ async def process_email_async(email_id: str):
             return
         
         email_message = EmailMessage(**email_doc)
+        
+        # Get account info to find user
+        account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
+        if not account_doc:
+            logger.error(f"Account not found for email {email_id}")
+            return
+        
+        # Find user associated with this account (for now, create a default user)
+        user_doc = await db.users.find_one({"email": account_doc["email"]})
+        if not user_doc:
+            # Create a default user for this email account
+            user_id = str(uuid.uuid4())
+            next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
+            next_month = next_month.replace(day=1)
+            
+            default_user = {
+                "id": user_id,
+                "email": account_doc["email"],
+                "full_name": account_doc.get("name", ""),
+                "hashed_password": "default",  # This should be set properly
+                "is_active": True,
+                "email_quota": 100,
+                "emails_used": 0,
+                "quota_reset_date": next_month,
+                "timezone": "UTC",
+                "created_at": datetime.utcnow()
+            }
+            
+            await db.users.insert_one(default_user)
+            user_doc = default_user
         
         # Step 1: Check if this is a delivery error - skip processing if so
         if is_bounce_or_delivery_error(email_message):
@@ -1696,6 +1726,19 @@ async def process_email_async(email_id: str):
             logger.info(f"🚫 Ignored delivery error email: {email_message.subject}")
             return
         
+        # Check user quota before processing
+        if not await check_email_quota(User(**user_doc)):
+            await db.emails.update_one(
+                {"id": email_id},
+                {"$set": {
+                    "status": "quota_exceeded",
+                    "processed_at": datetime.utcnow(),
+                    "error": "User email quota exceeded"
+                }}
+            )
+            logger.warning(f"Email processing skipped - quota exceeded for user {user_doc['id']}")
+            return
+        
         # Step 2: Classify intents (now takes EmailMessage object)
         intents = await classify_email_intents(email_message)
         
@@ -1705,23 +1748,69 @@ async def process_email_async(email_id: str):
             {"$set": {"intents": intents, "status": "classifying"}}
         )
         
+        # Step 2.5: Check for meeting intents and calendar integration
+        meeting_related_intents = [intent for intent in intents if intent.get("is_meeting_related", False)]
+        calendar_action = None
+        
+        if meeting_related_intents or any("meeting" in intent.get("name", "").lower() for intent in intents):
+            try:
+                # Get thread context for better meeting detection
+                thread_context = await get_thread_history(email_message)
+                
+                # Analyze for meeting intents using the calendar agent
+                meeting_detection = await calendar_agent.analyze_email_for_meetings(
+                    email_message.body,
+                    email_message.subject,
+                    email_message.sender,
+                    user_doc.get("timezone", "UTC"),
+                    thread_context
+                )
+                
+                if meeting_detection.meeting_detected:
+                    # Process meeting intent and potentially create calendar event
+                    calendar_action = await calendar_agent.process_meeting_intent(
+                        email_id,
+                        user_doc["id"],
+                        meeting_detection,
+                        email_message.thread_id
+                    )
+                    
+                    if calendar_action:
+                        logger.info(f"📅 Calendar action completed: {calendar_action}")
+                else:
+                    # Check if this is an update to existing meeting
+                    calendar_action = await calendar_agent.update_meeting_from_email(
+                        email_message.body,
+                        email_message.thread_id,
+                        user_doc["id"],
+                        user_doc.get("timezone", "UTC")
+                    )
+                    
+                    if calendar_action:
+                        logger.info(f"📅 Meeting update completed: {calendar_action}")
+                        
+            except Exception as e:
+                logger.error(f"Calendar integration error: {e}")
+                # Continue with normal email processing even if calendar fails
+        
         # Step 3: Generate draft
         draft = await generate_draft(email_message, intents)
         
-        # Update email with draft
+        # Step 4: Update email with draft
         await db.emails.update_one(
             {"id": email_id},
             {"$set": {
                 "draft": draft["plain_text"],
                 "draft_html": draft["html"],
-                "status": "drafting"
+                "status": "drafting",
+                "calendar_action": calendar_action  # Store calendar action info
             }}
         )
         
-        # Step 4: Validate draft
+        # Step 5: Validate draft
         validation = await validate_draft(email_message, draft, intents)
         
-        # Step 5: Determine final status based on validation
+        # Step 6: Determine final status based on validation
         if validation["status"] == "SKIP":
             final_status = "ignored"
         elif validation["status"] == "PASS":
@@ -1739,11 +1828,12 @@ async def process_email_async(email_id: str):
             }}
         )
         
-        # Step 6: Auto-send if validation passed and account has auto_send enabled
+        # Step 7: Auto-send if validation passed and account has auto_send enabled
         if validation["status"] == "PASS":
-            account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
             if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
                 await auto_send_email(email_id)
+                # Increment email usage after successful send
+                await increment_email_usage(user_doc["id"])
         
     except Exception as e:
         # Update email with error status
