@@ -177,7 +177,7 @@ class MockCalendarService(BaseCalendarService):
             'updated': datetime.now(timezone.utc).isoformat(),
             'html_link': f'https://calendar.example.com/event/{event_id}',
             'recurrence': event_data.get('recurrence'),
-            'reminders': event_data.get('reminders', {'useDefault': True})
+            'reminders': event_data.get('reminders', [])
         }
         
         self.mock_events[event_id] = created_event
