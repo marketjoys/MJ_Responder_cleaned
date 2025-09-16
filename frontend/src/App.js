@@ -1335,14 +1335,14 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button 
-                onClick={() => window.location.href = '/monitoring'} 
+                onClick={() => navigate('/monitoring')} 
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
                 <Activity className="h-4 w-4 mr-2" />
                 Live Email Monitoring
               </Button>
               <Button 
-                onClick={() => window.location.href = '/test'} 
+                onClick={() => navigate('/test')} 
                 variant="outline" 
                 className="w-full"
               >
@@ -1350,7 +1350,7 @@ const Dashboard = () => {
                 Test Email Processing
               </Button>
               <Button 
-                onClick={() => window.location.href = '/intents'} 
+                onClick={() => navigate('/intents')} 
                 variant="outline" 
                 className="w-full"
               >
@@ -1358,7 +1358,7 @@ const Dashboard = () => {
                 Manage Intents
               </Button>
               <Button 
-                onClick={() => window.location.href = '/accounts'} 
+                onClick={() => navigate('/accounts')} 
                 variant="outline" 
                 className="w-full"
               >
