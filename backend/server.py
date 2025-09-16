@@ -1954,14 +1954,46 @@ async def startup_event():
     
     # Initialize email polling service
     try:
-        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
+        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])  
         # Start polling in background
         asyncio.create_task(polling_service.start_polling())
         logger.info("✅ Email polling service started automatically")
     except Exception as e:
         logger.error(f"❌ Failed to start email polling service: {str(e)}")
     
+    # Start calendar reminder service
+    try:
+        asyncio.create_task(calendar_reminder_service())
+        logger.info("✅ Calendar reminder service started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start calendar reminder service: {str(e)}")
+    
     logger.info("🎉 Email assistant system fully initialized and ready!")
+
+async def calendar_reminder_service():
+    """Background service to send calendar reminders"""
+    while True:
+        try:
+            # Get all active users
+            users = await db.users.find({"is_active": True}).to_list(1000)
+            
+            total_reminders = 0
+            for user in users:
+                try:
+                    reminders_sent = await calendar_agent.send_meeting_reminders(user["id"])
+                    total_reminders += reminders_sent
+                except Exception as e:
+                    logger.error(f"Error sending reminders for user {user['id']}: {e}")
+            
+            if total_reminders > 0:
+                logger.info(f"📅 Sent {total_reminders} calendar reminders")
+            
+            # Wait 15 minutes before checking again
+            await asyncio.sleep(900)
+            
+        except Exception as e:
+            logger.error(f"Calendar reminder service error: {e}")
+            await asyncio.sleep(300)  # Wait 5 minutes on error
 
 async def initialize_email_accounts():
     """Initialize default email accounts if they don't exist"""
