@@ -145,22 +145,93 @@ const AuthProvider = ({ children }) => {
   );
 };
 
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <RefreshCw className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
 // Main App Component
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/intents" element={<IntentManagement />} />
-          <Route path="/accounts" element={<EmailAccounts />} />
-          <Route path="/knowledge" element={<KnowledgeBase />} />
-          <Route path="/emails" element={<EmailProcessing />} />
-          <Route path="/test" element={<EmailTesting />} />
-          <Route path="/monitoring" element={<EmailMonitoring />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/calendar-providers" element={
+              <ProtectedRoute>
+                <CalendarProviders />
+              </ProtectedRoute>
+            } />
+            <Route path="/calendar-events" element={
+              <ProtectedRoute>
+                <CalendarEvents />
+              </ProtectedRoute>
+            } />
+            <Route path="/meeting-detection" element={
+              <ProtectedRoute>
+                <MeetingDetection />
+              </ProtectedRoute>
+            } />
+            <Route path="/intents" element={
+              <ProtectedRoute>
+                <IntentManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/accounts" element={
+              <ProtectedRoute>
+                <EmailAccounts />
+              </ProtectedRoute>
+            } />
+            <Route path="/knowledge" element={
+              <ProtectedRoute>
+                <KnowledgeBase />
+              </ProtectedRoute>
+            } />
+            <Route path="/emails" element={
+              <ProtectedRoute>
+                <EmailProcessing />
+              </ProtectedRoute>
+            } />
+            <Route path="/test" element={
+              <ProtectedRoute>
+                <EmailTesting />
+              </ProtectedRoute>
+            } />
+            <Route path="/monitoring" element={
+              <ProtectedRoute>
+                <EmailMonitoring />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </div>
   );
 }
