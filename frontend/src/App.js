@@ -599,6 +599,191 @@ const Layout = ({ children }) => {
   );
 };
 
+// User Profile Component
+const UserProfile = () => {
+  const { user, updateQuota, refreshProfile } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [quotaUpgrade, setQuotaUpgrade] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleQuotaUpgrade = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    const result = await updateQuota(parseInt(quotaUpgrade));
+    if (result.success) {
+      setMessage('Quota updated successfully!');
+      setQuotaUpgrade('');
+      setIsEditing(false);
+      refreshProfile();
+    } else {
+      setMessage(result.error);
+    }
+    setLoading(false);
+  };
+
+  if (!user) return null;
+
+  const quotaPercentage = ((user.quota_info?.emails_used || 0) / (user.quota_info?.email_quota || 1)) * 100;
+
+  return (
+    <Layout>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-4xl font-bold text-slate-800 mb-2">User Profile</h1>
+          <p className="text-slate-600">Manage your account settings and quota</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Profile Information */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                Profile Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Full Name</Label>
+                <div className="text-lg font-semibold">{user.full_name}</div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Email</Label>
+                <div className="text-lg">{user.email}</div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Timezone</Label>
+                <div className="text-lg">{user.timezone}</div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Account Status</Label>
+                <Badge variant={user.is_active ? "default" : "secondary"}>
+                  {user.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Member Since</Label>
+                <div className="text-lg">{new Date(user.created_at).toLocaleDateString()}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quota Information */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-green-600" />
+                Email Quota
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Current Usage</Label>
+                <div className="text-2xl font-bold text-green-600">
+                  {user.quota_info?.emails_used || 0} / {user.quota_info?.email_quota || 0}
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-3 mt-2">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      quotaPercentage > 90 ? 'bg-red-500' : 
+                      quotaPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min(quotaPercentage, 100)}%` }}
+                  />
+                </div>
+                <div className="text-sm text-slate-600 mt-1">
+                  {quotaPercentage.toFixed(1)}% used
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Emails Remaining</Label>
+                <div className="text-lg font-semibold">
+                  {user.quota_info?.emails_remaining || 0}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium text-slate-700">Quota Reset Date</Label>
+                <div className="text-lg">
+                  {user.quota_info?.quota_reset_date ? 
+                    new Date(user.quota_info.quota_reset_date).toLocaleDateString() : 
+                    'N/A'
+                  }
+                </div>
+                <div className="text-sm text-slate-600">
+                  ({user.quota_info?.days_until_reset || 0} days remaining)
+                </div>
+              </div>
+
+              {!isEditing ? (
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upgrade Quota
+                </Button>
+              ) : (
+                <form onSubmit={handleQuotaUpgrade} className="space-y-4">
+                  <div>
+                    <Label htmlFor="quota">New Quota Limit</Label>
+                    <Input
+                      id="quota"
+                      type="number"
+                      value={quotaUpgrade}
+                      onChange={(e) => setQuotaUpgrade(e.target.value)}
+                      placeholder="Enter new quota limit"
+                      min={user.quota_info?.email_quota || 0}
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600"
+                    >
+                      {loading ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Update Quota'
+                      )}
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setQuotaUpgrade('');
+                        setMessage('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {message && (
+                <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+                  <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
+                  <AlertDescription className={message.includes('success') ? 'text-green-700' : 'text-red-700'}>
+                    {message}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
 // Dashboard Component
 const Dashboard = () => {
   const [stats, setStats] = useState({});
