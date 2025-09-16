@@ -57,9 +57,10 @@ export const CalendarEvents = ({ Layout }) => {
   const fetchCalendars = async () => {
     try {
       const response = await axios.get(`${API}/calendar/calendars`);
-      setCalendars(response.data);
+      setCalendars(response.data || []);
     } catch (error) {
       console.error('Error fetching calendars:', error);
+      setCalendars([]); // Set empty array on error
     }
   };
 
