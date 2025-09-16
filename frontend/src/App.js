@@ -829,10 +829,12 @@ const UserProfile = () => {
   );
 };
 
-// Calendar Providers Component
+// Calendar Providers Component with OAuth Support
 const CalendarProviders = () => {
   const [providers, setProviders] = useState([]);
+  const [oauthStatus, setOauthStatus] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
   const [formData, setFormData] = useState({
     provider_type: '',
     provider_name: '',
@@ -844,6 +846,7 @@ const CalendarProviders = () => {
 
   useEffect(() => {
     fetchProviders();
+    fetchOAuthStatus();
   }, []);
 
   const fetchProviders = async () => {
@@ -855,21 +858,75 @@ const CalendarProviders = () => {
     }
   };
 
-  const handleCreateProvider = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
+  const fetchOAuthStatus = async () => {
     try {
-      await axios.post(`${API}/calendar/providers`, formData);
-      setMessage('Provider created successfully!');
+      const response = await axios.get(`${API}/oauth/google/status`);
+      setOauthStatus(response.data);
+    } catch (error) {
+      console.error('Error fetching OAuth status:', error);
+      setOauthStatus({ is_authorized: false, authorized_services: [] });
+    }
+  };
+
+  const initiateGoogleOAuth = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/oauth/google/authorize`, ['calendar']);
+      // Redirect to Google OAuth
+      window.location.href = response.data.auth_url;
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'OAuth initiation failed');
+      setLoading(false);
+    }
+  };
+
+  const createOAuthProvider = async () => {
+    setLoading(true);
+    try {
+      const providerData = {
+        provider_type: 'google',
+        provider_name: formData.provider_name,
+        use_oauth: true,
+        timezone: formData.timezone
+      };
+
+      await axios.post(`${API}/calendar/providers/oauth`, providerData);
+      setMessage('OAuth calendar provider created successfully!');
       setIsCreating(false);
       resetForm();
       fetchProviders();
+      fetchOAuthStatus();
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Error creating provider');
+      setMessage(error.response?.data?.detail || 'Error creating OAuth provider');
     }
     setLoading(false);
+  };
+
+  const handleCreateProvider = async (e) => {
+    e.preventDefault();
+    
+    if (accountType === 'oauth') {
+      if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('calendar')) {
+        setMessage('Please authorize Google calendar access first');
+        return;
+      }
+      await createOAuthProvider();
+    } else {
+      // Existing manual provider creation logic
+      setLoading(true);
+      setMessage('');
+
+      try {
+        await axios.post(`${API}/calendar/providers`, formData);
+        setMessage('Provider created successfully!');
+        setIsCreating(false);
+        resetForm();
+        fetchProviders();
+      } catch (error) {
+        setMessage(error.response?.data?.detail || 'Error creating provider');
+      }
+      setLoading(false);
+    }
   };
 
   const handleDeleteProvider = async (providerId) => {
@@ -888,6 +945,20 @@ const CalendarProviders = () => {
       credentials: {},
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
+    setAccountType('manual');
+  };
+
+  const revokeOAuth = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/oauth/google/revoke`);
+      setMessage('Google OAuth access revoked successfully');
+      fetchOAuthStatus();
+      fetchProviders(); // Refresh providers as OAuth providers may be affected
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error revoking OAuth access');
+    }
+    setLoading(false);
   };
 
   const renderCredentialsFields = () => {
@@ -988,6 +1059,23 @@ const CalendarProviders = () => {
             </div>
           </>
         );
+      case 'calcom':
+        return (
+          <div>
+            <Label htmlFor="api_key">Cal.com API Key</Label>
+            <Input
+              id="api_key"
+              type="password"
+              value={formData.credentials.api_key || ''}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                credentials: { ...prev.credentials, api_key: e.target.value }
+              }))}
+              placeholder="Enter Cal.com API Key"
+              required
+            />
+          </div>
+        );
       default:
         return null;
     }
@@ -998,6 +1086,7 @@ const CalendarProviders = () => {
       case 'google': return <Cloud className="h-5 w-5 text-blue-600" />;
       case 'microsoft': return <Monitor className="h-5 w-5 text-blue-800" />;
       case 'apple': return <Smartphone className="h-5 w-5 text-slate-800" />;
+      case 'calcom': return <Calendar className="h-5 w-5 text-orange-600" />;
       default: return <Calendar className="h-5 w-5 text-purple-600" />;
     }
   };
@@ -1019,6 +1108,62 @@ const CalendarProviders = () => {
           </Button>
         </div>
 
+        {/* OAuth Status Card */}
+        <Card className="shadow-lg border-l-4 border-l-green-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-green-600" />
+              Google OAuth Status
+            </CardTitle>
+            <CardDescription>
+              OAuth provides secure access to Google Calendar without storing credentials
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {oauthStatus?.is_authorized ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700 font-medium">Google OAuth Authorized</span>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <p><strong>Account:</strong> {oauthStatus.user_name} ({oauthStatus.user_email})</p>
+                  <p><strong>Services:</strong> {oauthStatus.authorized_services?.join(', ') || 'None'}</p>
+                  <p><strong>Expires:</strong> {new Date(oauthStatus.expires_at).toLocaleString()}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm" 
+                  onClick={revokeOAuth}
+                  disabled={loading}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <PowerOff className="h-4 w-4 mr-2" />}
+                  Revoke Access
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <WifiOff className="h-5 w-5 text-red-600" />
+                  <span className="text-red-700 font-medium">Google OAuth Not Authorized</span>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Authorize Google OAuth to create calendar providers without storing credentials
+                </p>
+                <Button 
+                  onClick={initiateGoogleOAuth}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Wifi className="h-4 w-4 mr-2" />}
+                  Authorize Google
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {message && (
           <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
             <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
@@ -1036,91 +1181,161 @@ const CalendarProviders = () => {
             setMessage('');
           }
         }}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Calendar Provider</DialogTitle>
               <DialogDescription>
-                Connect a calendar service to manage your meetings and events.
+                Connect a calendar service to manage your meetings and events. Choose OAuth for enhanced security.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateProvider} className="space-y-6">
+            
+            <div className="space-y-6">
+              {/* Provider Type Selection */}
               <div>
-                <Label htmlFor="provider_type">Provider Type</Label>
-                <Select 
-                  value={formData.provider_type} 
-                  onValueChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    provider_type: value,
-                    credentials: {} 
-                  }))}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select calendar provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google">Google Calendar</SelectItem>
-                    <SelectItem value="microsoft">Microsoft Outlook</SelectItem>
-                    <SelectItem value="apple">Apple iCloud</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Provider Type</Label>
+                <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="oauth" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      OAuth (Recommended)
+                    </TabsTrigger>
+                    <TabsTrigger value="manual" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Manual Setup
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
-              <div>
-                <Label htmlFor="provider_name">Provider Name</Label>
-                <Input
-                  id="provider_name"
-                  value={formData.provider_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, provider_name: e.target.value }))}
-                  placeholder="e.g., My Google Calendar"
-                  required
-                />
-              </div>
+              <Separator />
 
-              <div>
-                <Label htmlFor="timezone">Timezone</Label>
-                <Input
-                  id="timezone"
-                  value={formData.timezone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, timezone: e.target.value }))}
-                  placeholder="Your timezone"
-                  required
-                />
-              </div>
+              <form onSubmit={handleCreateProvider} className="space-y-6">
+                {/* Common Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="provider_name">Provider Name</Label>
+                    <Input
+                      id="provider_name"
+                      value={formData.provider_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, provider_name: e.target.value }))}
+                      placeholder="My Google Calendar"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Input
+                      id="timezone"
+                      value={formData.timezone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, timezone: e.target.value }))}
+                      placeholder="Your timezone"
+                    />
+                  </div>
+                </div>
 
-              {renderCredentialsFields()}
+                {/* OAuth-specific UI */}
+                {accountType === 'oauth' && (
+                  <TabsContent value="oauth" className="space-y-4 mt-0">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Shield className="h-5 w-5 text-green-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-green-900">OAuth Authentication</h4>
+                          <p className="text-sm text-green-700 mt-1">
+                            OAuth provides secure access to Google Calendar without storing credentials. 
+                            {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar')
+                              ? ' You are already authorized and can create an OAuth provider.'
+                              : ' Please authorize Google access first.'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="flex justify-end gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
+                    {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar') ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Alert className="border-yellow-200 bg-yellow-50">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertDescription className="text-yellow-700">
+                            You need to authorize Google calendar access first. Click the "Authorize Google" button above.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </TabsContent>
+                )}
+
+                {/* Manual setup fields */}
+                {accountType === 'manual' && (
+                  <TabsContent value="manual" className="space-y-4 mt-0">
+                    <div>
+                      <Label htmlFor="provider_type">Provider Type</Label>
+                      <Select 
+                        value={formData.provider_type} 
+                        onValueChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          provider_type: value,
+                          credentials: {} 
+                        }))}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select calendar provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="google">Google Calendar</SelectItem>
+                          <SelectItem value="microsoft">Microsoft Outlook</SelectItem>
+                          <SelectItem value="apple">Apple iCloud</SelectItem>
+                          <SelectItem value="calcom">Cal.com</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Provider-specific credential fields */}
+                    {formData.provider_type && (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-slate-700">Credentials</h4>
+                        {renderCredentialsFields()}
+                      </div>
+                    )}
+                  </TabsContent>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => {
                     setIsCreating(false);
                     resetForm();
                     setMessage('');
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={loading}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Provider
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={loading || (accountType === 'oauth' && (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('calendar')))}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Provider
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -1137,59 +1352,75 @@ const CalendarProviders = () => {
                       <Badge variant={provider.is_active ? "default" : "secondary"}>
                         {provider.is_active ? "Active" : "Inactive"}
                       </Badge>
+                      {provider.use_oauth && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <Shield className="h-3 w-3 mr-1" />
+                          OAuth
+                        </Badge>
+                      )}
                     </CardTitle>
                     <CardDescription>
                       {provider.provider_type.charAt(0).toUpperCase() + provider.provider_type.slice(1)} Calendar Provider
                     </CardDescription>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteProvider(provider.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteProvider(provider.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-700">Type:</span>
+                    <div className="text-slate-600 capitalize">{provider.provider_type}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Auth Type:</span>
+                    <div className="text-slate-600 capitalize">
+                      {provider.use_oauth ? 'OAuth' : 'Manual'}
+                    </div>
+                  </div>
                   <div>
                     <span className="font-medium text-slate-700">Timezone:</span>
                     <div className="text-slate-600">{provider.timezone}</div>
                   </div>
                   <div>
                     <span className="font-medium text-slate-700">Calendars:</span>
-                    <div className="text-slate-600">{provider.calendar_count} connected</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700">Created:</span>
-                    <div className="text-slate-600">{new Date(provider.created_at).toLocaleDateString()}</div>
+                    <div className="text-slate-600">{provider.calendar_count || 0}</div>
                   </div>
                 </div>
+                {provider.oauth_email && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <span className="font-medium text-slate-700 text-sm">OAuth Account:</span>
+                    <div className="text-slate-600 text-sm mt-1">{provider.oauth_user} ({provider.oauth_email})</div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
-          
-          {providers.length === 0 && (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Cloud className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-600 mb-2">No calendar providers connected</h3>
-                <p className="text-slate-500 mb-4">Add your first calendar provider to start managing meetings</p>
-                <Button 
-                  onClick={() => setIsCreating(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Provider
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </div>
+
+        {providers.length === 0 && (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-600 mb-2">No calendar providers configured</h3>
+              <p className="text-slate-500 mb-4">Add your first calendar provider to start managing meetings</p>
+              <Button 
+                onClick={() => setIsCreating(true)}
+                className="bg-gradient-to-r from-purple-600 to-pink-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Provider
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
