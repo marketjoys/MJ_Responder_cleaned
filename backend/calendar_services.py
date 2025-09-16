@@ -9,18 +9,6 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from calendar_models import CalendarProvider, CalendarInfo, EventResponse, CalendarEvent
 from fastapi import HTTPException, status
-
-from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any
-from datetime import datetime, timezone, timedelta
-import json
-import logging
-import pytz
-from cryptography.fernet import Fernet
-import os
-from motor.motor_asyncio import AsyncIOMotorClient
-from calendar_models import CalendarProvider, CalendarInfo, EventResponse, CalendarEvent
-from fastapi import HTTPException, status
 from dotenv import load_dotenv
 from pathlib import Path
 
