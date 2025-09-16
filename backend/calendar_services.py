@@ -476,6 +476,13 @@ class CalcomCalendarService(BaseCalendarService):
             # Filter active event types
             active_event_types = [et for et in event_types if et.get('hidden') != True]
             
+            # If no event types exist, create a default one
+            if not active_event_types:
+                logger.info("No event types found, creating default event type")
+                default_event_type = await self._create_default_event_type()
+                if default_event_type:
+                    active_event_types = [default_event_type]
+            
             # Cache the results for 30 minutes
             self.event_types_cache = active_event_types
             self.cache_expiry = datetime.now(timezone.utc) + timedelta(minutes=30)
@@ -485,6 +492,48 @@ class CalcomCalendarService(BaseCalendarService):
         except Exception as e:
             logger.error(f"Failed to get Cal.com event types: {e}")
             return []
+    
+    async def _create_default_event_type(self) -> Dict:
+        """Create a default event type for calendar integration"""
+        try:
+            # Get user data to get schedule ID
+            user_data = await self._make_request('GET', 'me')
+            schedules = await self._make_request('GET', 'schedules')
+            
+            # Get default schedule ID
+            default_schedule = schedules.get('schedules', [{}])[0]
+            schedule_id = default_schedule.get('id') if default_schedule else None
+            
+            if not schedule_id:
+                logger.error("No schedule found for user, cannot create event type")
+                return None
+            
+            event_type_data = {
+                "title": "Calendar Integration Meeting",
+                "slug": "calendar-integration-meeting",
+                "length": 30,
+                "hidden": False,
+                "position": 0,
+                "scheduleId": schedule_id,
+                "periodType": "UNLIMITED",
+                "requiresConfirmation": False,
+                "disableGuests": False,
+                "hideCalendarNotes": False,
+                "minimumBookingNotice": 0,  # Allow immediate booking
+                "beforeEventBuffer": 0,
+                "afterEventBuffer": 0,
+                "price": 0,
+                "currency": "usd",
+                "description": "Default event type created for calendar integration"
+            }
+            
+            created_event_type = await self._make_request('POST', 'event-types', data=event_type_data)
+            logger.info(f"Created default event type: {created_event_type.get('id')}")
+            return created_event_type
+            
+        except Exception as e:
+            logger.error(f"Failed to create default event type: {e}")
+            return None
 
 class CalendarServiceFactory:
     """Factory for creating calendar service instances"""
