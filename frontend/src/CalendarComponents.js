@@ -231,7 +231,7 @@ export const CalendarEvents = ({ Layout }) => {
                   <Select 
                     value={formData.calendar_id} 
                     onValueChange={(value) => {
-                      const selectedCalendar = calendars.find(cal => cal.id === value);
+                      const selectedCalendar = calendars && calendars.find(cal => cal.id === value);
                       setFormData(prev => ({ 
                         ...prev, 
                         calendar_id: value,
