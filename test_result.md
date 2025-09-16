@@ -184,6 +184,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Meeting detection and calendar agent fully operational: Meeting detection from email content (confidence: 1.00), No-meeting detection working correctly, Meeting intents listing (200), AI-powered meeting analysis functional. Calendar agent successfully processing meeting-related emails."
+      - working: true
+        agent: "testing"
+        comment: "✅ RE-VERIFIED - Meeting detection and calendar agent working with 80% success rate: Meeting detection (200) with perfect confidence score (1.00) for meeting-related emails, Get meeting intents (200) returning proper intent data, No-meeting detection (200) correctly identifying non-meeting emails, Error handling (404) for invalid meeting intents. Minor: Meeting intent confirmation requires calendar provider setup for full testing. Core AI meeting detection functionality fully operational."
 
   - task: "Email-Calendar Integration"
     implemented: true
