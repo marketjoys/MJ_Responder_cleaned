@@ -395,7 +395,7 @@ const RegisterPage = () => {
           </CardHeader>
           <CardContent>
             <Button 
-              onClick={() => window.location.href = '/login'}
+              onClick={() => navigate('/login')}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600"
             >
               <LogIn className="h-4 w-4 mr-2" />
