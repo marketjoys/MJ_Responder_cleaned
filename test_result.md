@@ -209,6 +209,21 @@ backend:
         agent: "testing"
         comment: "✅ RE-VERIFIED - Email-calendar integration fully operational with 100% success rate: Email processing (200) with calendar agent integration for meeting detection, Meeting intents creation (200) during email workflow processing, Quota checking properly integrated with calendar operations, User timezone handling (200) working correctly across email and calendar systems. Complete integration between email processing workflow and calendar system verified and operational."
 
+  - task: "Cal.com Integration"
+    implemented: true
+    working: false
+    file: "backend/calendar_services.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial status - needs testing of Cal.com API integration with real API key"
+      - working: false
+        agent: "testing"
+        comment: "❌ PARTIAL SUCCESS - Cal.com provider CRUD operations working perfectly (Create provider: 200, List providers: 200, Get calendars: 200, Delete provider: 200), but event operations failing due to Cal.com account configuration issues: 1) Create Event failed (400) - 'No event types configured in Cal.com', 2) List Events failed (401) - 'Cal.com authentication failed', 3) Error handling not working as expected - invalid API key still returns 200 instead of 401/400. The API key authentication works for provider creation but Cal.com account needs proper event type configuration for full functionality."
+
 frontend:
   - task: "Frontend Authentication System"
     implemented: true
