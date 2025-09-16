@@ -198,6 +198,15 @@ export const CalendarEvents = ({ Layout }) => {
           </Alert>
         )}
 
+        {message && (
+          <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
+            <AlertDescription className={message.includes('success') ? 'text-green-700' : 'text-red-700'}>
+              {message}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Create/Edit Event Dialog */}
         <Dialog open={isCreating || isEditing} onOpenChange={(open) => {
           if (!open) {
