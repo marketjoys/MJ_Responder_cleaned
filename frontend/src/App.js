@@ -34,6 +34,38 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Email provider configurations
+const EMAIL_PROVIDERS = {
+  gmail: {
+    name: 'Gmail',
+    imap_server: 'imap.gmail.com',
+    imap_port: 993,
+    smtp_server: 'smtp.gmail.com',
+    smtp_port: 587
+  },
+  outlook: {
+    name: 'Outlook/Hotmail',
+    imap_server: 'outlook.office365.com',
+    imap_port: 993,
+    smtp_server: 'smtp-mail.outlook.com',
+    smtp_port: 587
+  },
+  yahoo: {
+    name: 'Yahoo Mail',
+    imap_server: 'imap.mail.yahoo.com',
+    imap_port: 993,
+    smtp_server: 'smtp.mail.yahoo.com',
+    smtp_port: 587
+  },
+  custom: {
+    name: 'Custom IMAP/SMTP',
+    imap_server: '',
+    imap_port: 993,
+    smtp_server: '',
+    smtp_port: 587
+  }
+};
+
 // Auth Context
 const AuthContext = createContext();
 
