@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 
+// Import Calendar Components
+import { CalendarEvents, MeetingDetection } from './CalendarComponents';
+
 // UI Components
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
