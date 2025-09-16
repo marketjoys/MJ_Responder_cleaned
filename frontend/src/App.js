@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
@@ -22,8 +22,10 @@ import {
   Mail, Settings, Brain, Database, Users, BarChart3, 
   Plus, Trash2, Eye, Send, RefreshCw, MessageSquare, 
   AlertCircle, CheckCircle, Clock, Zap, Bot, Play, 
-  Pause, Activity, Inbox, Shield, Power,
-  PowerOff, WifiOff, Wifi, SendHorizontal
+  Pause, Activity, Inbox, Shield, Power, Calendar,
+  PowerOff, WifiOff, Wifi, SendHorizontal, User,
+  LogOut, LogIn, UserPlus, CalendarDays, CalendarPlus,
+  Cloud, Smartphone, Monitor, MapPin, Users2, Timer
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
