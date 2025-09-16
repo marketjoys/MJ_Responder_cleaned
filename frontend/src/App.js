@@ -1408,6 +1408,7 @@ const Dashboard = () => {
 
 // Email Monitoring Component
 const EmailMonitoring = () => {
+  const navigate = useNavigate();
   const [emails, setEmails] = useState([]);
   const [pollingStatus, setPollingStatus] = useState('stopped');
   const [autoRefresh, setAutoRefresh] = useState(true);
