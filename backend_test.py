@@ -35,6 +35,8 @@ class EmailAssistantTester:
         self.db = None
         self.test_results = []
         self.polling_service = None
+        self.auth_token = None
+        self.test_user_id = None
         
     async def setup(self):
         """Setup database connection"""
