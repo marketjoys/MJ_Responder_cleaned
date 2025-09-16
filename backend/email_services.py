@@ -432,6 +432,13 @@ class EmailPollingService:
         account_id = account['id']
         
         try:
+            # Check if this is an OAuth account
+            if account.get('use_oauth', False) and account.get('auth_type') == 'oauth':
+                # Handle OAuth account differently
+                await self._poll_oauth_account(account)
+                return
+            
+            # Handle traditional IMAP account
             # Get or create connection
             if account_id not in self.connections:
                 logger.info(f"🔌 Creating new connection for {account.get('email', account_id)}")
@@ -480,6 +487,127 @@ class EmailPollingService:
                     logger.warning(f"⚠️  Error disconnecting IMAP for {account.get('email', account_id)}: {disconnect_error}")
                 del self.connections[account_id]
                 logger.info(f"🔌 Removed unhealthy connection for {account.get('email', account_id)}")
+    
+    async def _poll_oauth_account(self, account: Dict[str, Any]):
+        """Poll OAuth-enabled Gmail account using Gmail API"""
+        account_id = account['id']
+        
+        try:
+            # Import here to avoid circular imports
+            from google_services import get_google_gmail_service
+            
+            # Get Gmail service
+            gmail_service = await get_google_gmail_service(account['user_id'])
+            
+            # Get last processed message timestamp from database
+            last_processed = account.get('last_oauth_sync', None)
+            
+            # Build query for new messages
+            query = "in:inbox"
+            if last_processed:
+                # Format datetime for Gmail API query
+                after_date = last_processed.strftime('%Y/%m/%d')
+                query += f" after:{after_date}"
+            
+            # List new messages
+            messages = await gmail_service.list_messages(query=query, max_results=50)
+            
+            new_emails = []
+            latest_processed = last_processed or datetime.utcnow()
+            
+            for message_info in messages:
+                try:
+                    # Get full message
+                    full_message = await gmail_service.get_message(message_info['id'])
+                    
+                    # Parse Gmail API message
+                    email_data = await self._parse_gmail_message(full_message, account_id)
+                    if email_data and email_data['received_at'] > (last_processed or datetime.min):
+                        new_emails.append(email_data)
+                        latest_processed = max(latest_processed, email_data['received_at'])
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️  Error processing Gmail message {message_info['id']}: {str(e)}")
+                    continue
+            
+            # Update last sync time
+            await self.db.email_accounts.update_one(
+                {"id": account_id},
+                {"$set": {
+                    "last_oauth_sync": latest_processed,
+                    "last_polled": datetime.utcnow()
+                }}
+            )
+            
+            if new_emails:
+                logger.info(f"📥 Processing {len(new_emails)} new OAuth emails for {account.get('email', account_id)}")
+                # Process each new email
+                for email_data in new_emails:
+                    await self._process_new_email(email_data)
+            else:
+                logger.debug(f"📭 No new OAuth emails for {account.get('email', account_id)}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error polling OAuth account {account.get('email', account_id)}: {str(e)}")
+    
+    async def _parse_gmail_message(self, gmail_message: Dict[str, Any], account_id: str) -> Optional[Dict[str, Any]]:
+        """Parse Gmail API message to our email format"""
+        try:
+            import base64
+            
+            # Decode raw message
+            raw_data = gmail_message.get('raw', '')
+            if not raw_data:
+                return None
+            
+            # Decode base64 message
+            message_bytes = base64.urlsafe_b64decode(raw_data + '==')  # Add padding
+            email_message = email.message_from_bytes(message_bytes)
+            
+            # Extract basic fields
+            subject = email_message.get('Subject', '')
+            sender = email_message.get('From', '')
+            recipient = email_message.get('To', '')
+            date_str = email_message.get('Date', '')
+            message_id = email_message.get('Message-ID', '')
+            in_reply_to = email_message.get('In-Reply-To', '')
+            references = email_message.get('References', '')
+            
+            # Parse date
+            try:
+                received_at = email.utils.parsedate_to_datetime(date_str)
+            except:
+                received_at = datetime.utcnow()
+            
+            # Extract body using existing method
+            connection = EmailConnection({'id': account_id, 'email': recipient})  # Dummy connection for method
+            body, body_html = connection._extract_body(email_message)
+            
+            # Clean body using email reply parser
+            if body:
+                body = EmailReplyParser.parse_reply(body)
+            
+            # Generate thread ID
+            thread_id = connection._generate_thread_id(message_id, in_reply_to, references, subject)
+            
+            return {
+                'gmail_id': gmail_message.get('id'),
+                'message_id': message_id,
+                'thread_id': thread_id,
+                'subject': subject,
+                'sender': sender,
+                'recipient': recipient,
+                'body': body or '',
+                'body_html': body_html or '',
+                'received_at': received_at,
+                'in_reply_to': in_reply_to,
+                'references': references,
+                'account_id': account_id
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error parsing Gmail message: {str(e)}")
+            return None
     
     async def _process_new_email(self, email_data: Dict[str, Any]):
         """Process a new email through the AI workflow"""
