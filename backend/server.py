@@ -2365,6 +2365,264 @@ async def initialize_test_emails():
     except Exception as e:
         logger.error(f"❌ Error initializing test emails: {str(e)}")
 
+# Google OAuth endpoints
+@api_router.post("/oauth/google/authorize")
+async def initiate_google_oauth(
+    requested_services: List[str],
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Initiate Google OAuth flow for email and/or calendar access
+    
+    Body: ["email", "calendar"] - services to authorize
+    """
+    valid_services = ["email", "calendar"]
+    if not requested_services or not all(service in valid_services for service in requested_services):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid services. Must be one or both of: email, calendar"
+        )
+    
+    try:
+        auth_data = await google_oauth_service.generate_auth_url(
+            user_id=current_user.id,
+            requested_services=requested_services
+        )
+        
+        return {
+            "auth_url": auth_data["auth_url"],
+            "state": auth_data["state"],
+            "requested_services": requested_services,
+            "message": "Redirect user to auth_url to complete OAuth flow"
+        }
+        
+    except Exception as e:
+        logger.error(f"OAuth initiation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to initiate OAuth: {str(e)}"
+        )
+
+@api_router.get("/oauth/google/callback")
+async def handle_google_oauth_callback(code: str, state: str):
+    """
+    Handle Google OAuth callback
+    
+    Query params: code, state
+    """
+    try:
+        result = await google_oauth_service.handle_callback(code, state)
+        
+        return {
+            "success": True,
+            "user_id": result["user_id"],
+            "authorized_services": result["authorized_services"],
+            "requested_services": result["requested_services"],
+            "user_info": result["user_info"],
+            "message": f"Successfully authorized {', '.join(result['authorized_services'])} services"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OAuth callback error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"OAuth callback failed: {str(e)}"
+        )
+
+@api_router.get("/oauth/google/status")
+async def get_google_oauth_status(current_user: User = Depends(get_current_active_user)):
+    """Get current Google OAuth authorization status"""
+    try:
+        status = await google_oauth_service.get_oauth_status(current_user.id)
+        return status
+    except Exception as e:
+        logger.error(f"OAuth status error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get OAuth status: {str(e)}"
+        )
+
+@api_router.post("/oauth/google/revoke")
+async def revoke_google_oauth(current_user: User = Depends(get_current_active_user)):
+    """Revoke Google OAuth tokens"""
+    try:
+        success = await google_oauth_service.revoke_tokens(current_user.id)
+        return {
+            "success": success,
+            "message": "OAuth tokens revoked successfully" if success else "Failed to revoke some tokens"
+        }
+    except Exception as e:
+        logger.error(f"OAuth revoke error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke OAuth: {str(e)}"
+        )
+
+# Enhanced Email Accounts with OAuth support
+class EmailAccountCreateOAuth(BaseModel):
+    name: str
+    email: str
+    provider: str = "gmail"  # oauth provider
+    auth_type: str = "oauth"  # "oauth" or "manual"
+    # Manual fields (existing)
+    username: Optional[str] = None
+    password: Optional[str] = None
+    imap_server: Optional[str] = None
+    imap_port: Optional[int] = None
+    smtp_server: Optional[str] = None
+    smtp_port: Optional[int] = None
+    # OAuth fields
+    use_oauth: bool = False
+    signature: str = ""
+    is_active: bool = True
+
+@api_router.post("/email-accounts/oauth", response_model=Dict[str, Any])
+async def create_oauth_email_account(
+    account_data: EmailAccountCreateOAuth,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create email account using OAuth credentials"""
+    
+    if not account_data.use_oauth:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This endpoint is for OAuth-based accounts only"
+        )
+    
+    # Check if user has OAuth authorization for email
+    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
+    if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google email access not authorized. Please complete OAuth flow first."
+        )
+    
+    try:
+        # Verify OAuth access by testing Gmail API
+        gmail_service = await get_google_gmail_service(current_user.id)
+        profile = await gmail_service.get_profile()
+        
+        # Use email from OAuth profile
+        oauth_email = oauth_status["user_email"]
+        
+        account = EmailAccount(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            name=account_data.name,
+            email=oauth_email,
+            provider=account_data.provider,
+            auth_type="oauth",
+            use_oauth=True,
+            # OAuth accounts don't need manual credentials
+            username="",
+            password="",
+            imap_server="",
+            imap_port=0,
+            smtp_server="",
+            smtp_port=0,
+            signature=account_data.signature,
+            is_active=account_data.is_active,
+            last_uid=0,
+            uidvalidity=None,
+            last_polled=None
+        )
+        
+        # Insert into database
+        result = await db.email_accounts.insert_one(account.dict())
+        
+        # Return account without sensitive data
+        account_dict = account.dict()
+        account_dict["_id"] = str(result.inserted_id)
+        account_dict["oauth_user"] = oauth_status["user_name"]
+        
+        return account_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating OAuth email account: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create OAuth email account: {str(e)}"
+        )
+
+# Enhanced Calendar Provider with OAuth support
+class CalendarProviderCreateOAuth(BaseModel):
+    provider_type: str = "google"  # For OAuth
+    provider_name: str
+    use_oauth: bool = True
+    timezone: str = "UTC"
+    # Manual credentials (for non-OAuth)
+    credentials: Optional[Dict[str, Any]] = {}
+
+@api_router.post("/calendar/providers/oauth", response_model=CalendarProviderResponse)
+async def create_oauth_calendar_provider(
+    provider_data: CalendarProviderCreateOAuth,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create calendar provider using OAuth credentials"""
+    
+    if not provider_data.use_oauth:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This endpoint is for OAuth-based providers only"
+        )
+    
+    # Check if user has OAuth authorization for calendar
+    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
+    if not oauth_status["is_authorized"] or "calendar" not in oauth_status["authorized_services"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google calendar access not authorized. Please complete OAuth flow first."
+        )
+    
+    try:
+        # Verify OAuth access by testing Calendar API
+        calendar_service = await get_google_calendar_service(current_user.id)
+        calendars = await calendar_service.list_calendars()
+        
+        # Create provider record
+        provider = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user.id,
+            "provider_type": "google",
+            "provider_name": provider_data.provider_name,
+            "use_oauth": True,
+            "encrypted_credentials": "",  # No manual credentials needed
+            "is_active": True,
+            "default_calendar_id": "primary",
+            "timezone": provider_data.timezone,
+            "oauth_user": oauth_status["user_name"],
+            "oauth_email": oauth_status["user_email"],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        # Insert into database
+        await db.calendar_providers.insert_one(provider)
+        
+        return CalendarProviderResponse(
+            id=provider["id"],
+            provider_type=provider["provider_type"],
+            provider_name=provider["provider_name"],
+            is_active=provider["is_active"],
+            timezone=provider["timezone"],
+            calendar_count=len(calendars),
+            created_at=provider["created_at"],
+            updated_at=provider["updated_at"]
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating OAuth calendar provider: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create OAuth calendar provider: {str(e)}"
+        )
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     global polling_service
