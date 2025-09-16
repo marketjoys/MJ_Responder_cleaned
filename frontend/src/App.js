@@ -1175,6 +1175,7 @@ const MeetingDetectionPage = () => {
 
 // Dashboard Component
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [pollingStatus, setPollingStatus] = useState('stopped');
