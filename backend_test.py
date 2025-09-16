@@ -1620,6 +1620,280 @@ class EmailAssistantTester:
         except Exception as e:
             self.log_test_result("CALENDAR OPERATIONS", False, f"Exception: {str(e)}")
     
+    def test_calcom_integration(self):
+        """Test 14: Cal.com Integration - API Key Authentication, Provider CRUD, Calendar Operations"""
+        print("\n📅 Testing Cal.com Integration...")
+        
+        created_provider_id = None
+        try:
+            # First authenticate to get a user token
+            if not self.auth_token:
+                self._authenticate_test_user()
+            
+            if not self.auth_token:
+                self.log_test_result("Cal.com Integration", False, "Failed to authenticate - cannot test calendar features")
+                return
+            
+            headers = {"Authorization": f"Bearer {self.auth_token}"}
+            
+            # Test 14a: Create Cal.com Calendar Provider with API Key Authentication
+            try:
+                provider_data = {
+                    "provider_type": "calcom",
+                    "provider_name": "Test Cal.com Provider",
+                    "credentials": {
+                        "api_key": "cal_live_d133aaaf5ee692d561d43a45ecff15ee"
+                    },
+                    "timezone": "UTC"
+                }
+                
+                response = requests.post(f"{API_BASE}/calendar/providers", json=provider_data, headers=headers, timeout=20)
+                create_provider_passed = response.status_code in [200, 201]
+                
+                if create_provider_passed:
+                    created_provider = response.json()
+                    created_provider_id = created_provider.get('id')
+                    create_provider_details = f"Status: {response.status_code}, ID: {created_provider_id}, Provider: {created_provider.get('provider_type')}"
+                else:
+                    create_provider_details = f"Status: {response.status_code}, Error: {response.text[:200]}"
+                    
+            except Exception as e:
+                create_provider_passed = False
+                create_provider_details = f"Error: {str(e)}"
+            
+            # Test 14b: List Calendar Providers
+            try:
+                response = requests.get(f"{API_BASE}/calendar/providers", headers=headers, timeout=10)
+                list_providers_passed = (response.status_code == 200 and isinstance(response.json(), list))
+                
+                if list_providers_passed:
+                    providers_list = response.json()
+                    calcom_providers = [p for p in providers_list if p.get('provider_type') == 'calcom']
+                    list_providers_details = f"Status: {response.status_code}, Total: {len(providers_list)}, Cal.com: {len(calcom_providers)}"
+                else:
+                    list_providers_details = f"Status: {response.status_code}"
+                    
+            except Exception as e:
+                list_providers_passed = False
+                list_providers_details = f"Error: {str(e)}"
+            
+            # Test 14c: Get Calendars from Cal.com Provider
+            try:
+                response = requests.get(f"{API_BASE}/calendar/calendars", headers=headers, timeout=15)
+                get_calendars_passed = response.status_code == 200
+                
+                if get_calendars_passed:
+                    calendars_data = response.json()
+                    calendar_count = sum(len(cals) for cals in calendars_data.values()) if isinstance(calendars_data, dict) else len(calendars_data)
+                    get_calendars_details = f"Status: {response.status_code}, Calendars found: {calendar_count}"
+                else:
+                    get_calendars_details = f"Status: {response.status_code}, Error: {response.text[:200]}"
+                    
+            except Exception as e:
+                get_calendars_passed = False
+                get_calendars_details = f"Error: {str(e)}"
+            
+            # Test 14d: Create Calendar Event (if provider was created successfully)
+            create_event_passed = False
+            event_id = None
+            if created_provider_id and create_provider_passed:
+                try:
+                    from datetime import datetime, timedelta
+                    start_time = datetime.utcnow() + timedelta(days=1)  # Tomorrow
+                    end_time = start_time + timedelta(hours=1)  # 1 hour duration
+                    
+                    event_data = {
+                        "title": "Test Cal.com Event",
+                        "description": "Test event created via API integration testing",
+                        "start_time": start_time.isoformat() + "Z",
+                        "end_time": end_time.isoformat() + "Z",
+                        "timezone": "UTC",
+                        "location": "Virtual Meeting",
+                        "attendees": ["test@example.com"],
+                        "attendee_name": "Test User",
+                        "attendee_email": "test@example.com"
+                    }
+                    
+                    response = requests.post(
+                        f"{API_BASE}/calendar/providers/{created_provider_id}/calendars/primary/events",
+                        json=event_data,
+                        headers=headers,
+                        timeout=20
+                    )
+                    create_event_passed = response.status_code in [200, 201]
+                    
+                    if create_event_passed:
+                        created_event = response.json()
+                        event_id = created_event.get('id')
+                        create_event_details = f"Status: {response.status_code}, Event ID: {event_id}"
+                    else:
+                        create_event_details = f"Status: {response.status_code}, Error: {response.text[:200]}"
+                        
+                except Exception as e:
+                    create_event_passed = False
+                    create_event_details = f"Error: {str(e)}"
+            else:
+                create_event_details = "Skipped - no provider created"
+            
+            # Test 14e: List Calendar Events
+            list_events_passed = False
+            if created_provider_id and create_provider_passed:
+                try:
+                    response = requests.get(
+                        f"{API_BASE}/calendar/providers/{created_provider_id}/calendars/primary/events",
+                        headers=headers,
+                        timeout=15
+                    )
+                    list_events_passed = response.status_code == 200
+                    
+                    if list_events_passed:
+                        events_list = response.json()
+                        list_events_details = f"Status: {response.status_code}, Events count: {len(events_list)}"
+                    else:
+                        list_events_details = f"Status: {response.status_code}, Error: {response.text[:200]}"
+                        
+                except Exception as e:
+                    list_events_passed = False
+                    list_events_details = f"Error: {str(e)}"
+            else:
+                list_events_details = "Skipped - no provider created"
+            
+            # Test 14f: Update Calendar Event (if event was created)
+            update_event_passed = False
+            if event_id and create_event_passed:
+                try:
+                    update_data = {
+                        "title": "Updated Test Cal.com Event",
+                        "description": "Updated test event description"
+                    }
+                    
+                    response = requests.put(
+                        f"{API_BASE}/calendar/providers/{created_provider_id}/calendars/primary/events/{event_id}",
+                        json=update_data,
+                        headers=headers,
+                        timeout=15
+                    )
+                    update_event_passed = response.status_code == 200
+                    update_event_details = f"Status: {response.status_code}"
+                    
+                except Exception as e:
+                    update_event_passed = False
+                    update_event_details = f"Error: {str(e)}"
+            else:
+                update_event_details = "Skipped - no event created"
+            
+            # Test 14g: Delete Calendar Event (if event was created)
+            delete_event_passed = False
+            if event_id and create_event_passed:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/calendar/providers/{created_provider_id}/calendars/primary/events/{event_id}",
+                        headers=headers,
+                        timeout=15
+                    )
+                    delete_event_passed = response.status_code in [200, 204]
+                    delete_event_details = f"Status: {response.status_code}"
+                    
+                except Exception as e:
+                    delete_event_passed = False
+                    delete_event_details = f"Error: {str(e)}"
+            else:
+                delete_event_details = "Skipped - no event created"
+            
+            # Test 14h: Error Handling - Invalid API Key
+            try:
+                invalid_provider_data = {
+                    "provider_type": "calcom",
+                    "provider_name": "Invalid Cal.com Provider",
+                    "credentials": {
+                        "api_key": "invalid_api_key_12345"
+                    },
+                    "timezone": "UTC"
+                }
+                
+                response = requests.post(f"{API_BASE}/calendar/providers", json=invalid_provider_data, headers=headers, timeout=15)
+                # Should fail with invalid API key
+                error_handling_passed = response.status_code in [400, 401, 422]
+                error_handling_details = f"Status: {response.status_code} (Expected failure with invalid API key)"
+                
+            except Exception as e:
+                error_handling_passed = False
+                error_handling_details = f"Error: {str(e)}"
+            
+            # Test 14i: Delete Calendar Provider (cleanup)
+            delete_provider_passed = False
+            if created_provider_id:
+                try:
+                    response = requests.delete(f"{API_BASE}/calendar/providers/{created_provider_id}", headers=headers, timeout=10)
+                    delete_provider_passed = response.status_code in [200, 204]
+                    delete_provider_details = f"Status: {response.status_code}"
+                    
+                except Exception as e:
+                    delete_provider_passed = False
+                    delete_provider_details = f"Error: {str(e)}"
+            else:
+                delete_provider_details = "Skipped - no provider created"
+            
+            # Overall assessment
+            core_functionality = (create_provider_passed and list_providers_passed and get_calendars_passed)
+            event_operations = (create_event_passed and list_events_passed and update_event_passed and delete_event_passed)
+            
+            all_passed = (core_functionality and event_operations and error_handling_passed and delete_provider_passed)
+            
+            # Log individual test results
+            self.log_test_result("Cal.com - Create Provider", create_provider_passed, create_provider_details)
+            self.log_test_result("Cal.com - List Providers", list_providers_passed, list_providers_details)
+            self.log_test_result("Cal.com - Get Calendars", get_calendars_passed, get_calendars_details)
+            self.log_test_result("Cal.com - Create Event", create_event_passed, create_event_details)
+            self.log_test_result("Cal.com - List Events", list_events_passed, list_events_details)
+            self.log_test_result("Cal.com - Update Event", update_event_passed, update_event_details)
+            self.log_test_result("Cal.com - Delete Event", delete_event_passed, delete_event_details)
+            self.log_test_result("Cal.com - Error Handling", error_handling_passed, error_handling_details)
+            self.log_test_result("Cal.com - Delete Provider", delete_provider_passed, delete_provider_details)
+            
+            details = f"Provider CRUD: {core_functionality}, Event Operations: {event_operations}, Error Handling: {error_handling_passed}"
+            
+            self.log_test_result("Cal.com Integration", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("Cal.com Integration", False, f"Exception: {str(e)}")
+    
+    def _authenticate_test_user(self):
+        """Authenticate a test user and store the token"""
+        try:
+            # First try to register a test user
+            test_email = f"calcom.test.{int(time.time())}@example.com"
+            register_data = {
+                "email": test_email,
+                "password": "testpassword123",
+                "full_name": "Cal.com Test User"
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/register", json=register_data, timeout=10)
+            if response.status_code in [200, 201]:
+                auth_response = response.json()
+                self.auth_token = auth_response.get('access_token')
+                self.test_user_id = auth_response.get('user', {}).get('id')
+                print(f"   ✅ Authenticated test user: {test_email}")
+                return True
+            else:
+                # Try to login if user already exists
+                login_data = {
+                    "email": test_email,
+                    "password": "testpassword123"
+                }
+                response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+                if response.status_code == 200:
+                    auth_response = response.json()
+                    self.auth_token = auth_response.get('access_token')
+                    self.test_user_id = auth_response.get('user', {}).get('id')
+                    print(f"   ✅ Logged in test user: {test_email}")
+                    return True
+                    
+        except Exception as e:
+            print(f"   ❌ Authentication failed: {str(e)}")
+            return False
+
     def test_meeting_detection_and_calendar_agent(self):
         """Test 14: MEETING DETECTION AND CALENDAR AGENT - Detect meetings, process intents, confirm events"""
         print("\n🤖 Testing MEETING DETECTION AND CALENDAR AGENT...")
