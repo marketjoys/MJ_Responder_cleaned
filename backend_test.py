@@ -2219,6 +2219,7 @@ async def main():
         tester.test_authentication_system()
         tester.test_calendar_provider_management()
         tester.test_calendar_operations()
+        tester.test_calcom_integration()  # NEW: Cal.com specific integration test
         tester.test_meeting_detection_and_calendar_agent()
         tester.test_email_calendar_integration()
         
