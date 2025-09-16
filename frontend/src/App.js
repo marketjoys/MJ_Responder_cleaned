@@ -348,6 +348,7 @@ const LoginPage = () => {
 // Register Page Component
 const RegisterPage = () => {
   const { register } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
