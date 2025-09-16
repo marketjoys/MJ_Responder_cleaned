@@ -148,6 +148,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED - Calendar provider management fully functional: Create providers with encrypted credentials (200), List user providers (200), Get calendars from all providers (200), Delete providers (200), Proper error handling for invalid provider types. Credential encryption/decryption working correctly."
+      - working: true
+        agent: "testing"
+        comment: "✅ RE-VERIFIED - Calendar provider management working perfectly with 100% success rate: Create calendar provider (200) with Google Calendar type and encrypted credentials, List calendar providers (200) returning proper provider data, Get all calendars (200) from configured providers, Delete calendar provider (200) with proper cleanup verification, Error handling (422) for invalid provider types. All CRUD operations for calendar providers operational."
 
   - task: "Calendar Operations"
     implemented: true
