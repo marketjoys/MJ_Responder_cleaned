@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,6 +20,21 @@ import email
 import re
 from email.header import decode_header
 import time
+
+# Import authentication and calendar modules
+from auth import (
+    User, UserCreate, UserLogin, Token, get_current_active_user, 
+    authenticate_user, create_access_token, get_password_hash,
+    get_user_by_email, check_email_quota, increment_email_usage,
+    get_user_quota_info, update_user_quota
+)
+from calendar_models import (
+    CalendarProviderCreate, CalendarProviderResponse, CalendarInfo,
+    EventCreate, EventUpdate, EventResponse, MeetingDetectionRequest,
+    MeetingDetectionResponse, QuotaInfo, UserProfile
+)
+from calendar_services import calendar_service, credential_manager
+from calendar_agent import calendar_agent
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
