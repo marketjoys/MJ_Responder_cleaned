@@ -6,6 +6,7 @@ import logging
 import pytz
 from cryptography.fernet import Fernet
 import os
+import httpx
 from motor.motor_asyncio import AsyncIOMotorClient
 from calendar_models import CalendarProvider, CalendarInfo, EventResponse, CalendarEvent
 from fastapi import HTTPException, status
