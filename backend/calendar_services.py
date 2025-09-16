@@ -220,6 +220,11 @@ class CalcomCalendarService(BaseCalendarService):
         """Make authenticated request to Cal.com API"""
         url = f"{self.base_url}/{endpoint}"
         
+        # Add API key as query parameter (Cal.com authentication method)
+        if params is None:
+            params = {}
+        params['apiKey'] = self.api_key
+        
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.request(
