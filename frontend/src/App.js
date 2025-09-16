@@ -194,12 +194,12 @@ function App() {
             } />
             <Route path="/calendar-events" element={
               <ProtectedRoute>
-                <CalendarEvents />
+                <CalendarEventsPage />
               </ProtectedRoute>
             } />
             <Route path="/meeting-detection" element={
               <ProtectedRoute>
-                <MeetingDetection />
+                <MeetingDetectionPage />
               </ProtectedRoute>
             } />
             <Route path="/intents" element={
