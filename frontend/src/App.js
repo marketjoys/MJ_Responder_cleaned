@@ -1153,6 +1153,16 @@ const CalendarProviders = () => {
   );
 };
 
+// Calendar Events Wrapper
+const CalendarEventsPage = () => {
+  return <CalendarEvents Layout={Layout} />;
+};
+
+// Meeting Detection Wrapper
+const MeetingDetectionPage = () => {
+  return <MeetingDetection Layout={Layout} />;
+};
+
 // Dashboard Component
 const Dashboard = () => {
   const [stats, setStats] = useState({});
