@@ -273,7 +273,435 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
         return 0
     return dot_product / (magnitude_a * magnitude_b)
 
-# Intent Management Routes
+# Authentication Routes
+@api_router.post("/auth/register", response_model=Token)
+async def register_user(user_data: UserCreate):
+    """Register a new user"""
+    
+    # Check if user already exists
+    existing_user = await get_user_by_email(user_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    user_id = str(uuid.uuid4())
+    hashed_password = get_password_hash(user_data.password)
+    
+    # Set quota reset date to next month
+    next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
+    next_month = next_month.replace(day=1)
+    
+    new_user = {
+        "id": user_id,
+        "email": user_data.email,
+        "full_name": user_data.full_name or "",
+        "hashed_password": hashed_password,
+        "is_active": True,
+        "email_quota": 100,  # Default monthly quota
+        "emails_used": 0,
+        "quota_reset_date": next_month,
+        "timezone": "UTC",
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.users.insert_one(new_user)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": user_data.email}, expires_delta=access_token_expires
+    )
+    
+    user_response = User(**new_user)
+    
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response
+    )
+
+@api_router.post("/auth/login", response_model=Token)
+async def login_user(user_credentials: UserLogin):
+    """Login user and return JWT token"""
+    
+    user = await authenticate_user(user_credentials.email, user_credentials.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
+    
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    
+    user_response = User(**user)
+    
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response
+    )
+
+@api_router.get("/auth/me", response_model=UserProfile)
+async def get_current_user_profile(current_user: User = Depends(get_current_active_user)):
+    """Get current user's profile"""
+    
+    quota_info = await get_user_quota_info(current_user.id)
+    
+    return UserProfile(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        timezone=current_user.timezone,
+        email_quota=current_user.email_quota,
+        emails_used=current_user.emails_used,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at,
+        quota_info=QuotaInfo(**quota_info)
+    )
+
+@api_router.put("/auth/quota/{user_id}")
+async def upgrade_user_quota(user_id: str, new_quota: int, current_user: User = Depends(get_current_active_user)):
+    """Upgrade user's email quota (admin function)"""
+    
+    # For now, allow users to upgrade their own quota
+    # In production, this should be restricted to admin users
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify other user's quota"
+        )
+    
+    await update_user_quota(user_id, new_quota)
+    return {"message": f"Quota updated to {new_quota} emails per month"}
+
+# Calendar Provider Routes
+@api_router.post("/calendar/providers", response_model=CalendarProviderResponse)
+async def create_calendar_provider(
+    provider_data: CalendarProviderCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new calendar provider configuration"""
+    
+    try:
+        # Encrypt credentials
+        encrypted_credentials = credential_manager.encrypt_credentials(provider_data.credentials)
+        
+        # Create provider record
+        provider_id = str(uuid.uuid4())
+        provider_config = {
+            "id": provider_id,
+            "user_id": current_user.id,
+            "provider_type": provider_data.provider_type.value,
+            "provider_name": provider_data.provider_name,
+            "encrypted_credentials": encrypted_credentials,
+            "is_active": True,
+            "timezone": provider_data.timezone,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        await db.calendar_providers.insert_one(provider_config)
+        
+        # Test provider connection
+        try:
+            service = await calendar_service.get_service(provider_id, current_user.id)
+            calendars = await service.get_calendars()
+            calendar_count = len(calendars)
+        except Exception as e:
+            logger.warning(f"Provider connection test failed: {e}")
+            calendar_count = 0
+        
+        return CalendarProviderResponse(
+            id=provider_id,
+            provider_type=provider_data.provider_type,
+            provider_name=provider_data.provider_name,
+            is_active=True,
+            timezone=provider_data.timezone,
+            calendar_count=calendar_count,
+            created_at=provider_config["created_at"],
+            updated_at=provider_config["updated_at"]
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to create calendar provider: {str(e)}"
+        )
+
+@api_router.get("/calendar/providers", response_model=List[CalendarProviderResponse])
+async def get_calendar_providers(current_user: User = Depends(get_current_active_user)):
+    """Get all calendar providers for current user"""
+    
+    providers = await db.calendar_providers.find({
+        "user_id": current_user.id,
+        "is_active": True
+    }).to_list(100)
+    
+    provider_responses = []
+    for provider in providers:
+        # Get calendar count
+        try:
+            service = await calendar_service.get_service(provider["id"], current_user.id)
+            calendars = await service.get_calendars()
+            calendar_count = len(calendars)
+        except Exception:
+            calendar_count = 0
+        
+        provider_responses.append(CalendarProviderResponse(
+            id=provider["id"],
+            provider_type=provider["provider_type"],
+            provider_name=provider["provider_name"],
+            is_active=provider["is_active"],
+            timezone=provider["timezone"],
+            calendar_count=calendar_count,
+            created_at=provider["created_at"],
+            updated_at=provider["updated_at"]
+        ))
+    
+    return provider_responses
+
+@api_router.delete("/calendar/providers/{provider_id}")
+async def delete_calendar_provider(
+    provider_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a calendar provider"""
+    
+    result = await db.calendar_providers.delete_one({
+        "id": provider_id,
+        "user_id": current_user.id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Calendar provider not found")
+    
+    return {"message": "Calendar provider deleted successfully"}
+
+@api_router.get("/calendar/calendars")
+async def get_all_calendars(current_user: User = Depends(get_current_active_user)):
+    """Get all calendars from all providers"""
+    
+    try:
+        all_calendars = await calendar_service.get_all_calendars(current_user.id)
+        return all_calendars
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to retrieve calendars: {str(e)}"
+        )
+
+@api_router.post("/calendar/providers/{provider_id}/calendars/{calendar_id}/events", response_model=EventResponse)
+async def create_calendar_event(
+    provider_id: str,
+    calendar_id: str,
+    event_data: EventCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new calendar event"""
+    
+    try:
+        # Check user quota
+        if not await check_email_quota(current_user):
+            raise HTTPException(
+                status_code=429,
+                detail="Monthly email quota exceeded. Please upgrade your plan."
+            )
+        
+        # Convert event data to dict
+        event_dict = event_data.dict()
+        event_dict['start_time'] = event_data.start_time.isoformat()
+        event_dict['end_time'] = event_data.end_time.isoformat()
+        
+        # Create event
+        event_response = await calendar_service.create_event(
+            provider_id, calendar_id, event_dict, current_user.id
+        )
+        
+        # Increment usage
+        await increment_email_usage(current_user.id)
+        
+        return event_response
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to create event: {str(e)}"
+        )
+
+@api_router.get("/calendar/providers/{provider_id}/calendars/{calendar_id}/events", response_model=List[EventResponse])
+async def get_calendar_events(
+    provider_id: str,
+    calendar_id: str,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    max_results: int = 100,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get calendar events"""
+    
+    try:
+        events = await calendar_service.get_events(
+            provider_id, calendar_id, start_time, end_time, max_results, current_user.id
+        )
+        return events
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to retrieve events: {str(e)}"
+        )
+
+@api_router.put("/calendar/providers/{provider_id}/calendars/{calendar_id}/events/{event_id}", response_model=EventResponse)
+async def update_calendar_event(
+    provider_id: str,
+    calendar_id: str,
+    event_id: str,
+    event_data: EventUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a calendar event"""
+    
+    try:
+        # Convert to dict excluding None values
+        event_dict = event_data.dict(exclude_unset=True)
+        
+        # Convert datetime objects
+        if event_data.start_time:
+            event_dict['start_time'] = event_data.start_time.isoformat()
+        if event_data.end_time:
+            event_dict['end_time'] = event_data.end_time.isoformat()
+        
+        event_response = await calendar_service.update_event(
+            provider_id, calendar_id, event_id, event_dict, current_user.id
+        )
+        
+        return event_response
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to update event: {str(e)}"
+        )
+
+@api_router.delete("/calendar/providers/{provider_id}/calendars/{calendar_id}/events/{event_id}")
+async def delete_calendar_event(
+    provider_id: str,
+    calendar_id: str,
+    event_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a calendar event"""
+    
+    try:
+        success = await calendar_service.delete_event(
+            provider_id, calendar_id, event_id, current_user.id
+        )
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Event not found")
+        
+        return {"message": "Event deleted successfully"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to delete event: {str(e)}"
+        )
+
+# Meeting Detection and Calendar Agent Routes
+@api_router.post("/calendar/detect-meeting", response_model=MeetingDetectionResponse)
+async def detect_meeting_intent(
+    request: MeetingDetectionRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Analyze email content for meeting intents"""
+    
+    try:
+        detection_response = await calendar_agent.analyze_email_for_meetings(
+            request.email_content,
+            "Manual Detection",
+            request.sender,
+            request.user_timezone or current_user.timezone
+        )
+        
+        return detection_response
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to detect meeting intent: {str(e)}"
+        )
+
+@api_router.get("/calendar/meeting-intents")
+async def get_meeting_intents(current_user: User = Depends(get_current_active_user)):
+    """Get all meeting intents for current user"""
+    
+    intents = await db.meeting_intents.find({
+        "user_id": current_user.id
+    }).sort("created_at", -1).to_list(100)
+    
+    return intents
+
+@api_router.post("/calendar/meeting-intents/{intent_id}/confirm")
+async def confirm_meeting_intent(
+    intent_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Confirm a meeting intent and create calendar event"""
+    
+    # Find the meeting intent
+    intent = await db.meeting_intents.find_one({
+        "id": intent_id,
+        "user_id": current_user.id
+    })
+    
+    if not intent:
+        raise HTTPException(status_code=404, detail="Meeting intent not found")
+    
+    if intent["status"] != "pending_confirmation":
+        raise HTTPException(status_code=400, detail="Meeting intent cannot be confirmed")
+    
+    try:
+        # Check quota
+        if not await check_email_quota(current_user):
+            raise HTTPException(
+                status_code=429,
+                detail="Monthly email quota exceeded"
+            )
+        
+        # Create calendar event using the calendar agent
+        event_id = await calendar_agent._create_calendar_event(intent, current_user.id)
+        
+        if event_id:
+            # Update intent status
+            await db.meeting_intents.update_one(
+                {"id": intent_id},
+                {
+                    "$set": {
+                        "status": "created",
+                        "created_event_id": event_id,
+                        "processed_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            # Increment usage
+            await increment_email_usage(current_user.id)
+            
+            return {"message": "Meeting confirmed and calendar event created", "event_id": event_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create calendar event")
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to confirm meeting: {str(e)}"
+        )
 @api_router.post("/intents", response_model=Intent)
 async def create_intent(intent: IntentCreate):
     intent_dict = intent.dict()
