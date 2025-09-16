@@ -236,9 +236,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Frontend Authentication System"
+    []
   stuck_tasks:
-    - "Frontend Authentication System"
+    []
   test_all: false
   test_priority: "high_first"
 
