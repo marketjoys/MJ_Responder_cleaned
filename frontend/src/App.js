@@ -527,6 +527,7 @@ const RegisterPage = () => {
 // Navigation Component
 const Navigation = ({ activeTab, setActiveTab }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
