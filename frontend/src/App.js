@@ -514,8 +514,14 @@ const RegisterPage = () => {
 
 // Navigation Component
 const Navigation = ({ activeTab, setActiveTab }) => {
+  const { user, logout } = useAuth();
+  
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
+    { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
+    { id: 'calendar-providers', label: 'Calendar Providers', icon: Cloud, path: '/calendar-providers' },
+    { id: 'calendar-events', label: 'Calendar Events', icon: CalendarDays, path: '/calendar-events' },
+    { id: 'meeting-detection', label: 'Meeting Detection', icon: Users2, path: '/meeting-detection' },
     { id: 'intents', label: 'Intents', icon: Brain, path: '/intents' },
     { id: 'accounts', label: 'Email Accounts', icon: Mail, path: '/accounts' },
     { id: 'knowledge', label: 'Knowledge Base', icon: Database, path: '/knowledge' },
@@ -534,8 +540,22 @@ const Navigation = ({ activeTab, setActiveTab }) => {
           Email Assistant
         </h1>
       </div>
+
+      {/* User Info */}
+      {user && (
+        <div className="bg-white/10 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <User className="h-5 w-5 text-purple-300" />
+            <span className="font-medium text-sm truncate">{user.full_name}</span>
+          </div>
+          <div className="text-xs text-purple-200 mb-2">{user.email}</div>
+          <div className="text-xs text-green-300">
+            Quota: {user.quota_info?.emails_used || 0}/{user.quota_info?.email_quota || 0}
+          </div>
+        </div>
+      )}
       
-      <ul className="space-y-2">
+      <ul className="space-y-2 mb-6">
         {navItems.map(item => (
           <li key={item.id}>
             <button
@@ -547,11 +567,22 @@ const Navigation = ({ activeTab, setActiveTab }) => {
               }`}
             >
               <item.icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium text-sm">{item.label}</span>
             </button>
           </li>
         ))}
       </ul>
+
+      {/* Logout Button */}
+      <div className="border-t border-white/20 pt-4">
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-red-500/20 text-red-300 hover:text-red-200"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="font-medium text-sm">Logout</span>
+        </button>
+      </div>
     </nav>
   );
 };
