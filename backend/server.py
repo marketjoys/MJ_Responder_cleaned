@@ -1880,6 +1880,17 @@ async def redraft_email(email_id: str):
         }}
     )
     
+    # CRITICAL FIX: Auto-send if validation passed and account has auto_send enabled
+    if validation["status"] == "PASS":
+        # Get account to check auto_send setting
+        account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
+        if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
+            await auto_send_email(email_id)
+            # Also increment email usage for redrafted emails
+            user_doc = await db.users.find_one({"email": account_doc["email"]})
+            if user_doc:
+                await increment_email_usage(user_doc["id"])
+    
     updated_email = await db.emails.find_one({"id": email_id})
     return EmailMessage(**updated_email)
 
