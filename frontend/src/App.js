@@ -1907,7 +1907,7 @@ const IntentManagement = () => {
                   <div className="mt-4">
                     <span className="font-medium text-slate-700 text-sm">Example Phrases:</span>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {intent.examples.slice(0, 3).map((example, index) => (
+                      {intent.examples && intent.examples.slice(0, 3).map((example, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {example.substring(0, 50)}{example.length > 50 ? '...' : ''}
                         </Badge>
