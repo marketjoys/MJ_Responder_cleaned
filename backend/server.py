@@ -35,6 +35,8 @@ from calendar_models import (
 )
 from calendar_services import calendar_service, credential_manager
 from calendar_agent import calendar_agent
+from oauth_google import google_oauth_service
+from google_services import get_google_gmail_service, get_google_calendar_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
