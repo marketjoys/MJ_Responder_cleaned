@@ -494,10 +494,14 @@ class CalendarServiceFactory:
                       provider_config: dict = None) -> BaseCalendarService:
         """Create calendar service instance based on provider type"""
         
-        # For now, return mock service for all providers
-        # In production, implement actual provider services
-        logger.info(f"Creating mock calendar service for provider: {provider}")
-        return MockCalendarService(credentials, provider_config)
+        if provider == CalendarProvider.CALCOM:
+            logger.info(f"Creating Cal.com calendar service")
+            return CalcomCalendarService(credentials, provider_config)
+        else:
+            # For other providers, return mock service for now
+            # In production, implement actual provider services
+            logger.info(f"Creating mock calendar service for provider: {provider}")
+            return MockCalendarService(credentials, provider_config)
 
 class UnifiedCalendarService:
     """Unified service layer for multi-provider calendar operations"""
