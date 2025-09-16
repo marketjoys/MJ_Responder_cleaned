@@ -784,6 +784,372 @@ const UserProfile = () => {
   );
 };
 
+// Calendar Providers Component
+const CalendarProviders = () => {
+  const [providers, setProviders] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    provider_type: '',
+    provider_name: '',
+    credentials: {},
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const fetchProviders = async () => {
+    try {
+      const response = await axios.get(`${API}/calendar/providers`);
+      setProviders(response.data);
+    } catch (error) {
+      console.error('Error fetching providers:', error);
+    }
+  };
+
+  const handleCreateProvider = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      await axios.post(`${API}/calendar/providers`, formData);
+      setMessage('Provider created successfully!');
+      setIsCreating(false);
+      resetForm();
+      fetchProviders();
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error creating provider');
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteProvider = async (providerId) => {
+    try {
+      await axios.delete(`${API}/calendar/providers/${providerId}`);
+      fetchProviders();
+    } catch (error) {
+      console.error('Error deleting provider:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      provider_type: '',
+      provider_name: '',
+      credentials: {},
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+  };
+
+  const renderCredentialsFields = () => {
+    switch (formData.provider_type) {
+      case 'google':
+        return (
+          <>
+            <div>
+              <Label htmlFor="client_id">Google Client ID</Label>
+              <Input
+                id="client_id"
+                value={formData.credentials.client_id || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, client_id: e.target.value }
+                }))}
+                placeholder="Enter Google Client ID"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="client_secret">Google Client Secret</Label>
+              <Input
+                id="client_secret"
+                type="password"
+                value={formData.credentials.client_secret || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, client_secret: e.target.value }
+                }))}
+                placeholder="Enter Google Client Secret"
+                required
+              />
+            </div>
+          </>
+        );
+      case 'microsoft':
+        return (
+          <>
+            <div>
+              <Label htmlFor="client_id">Microsoft Client ID</Label>
+              <Input
+                id="client_id"
+                value={formData.credentials.client_id || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, client_id: e.target.value }
+                }))}
+                placeholder="Enter Microsoft Client ID"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="client_secret">Microsoft Client Secret</Label>
+              <Input
+                id="client_secret"
+                type="password"
+                value={formData.credentials.client_secret || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, client_secret: e.target.value }
+                }))}
+                placeholder="Enter Microsoft Client Secret"
+                required
+              />
+            </div>
+          </>
+        );
+      case 'apple':
+        return (
+          <>
+            <div>
+              <Label htmlFor="username">Apple ID Username</Label>
+              <Input
+                id="username"
+                value={formData.credentials.username || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, username: e.target.value }
+                }))}
+                placeholder="Enter Apple ID Username"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Apple ID Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.credentials.password || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  credentials: { ...prev.credentials, password: e.target.value }
+                }))}
+                placeholder="Enter Apple ID Password"
+                required
+              />
+            </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const getProviderIcon = (type) => {
+    switch (type) {
+      case 'google': return <Cloud className="h-5 w-5 text-blue-600" />;
+      case 'microsoft': return <Monitor className="h-5 w-5 text-blue-800" />;
+      case 'apple': return <Smartphone className="h-5 w-5 text-slate-800" />;
+      default: return <Calendar className="h-5 w-5 text-purple-600" />;
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800 mb-2">Calendar Providers</h1>
+            <p className="text-slate-600">Connect your calendar services for meeting management</p>
+          </div>
+          <Button 
+            onClick={() => setIsCreating(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Provider
+          </Button>
+        </div>
+
+        {message && (
+          <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
+            <AlertDescription className={message.includes('success') ? 'text-green-700' : 'text-red-700'}>
+              {message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Create Provider Dialog */}
+        <Dialog open={isCreating} onOpenChange={(open) => {
+          if (!open) {
+            setIsCreating(false);
+            resetForm();
+            setMessage('');
+          }
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Calendar Provider</DialogTitle>
+              <DialogDescription>
+                Connect a calendar service to manage your meetings and events.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateProvider} className="space-y-6">
+              <div>
+                <Label htmlFor="provider_type">Provider Type</Label>
+                <Select 
+                  value={formData.provider_type} 
+                  onValueChange={(value) => setFormData(prev => ({ 
+                    ...prev, 
+                    provider_type: value,
+                    credentials: {} 
+                  }))}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select calendar provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google">Google Calendar</SelectItem>
+                    <SelectItem value="microsoft">Microsoft Outlook</SelectItem>
+                    <SelectItem value="apple">Apple iCloud</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="provider_name">Provider Name</Label>
+                <Input
+                  id="provider_name"
+                  value={formData.provider_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, provider_name: e.target.value }))}
+                  placeholder="e.g., My Google Calendar"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="timezone">Timezone</Label>
+                <Input
+                  id="timezone"
+                  value={formData.timezone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, timezone: e.target.value }))}
+                  placeholder="Your timezone"
+                  required
+                />
+              </div>
+
+              {renderCredentialsFields()}
+
+              <div className="flex justify-end gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsCreating(false);
+                    resetForm();
+                    setMessage('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Provider
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Providers List */}
+        <div className="grid gap-6">
+          {providers.map(provider => (
+            <Card key={provider.id} className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      {getProviderIcon(provider.provider_type)}
+                      {provider.provider_name}
+                      <Badge variant={provider.is_active ? "default" : "secondary"}>
+                        {provider.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      {provider.provider_type.charAt(0).toUpperCase() + provider.provider_type.slice(1)} Calendar Provider
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteProvider(provider.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-700">Timezone:</span>
+                    <div className="text-slate-600">{provider.timezone}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Calendars:</span>
+                    <div className="text-slate-600">{provider.calendar_count} connected</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Created:</span>
+                    <div className="text-slate-600">{new Date(provider.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          {providers.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Cloud className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-600 mb-2">No calendar providers connected</h3>
+                <p className="text-slate-500 mb-4">Add your first calendar provider to start managing meetings</p>
+                <Button 
+                  onClick={() => setIsCreating(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Provider
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
 // Dashboard Component
 const Dashboard = () => {
   const [stats, setStats] = useState({});
