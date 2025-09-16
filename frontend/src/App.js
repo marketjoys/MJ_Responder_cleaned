@@ -1978,27 +1978,31 @@ const IntentManagement = () => {
   );
 };
 
-// Email Accounts Component  
+// Email Accounts Component with OAuth Support
 const EmailAccounts = () => {
   const [accounts, setAccounts] = useState([]);
-  const [providers, setProviders] = useState({});
+  const [oauthStatus, setOauthStatus] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingAccount, setEditingAccount] = useState(null);
+  const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    provider: '',
+    provider: 'gmail',
     username: '',
     password: '',
-    persona: 'Professional and helpful',
+    imap_server: '',
+    imap_port: 993,
+    smtp_server: '',
+    smtp_port: 587,
     signature: '',
-    auto_send: true
+    is_active: true
   });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     fetchAccounts();
-    fetchProviders();
+    fetchOAuthStatus();
   }, []);
 
   const fetchAccounts = async () => {
@@ -2010,71 +2014,89 @@ const EmailAccounts = () => {
     }
   };
 
-  const fetchProviders = async () => {
+  const fetchOAuthStatus = async () => {
     try {
-      const response = await axios.get(`${API}/email-providers`);
-      setProviders(response.data);
+      const response = await axios.get(`${API}/oauth/google/status`);
+      setOauthStatus(response.data);
     } catch (error) {
-      console.error('Error fetching providers:', error);
+      console.error('Error fetching OAuth status:', error);
+      setOauthStatus({ is_authorized: false, authorized_services: [] });
     }
+  };
+
+  const initiateGoogleOAuth = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/oauth/google/authorize`, ['email']);
+      // Redirect to Google OAuth
+      window.location.href = response.data.auth_url;
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'OAuth initiation failed');
+      setLoading(false);
+    }
+  };
+
+  const createOAuthAccount = async () => {
+    setLoading(true);
+    try {
+      const accountData = {
+        name: formData.name,
+        email: formData.email,
+        provider: 'gmail',
+        auth_type: 'oauth',
+        use_oauth: true,
+        signature: formData.signature,
+        is_active: formData.is_active
+      };
+
+      await axios.post(`${API}/email-accounts/oauth`, accountData);
+      setMessage('OAuth email account created successfully!');
+      setIsCreating(false);
+      resetForm();
+      fetchAccounts();
+      fetchOAuthStatus();
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error creating OAuth account');
+    }
+    setLoading(false);
   };
 
   const handleCreateAccount = async (e) => {
     e.preventDefault();
-    try {
-      await axios.post(`${API}/email-accounts`, formData);
-      setIsCreating(false);
-      resetAccountForm();
-      fetchAccounts();
-    } catch (error) {
-      console.error('Error creating account:', error);
-    }
-  };
-
-  const handleEditAccount = (account) => {
-    setEditingAccount(account);
-    setFormData({
-      name: account.name,
-      email: account.email,
-      provider: account.provider,
-      username: account.username,
-      password: '', // Don't pre-fill password for security
-      persona: account.persona || 'Professional and helpful',
-      signature: account.signature || '',
-      auto_send: account.auto_send
-    });
-    setIsEditing(true);
-  };
-
-  const handleUpdateAccount = async (e) => {
-    e.preventDefault();
-    try {
-      const updateData = { ...formData };
-      // If password is empty, don't send it (keep existing password)
-      if (!updateData.password.trim()) {
-        delete updateData.password;
+    
+    if (accountType === 'oauth') {
+      if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')) {
+        setMessage('Please authorize Google email access first');
+        return;
       }
-      await axios.put(`${API}/email-accounts/${editingAccount.id}`, updateData);
-      setIsEditing(false);
-      setEditingAccount(null);
-      resetAccountForm();
-      fetchAccounts();
-    } catch (error) {
-      console.error('Error updating account:', error);
-    }
-  };
+      await createOAuthAccount();
+    } else {
+      // Existing manual account creation logic
+      setLoading(true);
+      setMessage('');
 
-  const resetAccountForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      provider: '',
-      username: '',
-      password: '',
-      persona: 'Professional and helpful',
-      signature: '',
-      auto_send: true
-    });
+      try {
+        const provider_config = EMAIL_PROVIDERS[formData.provider];
+        const accountData = {
+          ...formData,
+          imap_server: formData.imap_server || provider_config.imap_server,
+          imap_port: formData.imap_port || provider_config.imap_port,
+          smtp_server: formData.smtp_server || provider_config.smtp_server,
+          smtp_port: formData.smtp_port || provider_config.smtp_port,
+          auth_type: 'manual',
+          use_oauth: false
+        };
+
+        await axios.post(`${API}/email-accounts`, accountData);
+        setMessage('Email account created successfully!');
+        setIsCreating(false);
+        resetForm();
+        fetchAccounts();
+      } catch (error) {
+        setMessage(error.response?.data?.detail || 'Error creating account');
+      }
+      setLoading(false);
+    }
   };
 
   const handleDeleteAccount = async (accountId) => {
@@ -2086,13 +2108,45 @@ const EmailAccounts = () => {
     }
   };
 
-  const toggleAccount = async (accountId) => {
+  const toggleAccount = async (accountId, isActive) => {
     try {
-      await axios.put(`${API}/email-accounts/${accountId}/toggle`);
+      await axios.patch(`${API}/email-accounts/${accountId}/toggle`, {
+        is_active: !isActive
+      });
       fetchAccounts();
     } catch (error) {
       console.error('Error toggling account:', error);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      provider: 'gmail',
+      username: '',
+      password: '',
+      imap_server: '',
+      imap_port: 993,
+      smtp_server: '',
+      smtp_port: 587,
+      signature: '',
+      is_active: true
+    });
+    setAccountType('manual');
+  };
+
+  const revokeOAuth = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/oauth/google/revoke`);
+      setMessage('Google OAuth access revoked successfully');
+      fetchOAuthStatus();
+      fetchAccounts(); // Refresh accounts as OAuth accounts may be affected
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error revoking OAuth access');
+    }
+    setLoading(false);
   };
 
   return (
@@ -2101,7 +2155,7 @@ const EmailAccounts = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold text-slate-800 mb-2">Email Accounts</h1>
-            <p className="text-slate-600">Connect your email accounts for automated processing</p>
+            <p className="text-slate-600">Manage your email accounts for automated processing</p>
           </div>
           <Button 
             onClick={() => setIsCreating(true)}
@@ -2112,146 +2166,312 @@ const EmailAccounts = () => {
           </Button>
         </div>
 
-        {/* Create/Edit Account Dialog */}
-        <Dialog open={isCreating || isEditing} onOpenChange={(open) => {
+        {/* OAuth Status Card */}
+        <Card className="shadow-lg border-l-4 border-l-blue-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              Google OAuth Status
+            </CardTitle>
+            <CardDescription>
+              OAuth provides secure access to Gmail without storing passwords
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {oauthStatus?.is_authorized ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700 font-medium">Google OAuth Authorized</span>
+                </div>
+                <div className="text-sm text-slate-600">
+                  <p><strong>Account:</strong> {oauthStatus.user_name} ({oauthStatus.user_email})</p>
+                  <p><strong>Services:</strong> {oauthStatus.authorized_services?.join(', ') || 'None'}</p>
+                  <p><strong>Expires:</strong> {new Date(oauthStatus.expires_at).toLocaleString()}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm" 
+                  onClick={revokeOAuth}
+                  disabled={loading}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <PowerOff className="h-4 w-4 mr-2" />}
+                  Revoke Access
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <WifiOff className="h-5 w-5 text-red-600" />
+                  <span className="text-red-700 font-medium">Google OAuth Not Authorized</span>
+                </div>
+                <p className="text-sm text-slate-600">
+                  Authorize Google OAuth to create Gmail accounts without storing passwords
+                </p>
+                <Button 
+                  onClick={initiateGoogleOAuth}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Wifi className="h-4 w-4 mr-2" />}
+                  Authorize Google
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {message && (
+          <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
+            <AlertDescription className={message.includes('success') ? 'text-green-700' : 'text-red-700'}>
+              {message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Create Account Dialog */}
+        <Dialog open={isCreating} onOpenChange={(open) => {
           if (!open) {
             setIsCreating(false);
-            setIsEditing(false);
-            setEditingAccount(null);
-            resetAccountForm();
+            resetForm();
+            setMessage('');
           }
         }}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{isEditing ? 'Edit Email Account' : 'Add Email Account'}</DialogTitle>
+              <DialogTitle>Add Email Account</DialogTitle>
               <DialogDescription>
-                {isEditing ? 'Update email account settings.' : 'Connect a new email account for automated processing.'}
+                Connect your email account for automated processing. Choose OAuth for enhanced security.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={isEditing ? handleUpdateAccount : handleCreateAccount} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Account Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="e.g., Support Team"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="support@company.com"
-                    required
-                  />
-                </div>
+            
+            <div className="space-y-6">
+              {/* Account Type Selection */}
+              <div>
+                <Label>Account Type</Label>
+                <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="oauth" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      OAuth (Recommended)
+                    </TabsTrigger>
+                    <TabsTrigger value="manual" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Manual Setup
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
-              <div>
-                <Label htmlFor="provider">Email Provider</Label>
-                <Select 
-                  value={formData.provider} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, provider: value }))}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select email provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(providers).map(([key, provider]) => (
-                      <SelectItem key={key} value={key}>
-                        {provider.name}
-                        {provider.requires_app_password && <span className="text-xs text-amber-600 ml-2">(App Password Required)</span>}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formData.provider && providers[formData.provider]?.requires_app_password && (
-                  <Alert className="mt-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      This provider requires an app-specific password. Please generate one in your email account settings.
-                    </AlertDescription>
-                  </Alert>
+              <Separator />
+
+              <form onSubmit={handleCreateAccount} className="space-y-6">
+                {/* Common Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Account Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="My Gmail Account"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="signature">Email Signature</Label>
+                    <Input
+                      id="signature"
+                      value={formData.signature}
+                      onChange={(e) => setFormData(prev => ({ ...prev, signature: e.target.value }))}
+                      placeholder="Best regards, Your Name"
+                    />
+                  </div>
+                </div>
+
+                {/* OAuth-specific UI */}
+                {accountType === 'oauth' && (
+                  <TabsContent value="oauth" className="space-y-4 mt-0">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-blue-900">OAuth Authentication</h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            OAuth provides secure access to Gmail without storing your password. 
+                            {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email')
+                              ? ' You are already authorized and can create an OAuth account.'
+                              : ' Please authorize Google access first.'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Alert className="border-yellow-200 bg-yellow-50">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertDescription className="text-yellow-700">
+                            You need to authorize Google email access first. Click the "Authorize Google" button above.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )}
+                  </TabsContent>
                 )}
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    placeholder="Usually your email address"
-                    required
-                  />
+                {/* Manual setup fields */}
+                {accountType === 'manual' && (
+                  <TabsContent value="manual" className="space-y-4 mt-0">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="your@email.com"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="provider">Provider</Label>
+                        <Select value={formData.provider} onValueChange={(value) => setFormData(prev => ({ ...prev, provider: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gmail">Gmail</SelectItem>
+                            <SelectItem value="outlook">Outlook/Hotmail</SelectItem>
+                            <SelectItem value="yahoo">Yahoo Mail</SelectItem>
+                            <SelectItem value="custom">Custom IMAP/SMTP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="username">Username/Email</Label>
+                        <Input
+                          id="username"
+                          value={formData.username}
+                          onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                          placeholder="your@email.com"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="password">Password/App Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Your password"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* IMAP/SMTP Settings */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-slate-700">Server Settings</h4>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                          <Label htmlFor="imap_server">IMAP Server</Label>
+                          <Input
+                            id="imap_server"
+                            value={formData.imap_server}
+                            onChange={(e) => setFormData(prev => ({ ...prev, imap_server: e.target.value }))}
+                            placeholder="imap.gmail.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="imap_port">IMAP Port</Label>
+                          <Input
+                            id="imap_port"
+                            type="number"
+                            value={formData.imap_port}
+                            onChange={(e) => setFormData(prev => ({ ...prev, imap_port: parseInt(e.target.value) }))}
+                            placeholder="993"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="is_active"
+                              checked={formData.is_active}
+                              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                            />
+                            <Label htmlFor="is_active" className="text-sm">Active</Label>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                          <Label htmlFor="smtp_server">SMTP Server</Label>
+                          <Input
+                            id="smtp_server"
+                            value={formData.smtp_server}
+                            onChange={(e) => setFormData(prev => ({ ...prev, smtp_server: e.target.value }))}
+                            placeholder="smtp.gmail.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="smtp_port">SMTP Port</Label>
+                          <Input
+                            id="smtp_port"
+                            type="number"
+                            value={formData.smtp_port}
+                            onChange={(e) => setFormData(prev => ({ ...prev, smtp_port: parseInt(e.target.value) }))}
+                            placeholder="587"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsCreating(false);
+                    resetForm();
+                    setMessage('');
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={loading || (accountType === 'oauth' && (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')))}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Account
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder={isEditing ? "Leave empty to keep current password" : "App password or regular password"}
-                    required={!isEditing}
-                  />
-                  {isEditing && (
-                    <p className="text-xs text-slate-500 mt-1">Leave empty to keep current password</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="persona">AI Persona</Label>
-                <Input
-                  id="persona"
-                  value={formData.persona}
-                  onChange={(e) => setFormData(prev => ({ ...prev, persona: e.target.value }))}
-                  placeholder="e.g., Professional and helpful, Friendly and casual"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="signature">Email Signature (Optional)</Label>
-                <Textarea
-                  id="signature"
-                  value={formData.signature}
-                  onChange={(e) => setFormData(prev => ({ ...prev, signature: e.target.value }))}
-                  placeholder="Best regards,&#10;John Doe&#10;Support Team"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="auto_send"
-                  checked={formData.auto_send}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, auto_send: checked }))}
-                />
-                <Label htmlFor="auto_send">Auto-send approved replies</Label>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => {
-                  setIsCreating(false);
-                  setIsEditing(false);
-                  setEditingAccount(null);
-                  resetAccountForm();
-                }}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-600">
-                  {isEditing ? 'Update Account' : 'Add Account'}
-                </Button>
-              </div>
-            </form>
+              </form>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -2268,8 +2488,11 @@ const EmailAccounts = () => {
                       <Badge variant={account.is_active ? "default" : "secondary"}>
                         {account.is_active ? "Active" : "Inactive"}
                       </Badge>
-                      {account.auto_send && (
-                        <Badge variant="outline">Auto-send</Badge>
+                      {account.use_oauth && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          <Shield className="h-3 w-3 mr-1" />
+                          OAuth
+                        </Badge>
                       )}
                     </CardTitle>
                     <CardDescription>{account.email}</CardDescription>
@@ -2278,17 +2501,10 @@ const EmailAccounts = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEditAccount(account)}
-                      className="text-blue-600 hover:text-blue-700"
+                      onClick={() => toggleAccount(account.id, account.is_active)}
+                      className={account.is_active ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
                     >
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAccount(account.id)}
-                    >
-                      {account.is_active ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                      {account.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"
@@ -2302,46 +2518,57 @@ const EmailAccounts = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-slate-700">Provider:</span>
-                    <div className="text-slate-600">{providers[account.provider]?.name || account.provider}</div>
+                    <div className="text-slate-600 capitalize">{account.provider}</div>
                   </div>
                   <div>
-                    <span className="font-medium text-slate-700">Server:</span>
-                    <div className="text-slate-600">{account.imap_server}:{account.imap_port}</div>
+                    <span className="font-medium text-slate-700">Auth Type:</span>
+                    <div className="text-slate-600 capitalize">
+                      {account.use_oauth ? 'OAuth' : 'Manual'}
+                    </div>
                   </div>
                   <div>
-                    <span className="font-medium text-slate-700">Persona:</span>
-                    <div className="text-slate-600">{account.persona || "Default"}</div>
+                    <span className="font-medium text-slate-700">Last Polled:</span>
+                    <div className="text-slate-600">
+                      {account.last_polled ? new Date(account.last_polled).toLocaleString() : 'Never'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Status:</span>
+                    <div className={`${account.is_active ? 'text-green-600' : 'text-slate-600'}`}>
+                      {account.is_active ? 'Polling Active' : 'Paused'}
+                    </div>
                   </div>
                 </div>
-                {account.last_polled && (
-                  <div className="mt-2 text-xs text-slate-500">
-                    Last polled: {new Date(account.last_polled).toLocaleString()}
+                {account.signature && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <span className="font-medium text-slate-700 text-sm">Signature:</span>
+                    <div className="text-slate-600 text-sm mt-1">{account.signature}</div>
                   </div>
                 )}
               </CardContent>
             </Card>
           ))}
-          
-          {accounts.length === 0 && (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Mail className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-600 mb-2">No email accounts connected</h3>
-                <p className="text-slate-500 mb-4">Connect your first email account to start processing emails</p>
-                <Button 
-                  onClick={() => setIsCreating(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Account
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </div>
+
+        {accounts.length === 0 && (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Mail className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-600 mb-2">No email accounts configured</h3>
+              <p className="text-slate-500 mb-4">Add your first email account to start automated processing</p>
+              <Button 
+                onClick={() => setIsCreating(true)}
+                className="bg-gradient-to-r from-purple-600 to-pink-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Account
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
