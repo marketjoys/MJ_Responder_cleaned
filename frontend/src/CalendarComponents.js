@@ -188,11 +188,12 @@ export const CalendarEvents = ({ Layout }) => {
           </Button>
         </div>
 
-        {message && (
-          <Alert className={message.includes('success') ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-            <AlertCircle className={`h-4 w-4 ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`} />
-            <AlertDescription className={message.includes('success') ? 'text-green-700' : 'text-red-700'}>
-              {message}
+        {(!calendars || calendars.length === 0) && (
+          <Alert className="border-yellow-200 bg-yellow-50">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-700">
+              No calendars available. Please set up calendar providers first by visiting the 
+              <a href="/calendar-providers" className="underline ml-1">Calendar Providers</a> page.
             </AlertDescription>
           </Alert>
         )}
