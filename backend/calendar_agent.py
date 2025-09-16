@@ -12,6 +12,26 @@ from calendar_models import MeetingIntent, MeetingDetectionResponse, CalendarEve
 from calendar_services import calendar_service, TimezoneManager
 from auth import increment_email_usage, check_email_quota
 
+from typing import List, Dict, Optional, Any, Tuple
+from datetime import datetime, timezone, timedelta
+import re
+import logging
+import asyncio
+from dateutil import parser as date_parser
+import pytz
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import httpx
+from calendar_models import MeetingIntent, MeetingDetectionResponse, CalendarEvent
+from calendar_services import calendar_service, TimezoneManager
+from auth import increment_email_usage, check_email_quota
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
 # Initialize logging
 logger = logging.getLogger(__name__)
 
