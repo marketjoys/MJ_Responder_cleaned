@@ -254,9 +254,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Cal.com Integration"
-  stuck_tasks:
-    - "Cal.com Integration"
+    - "Email Processing Workflow"
+    - "Meeting Detection and Calendar Agent"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
