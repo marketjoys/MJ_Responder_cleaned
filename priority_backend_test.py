@@ -406,6 +406,7 @@ class PriorityTester:
                 detection_data = {
                     "email_content": meeting_email_content,
                     "sender": "john.smith@company.com",
+                    "subject": "Meeting Request - Project Discussion",
                     "user_timezone": "America/New_York"
                 }
                 
