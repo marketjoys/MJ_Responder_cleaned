@@ -50,6 +50,12 @@ class CalendarProviderCreate(BaseModel):
                 if field not in v:
                     raise ValueError(f"Apple Calendar requires '{field}' in credentials")
         
+        elif provider_type == CalendarProvider.CALCOM:
+            required = ['api_key']
+            for field in required:
+                if field not in v:
+                    raise ValueError(f"Cal.com requires '{field}' in credentials")
+        
         return v
 
 class CalendarProviderResponse(BaseModel):
