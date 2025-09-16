@@ -124,7 +124,7 @@ class EventResponse(BaseModel):
     provider_type: CalendarProvider
     html_link: Optional[str]
     recurrence: Optional[Union[str, List[str]]]
-    reminders: Optional[Dict[str, Any]]
+    reminders: Optional[List[Dict[str, Any]]]
     status: str = "confirmed"
 
 class MeetingIntent(BaseModel):
