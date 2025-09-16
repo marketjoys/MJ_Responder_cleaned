@@ -242,6 +242,7 @@ function App() {
 // Login Page Component
 const LoginPage = () => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -252,7 +253,10 @@ const LoginPage = () => {
     setError('');
 
     const result = await login(formData.email, formData.password);
-    if (!result.success) {
+    if (result.success) {
+      // Redirect to dashboard on successful login
+      navigate('/dashboard');
+    } else {
       setError(result.error);
     }
     setLoading(false);
