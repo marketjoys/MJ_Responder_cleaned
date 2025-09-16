@@ -572,7 +572,7 @@ const Navigation = ({ activeTab, setActiveTab }) => {
         {navItems.map(item => (
           <li key={item.id}>
             <button
-              onClick={() => window.location.href = item.path}
+              onClick={() => navigate(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                 window.location.pathname === item.path
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg'
