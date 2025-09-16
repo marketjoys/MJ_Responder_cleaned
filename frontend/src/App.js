@@ -332,7 +332,7 @@ const LoginPage = () => {
             <div className="text-center">
               <Button 
                 variant="link" 
-                onClick={() => window.location.href = '/register'}
+                onClick={() => navigate('/register')}
                 className="text-purple-600 hover:text-purple-700"
               >
                 Don't have an account? Sign up
