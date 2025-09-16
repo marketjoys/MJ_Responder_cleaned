@@ -5,6 +5,7 @@ import './App.css';
 
 // Import Calendar Components
 import { CalendarEvents, MeetingDetection } from './CalendarComponents';
+import OAuthCallback from './OAuthCallback';
 
 // UI Components
 import { Button } from './components/ui/button';
