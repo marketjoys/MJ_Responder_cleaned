@@ -388,96 +388,95 @@ export const CalendarEvents = ({ Layout }) => {
         <div className="grid gap-6">
           {events && events.length > 0 ? (
             events.map(event => (
-            <Card key={event.id} className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <CalendarDays className="h-5 w-5 text-blue-600" />
-                      {event.title}
-                      <Badge variant={event.status === 'confirmed' ? "default" : "secondary"}>
-                        {event.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>{event.description}</CardDescription>
+              <Card key={event.id} className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <CalendarDays className="h-5 w-5 text-blue-600" />
+                        {event.title}
+                        <Badge variant={event.status === 'confirmed' ? "default" : "secondary"}>
+                          {event.status}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>{event.description}</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditEvent(event)}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditEvent(event)}
-                      className="text-blue-600 hover:text-blue-700"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-slate-700 flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Start:
-                    </span>
-                    <div className="text-slate-600">{new Date(event.start_time).toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-700 flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      End:
-                    </span>
-                    <div className="text-slate-600">{new Date(event.end_time).toLocaleString()}</div>
-                  </div>
-                  {event.location && (
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="font-medium text-slate-700 flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        Location:
+                        <Clock className="h-4 w-4" />
+                        Start:
                       </span>
-                      <div className="text-slate-600">{event.location}</div>
+                      <div className="text-slate-600">{new Date(event.start_time).toLocaleString()}</div>
                     </div>
-                  )}
+                    <div>
+                      <span className="font-medium text-slate-700 flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        End:
+                      </span>
+                      <div className="text-slate-600">{new Date(event.end_time).toLocaleString()}</div>
+                    </div>
+                    {event.location && (
+                      <div>
+                        <span className="font-medium text-slate-700 flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          Location:
+                        </span>
+                        <div className="text-slate-600">{event.location}</div>
+                      </div>
+                    )}
+                    {event.attendees && event.attendees.length > 0 && (
+                      <div>
+                        <span className="font-medium text-slate-700 flex items-center gap-1">
+                          <Users2 className="h-4 w-4" />
+                          Attendees:
+                        </span>
+                        <div className="text-slate-600">{event.attendees.length} participants</div>
+                      </div>
+                    )}
+                  </div>
                   {event.attendees && event.attendees.length > 0 && (
-                    <div>
-                      <span className="font-medium text-slate-700 flex items-center gap-1">
-                        <Users2 className="h-4 w-4" />
-                        Attendees:
-                      </span>
-                      <div className="text-slate-600">{event.attendees.length} participants</div>
+                    <div className="mt-4">
+                      <span className="font-medium text-slate-700 text-sm">Participants:</span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {event.attendees.slice(0, 3).map((email, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {email}
+                          </Badge>
+                        ))}
+                        {event.attendees.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{event.attendees.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   )}
-                </div>
-                {event.attendees && event.attendees.length > 0 && (
-                  <div className="mt-4">
-                    <span className="font-medium text-slate-700 text-sm">Participants:</span>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {event.attendees.slice(0, 3).map((email, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {email}
-                        </Badge>
-                      ))}
-                      {event.attendees.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{event.attendees.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-          
-          {events.length === 0 && (
+                </CardContent>
+              </Card>
+            ))
+          ) : (
             <Card className="text-center py-12">
               <CardContent>
                 <CalendarDays className="h-12 w-12 text-slate-400 mx-auto mb-4" />
