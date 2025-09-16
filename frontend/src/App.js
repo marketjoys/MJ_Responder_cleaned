@@ -1575,7 +1575,7 @@ const EmailMonitoring = () => {
                 {email.intents && email.intents.length > 0 && (
                   <div className="mt-3 pt-3 border-t">
                     <div className="flex flex-wrap gap-2">
-                      {email.intents.map((intent, index) => (
+                      {email.intents && email.intents.map((intent, index) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {intent.name} ({(intent.confidence * 100).toFixed(1)}%)
                         </Badge>
