@@ -1941,6 +1941,13 @@ async def main():
         # Basic API endpoints
         tester.test_api_endpoints()
         
+        # NEW: Authentication and Calendar System Tests
+        tester.test_authentication_system()
+        tester.test_calendar_provider_management()
+        tester.test_calendar_operations()
+        tester.test_meeting_detection_and_calendar_agent()
+        tester.test_email_calendar_integration()
+        
         # Print summary
         tester.print_summary()
         
