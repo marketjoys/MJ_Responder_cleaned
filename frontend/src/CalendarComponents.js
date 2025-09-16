@@ -386,7 +386,8 @@ export const CalendarEvents = ({ Layout }) => {
 
         {/* Events List */}
         <div className="grid gap-6">
-          {events && events.length > 0 ? events.map(event => (
+          {events && events.length > 0 ? (
+            events.map(event => (
             <Card key={event.id} className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
