@@ -278,7 +278,7 @@ const LoginPage = () => {
               <Alert className="border-red-200 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
                 <AlertDescription className="text-red-700">
-                  {typeof error === 'string' ? error : error?.message || error?.detail || String(error)}
+                  {typeof error === 'string' ? error : error?.message || error?.detail || JSON.stringify(error, null, 2)}
                 </AlertDescription>
               </Alert>
             )}
@@ -422,7 +422,7 @@ const RegisterPage = () => {
               <Alert className="border-red-200 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
                 <AlertDescription className="text-red-700">
-                  {typeof error === 'string' ? error : error?.message || error?.detail || String(error)}
+                  {typeof error === 'string' ? error : error?.message || error?.detail || JSON.stringify(error, null, 2)}
                 </AlertDescription>
               </Alert>
             )}
