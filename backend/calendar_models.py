@@ -8,6 +8,7 @@ class CalendarProvider(Enum):
     GOOGLE = "google"
     MICROSOFT = "microsoft"
     APPLE = "apple"
+    CALCOM = "calcom"
 
 class CalendarProviderConfig(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
