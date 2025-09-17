@@ -261,7 +261,7 @@ export const CalendarEvents = ({ Layout }) => {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no-calendars" disabled>
                           No calendars available - Please set up calendar providers first
                         </SelectItem>
                       )}
