@@ -217,21 +217,40 @@ class EmailMessage(BaseModel):
 # Import email services and model
 from email_services import get_polling_service, EmailConnection
 
-# Rate limiter for Groq API
+# Import production components for enhanced functionality
+try:
+    from config import config
+    from redis_manager import redis_manager, queue_manager
+    from cache_manager import cache_manager
+    from api_rotation_manager import api_rotation_manager
+    from enhanced_email_processor import EnhancedEmailProcessor
+    from production_email_services import get_production_polling_service
+    from production_monitoring import monitoring_system
+    
+    PRODUCTION_MODE = True
+    logger.info("🚀 Production components available - enhanced mode enabled")
+except ImportError as e:
+    PRODUCTION_MODE = False
+    logger.warning(f"⚠️ Production components not available, falling back to basic mode: {e}")
+
+# Legacy rate limiter for backward compatibility
 class TokenBucketRateLimiter:
-    def __init__(self, max_tokens=5000, refill_rate=100):  # 5000 tokens with 100/minute refill
+    def __init__(self, max_tokens=5000, refill_rate=100):
         self.max_tokens = max_tokens
         self.tokens = max_tokens
-        self.refill_rate = refill_rate  # tokens per minute
+        self.refill_rate = refill_rate
         self.last_refill = time.time()
         self.lock = threading.Lock()
     
     async def acquire(self, tokens_needed=100):
-        """Acquire tokens, wait if necessary"""
+        if PRODUCTION_MODE:
+            # Use production API rotation manager
+            return True  # API rotation manager handles rate limiting
+        
+        # Legacy rate limiting
         while True:
             with self.lock:
                 now = time.time()
-                # Refill tokens based on time passed
                 time_passed = now - self.last_refill
                 tokens_to_add = (time_passed / 60) * self.refill_rate
                 self.tokens = min(self.max_tokens, self.tokens + tokens_to_add)
@@ -241,11 +260,14 @@ class TokenBucketRateLimiter:
                     self.tokens -= tokens_needed
                     return True
             
-            # Wait before retrying
             await asyncio.sleep(1)
 
 # Global rate limiter instance
 groq_rate_limiter = TokenBucketRateLimiter()
+
+# Global production instances
+enhanced_email_processor = None
+production_polling_service = None
 
 # Global polling service
 polling_service = None
