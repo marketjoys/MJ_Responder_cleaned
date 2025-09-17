@@ -214,6 +214,36 @@ class EmailMessage(BaseModel):
 # Import email services and model
 from email_services import get_polling_service, EmailConnection
 
+# Rate limiter for Groq API
+class TokenBucketRateLimiter:
+    def __init__(self, max_tokens=5000, refill_rate=100):  # 5000 tokens with 100/minute refill
+        self.max_tokens = max_tokens
+        self.tokens = max_tokens
+        self.refill_rate = refill_rate  # tokens per minute
+        self.last_refill = time.time()
+        self.lock = threading.Lock()
+    
+    async def acquire(self, tokens_needed=100):
+        """Acquire tokens, wait if necessary"""
+        while True:
+            with self.lock:
+                now = time.time()
+                # Refill tokens based on time passed
+                time_passed = now - self.last_refill
+                tokens_to_add = (time_passed / 60) * self.refill_rate
+                self.tokens = min(self.max_tokens, self.tokens + tokens_to_add)
+                self.last_refill = now
+                
+                if self.tokens >= tokens_needed:
+                    self.tokens -= tokens_needed
+                    return True
+            
+            # Wait before retrying
+            await asyncio.sleep(1)
+
+# Global rate limiter instance
+groq_rate_limiter = TokenBucketRateLimiter()
+
 # Global polling service
 polling_service = None
 
