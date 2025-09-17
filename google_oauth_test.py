@@ -24,7 +24,7 @@ load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
 # Configuration
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://reply-genius-10.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://email-sync-boost.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
@@ -99,7 +99,7 @@ class GoogleOAuthTester:
             # Test 1c: Verify expected values match
             expected_client_id = "691413402120-tlhotgqvkpevgvaaaff8h1r8t7lk0k9i.apps.googleusercontent.com"
             expected_client_secret = "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"
-            expected_redirect_uri = "https://reply-genius-10.preview.emergentagent.com/oauth/google/callback"
+            expected_redirect_uri = "https://email-sync-boost.preview.emergentagent.com/oauth/google/callback"
             
             credentials_match_expected = (GOOGLE_CLIENT_ID == expected_client_id and
                                         GOOGLE_CLIENT_SECRET == expected_client_secret and
