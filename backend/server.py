@@ -20,6 +20,8 @@ import email
 import re
 from email.header import decode_header
 import time
+from collections import deque
+import threading
 
 # Import authentication and calendar modules
 from auth import (
