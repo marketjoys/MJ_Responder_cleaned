@@ -222,13 +222,10 @@ PRODUCTION_MODE = False
 enhanced_email_processor = None
 production_polling_service = None
 
-try:
-    # For now, just set production mode flag without importing problematic modules
-    # The production components have Redis dependencies that need to be resolved
-    logger.info("⚠️ Production components available but disabled due to Redis compatibility issues")
-    # PRODUCTION_MODE = True  # Uncomment when Redis issues are resolved
-except ImportError as e:
-    logger.warning(f"⚠️ Production components not available, falling back to basic mode: {e}")
+# For now, just set production mode flag without importing problematic modules
+# The production components have Redis dependencies that need to be resolved
+logger.info("⚠️ Production components available but disabled due to Redis compatibility issues")
+# PRODUCTION_MODE = True  # Uncomment when Redis issues are resolved
 
 # Legacy rate limiter for backward compatibility
 class TokenBucketRateLimiter:
