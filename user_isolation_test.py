@@ -179,7 +179,7 @@ class UserIsolationTester:
             # Test update isolation: User 1 cannot update User 2's intent
             update_blocked = True
             if intent2_id:
-                update_data = {"name": "Hacked Intent"}
+                update_data = {"name": "Hacked Intent", "description": "Hacked description"}
                 response = requests.put(f"{API_BASE}/intents/{intent2_id}", json=update_data, headers=headers1, timeout=10)
                 update_blocked = response.status_code == 404
             
