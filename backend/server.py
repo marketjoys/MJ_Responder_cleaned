@@ -218,14 +218,30 @@ class EmailMessage(BaseModel):
 from email_services import get_polling_service, EmailConnection
 
 # Import production components for enhanced functionality
+PRODUCTION_MODE = False
+enhanced_email_processor = None
+production_polling_service = None
+
 try:
+    # Test imports individually to identify issues
     from config import config
-    from redis_manager import redis_manager, queue_manager
-    from cache_manager import cache_manager
+    logger.info("✅ Config module imported successfully")
+    
+    # Skip redis for now due to compatibility issues
+    # from redis_manager import redis_manager, queue_manager
+    # from cache_manager import cache_manager
+    
     from api_rotation_manager import api_rotation_manager
+    logger.info("✅ API rotation manager imported successfully")
+    
     from enhanced_email_processor import EnhancedEmailProcessor
+    logger.info("✅ Enhanced email processor imported successfully")
+    
     from production_email_services import get_production_polling_service
+    logger.info("✅ Production email services imported successfully")
+    
     from production_monitoring import monitoring_system
+    logger.info("✅ Production monitoring imported successfully")
     
     PRODUCTION_MODE = True
     logger.info("🚀 Production components available - enhanced mode enabled")
@@ -264,10 +280,6 @@ class TokenBucketRateLimiter:
 
 # Global rate limiter instance
 groq_rate_limiter = TokenBucketRateLimiter()
-
-# Global production instances
-enhanced_email_processor = None
-production_polling_service = None
 
 # Global polling service
 polling_service = None
