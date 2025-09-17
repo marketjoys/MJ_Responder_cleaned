@@ -223,30 +223,11 @@ enhanced_email_processor = None
 production_polling_service = None
 
 try:
-    # Test imports individually to identify issues
-    from config import config
-    logger.info("✅ Config module imported successfully")
-    
-    # Skip redis for now due to compatibility issues
-    # from redis_manager import redis_manager, queue_manager
-    # from cache_manager import cache_manager
-    
-    from api_rotation_manager import api_rotation_manager
-    logger.info("✅ API rotation manager imported successfully")
-    
-    from enhanced_email_processor import EnhancedEmailProcessor
-    logger.info("✅ Enhanced email processor imported successfully")
-    
-    from production_email_services import get_production_polling_service
-    logger.info("✅ Production email services imported successfully")
-    
-    from production_monitoring import monitoring_system
-    logger.info("✅ Production monitoring imported successfully")
-    
-    PRODUCTION_MODE = True
-    logger.info("🚀 Production components available - enhanced mode enabled")
+    # For now, just set production mode flag without importing problematic modules
+    # The production components have Redis dependencies that need to be resolved
+    logger.info("⚠️ Production components available but disabled due to Redis compatibility issues")
+    # PRODUCTION_MODE = True  # Uncomment when Redis issues are resolved
 except ImportError as e:
-    PRODUCTION_MODE = False
     logger.warning(f"⚠️ Production components not available, falling back to basic mode: {e}")
 
 # Legacy rate limiter for backward compatibility
