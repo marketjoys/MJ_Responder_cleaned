@@ -329,7 +329,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Calendar Events Add Event Functionality"
+    - "Gmail Account Creation End-to-End Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
