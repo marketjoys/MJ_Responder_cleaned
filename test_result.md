@@ -335,6 +335,9 @@ test_plan:
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+  urgent_testing_completed: true
+  user_isolation_verified: true
+  gmail_auto_responder_verified: true
 
 agent_communication:
   - agent: "testing"
