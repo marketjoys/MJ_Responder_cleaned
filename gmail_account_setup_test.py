@@ -137,7 +137,7 @@ class GmailAccountSetupTester:
             self.log_test_result("User Account Setup", False, f"Exception: {str(e)}")
             return False
     
-    def test_gmail_account_creation(self):
+    async def test_gmail_account_creation(self):
         """Test 2: Create Gmail email account via API and ensure it persists in database"""
         print("\n📧 Testing Gmail Account Creation...")
         
@@ -185,7 +185,7 @@ class GmailAccountSetupTester:
             if create_passed and self.gmail_account_id:
                 try:
                     # Wait a moment for database write
-                    time.sleep(1)
+                    await asyncio.sleep(1)
                     
                     # Check if account exists in database
                     account_doc = await self.db.email_accounts.find_one({"id": self.gmail_account_id})
