@@ -1192,25 +1192,6 @@ const CalendarProviders = () => {
             </DialogHeader>
             
             <div className="space-y-6">
-              {/* Provider Type Selection */}
-              <div>
-                <Label>Provider Type</Label>
-                <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="oauth" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      OAuth (Recommended)
-                    </TabsTrigger>
-                    <TabsTrigger value="manual" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Manual Setup
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <Separator />
-
               <form onSubmit={handleCreateProvider} className="space-y-6">
                 {/* Common Fields */}
                 <div className="grid grid-cols-2 gap-4">
@@ -1235,80 +1216,93 @@ const CalendarProviders = () => {
                   </div>
                 </div>
 
-                {/* OAuth-specific UI */}
-                {accountType === 'oauth' && (
-                  <TabsContent value="oauth" className="space-y-4 mt-0">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <Shield className="h-5 w-5 text-green-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-green-900">OAuth Authentication</h4>
-                          <p className="text-sm text-green-700 mt-1">
-                            OAuth provides secure access to Google Calendar without storing credentials. 
-                            {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar')
-                              ? ' You are already authorized and can create an OAuth provider.'
-                              : ' Please authorize Google access first.'
-                            }
-                          </p>
+                {/* Provider Type Selection */}
+                <div>
+                  <Label>Provider Type</Label>
+                  <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="oauth" className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        OAuth (Recommended)
+                      </TabsTrigger>
+                      <TabsTrigger value="manual" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Manual Setup
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* OAuth-specific UI */}
+                    <TabsContent value="oauth" className="space-y-4 mt-4">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <Shield className="h-5 w-5 text-green-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-medium text-green-900">OAuth Authentication</h4>
+                            <p className="text-sm text-green-700 mt-1">
+                              OAuth provides secure access to Google Calendar without storing credentials. 
+                              {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar')
+                                ? ' You are already authorized and can create an OAuth provider.'
+                                : ' Please authorize Google access first.'
+                              }
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar') ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle className="h-5 w-5" />
-                          <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                      {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('calendar') ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-green-700">
+                            <CheckCircle className="h-5 w-5" />
+                            <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Alert className="border-yellow-200 bg-yellow-50">
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          <AlertDescription className="text-yellow-700">
-                            You need to authorize Google calendar access first. Click the "Authorize Google" button above.
-                          </AlertDescription>
-                        </Alert>
-                      </div>
-                    )}
-                  </TabsContent>
-                )}
+                      ) : (
+                        <div className="space-y-4">
+                          <Alert className="border-yellow-200 bg-yellow-50">
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                            <AlertDescription className="text-yellow-700">
+                              You need to authorize Google calendar access first. Click the "Authorize Google" button above.
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      )}
+                    </TabsContent>
 
-                {/* Manual setup fields */}
-                {accountType === 'manual' && (
-                  <TabsContent value="manual" className="space-y-4 mt-0">
-                    <div>
-                      <Label htmlFor="provider_type">Provider Type</Label>
-                      <Select 
-                        value={formData.provider_type} 
-                        onValueChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
-                          provider_type: value,
-                          credentials: {} 
-                        }))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select calendar provider" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="google">Google Calendar</SelectItem>
-                          <SelectItem value="microsoft">Microsoft Outlook</SelectItem>
-                          <SelectItem value="apple">Apple iCloud</SelectItem>
-                          <SelectItem value="calcom">Cal.com</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Provider-specific credential fields */}
-                    {formData.provider_type && (
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-slate-700">Credentials</h4>
-                        {renderCredentialsFields()}
+                    {/* Manual setup fields */}
+                    <TabsContent value="manual" className="space-y-4 mt-4">
+                      <div>
+                        <Label htmlFor="provider_type">Provider Type</Label>
+                        <Select 
+                          value={formData.provider_type} 
+                          onValueChange={(value) => setFormData(prev => ({ 
+                            ...prev, 
+                            provider_type: value,
+                            credentials: {} 
+                          }))}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select calendar provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="google">Google Calendar</SelectItem>
+                            <SelectItem value="microsoft">Microsoft Outlook</SelectItem>
+                            <SelectItem value="apple">Apple iCloud</SelectItem>
+                            <SelectItem value="calcom">Cal.com</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
-                  </TabsContent>
-                )}
+
+                      {/* Provider-specific credential fields */}
+                      {formData.provider_type && (
+                        <div className="space-y-4">
+                          <h4 className="font-medium text-slate-700">Credentials</h4>
+                          {renderCredentialsFields()}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => {
