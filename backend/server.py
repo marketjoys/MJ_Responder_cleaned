@@ -23,6 +23,9 @@ import time
 from collections import deque
 import threading
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Import authentication and calendar modules
 from auth import (
     User, UserCreate, UserLogin, Token, get_current_active_user, 
