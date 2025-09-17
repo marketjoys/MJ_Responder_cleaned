@@ -25,6 +25,7 @@ import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
+logger.info("🔧 Server module loading...")
 
 # Import authentication and calendar modules
 from auth import (
