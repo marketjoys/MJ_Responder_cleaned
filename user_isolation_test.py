@@ -261,7 +261,7 @@ class UserIsolationTester:
             # Test update isolation
             update_blocked = True
             if kb2_id:
-                update_data = {"title": "Hacked Knowledge"}
+                update_data = {"title": "Hacked Knowledge", "content": "Hacked content"}
                 response = requests.put(f"{API_BASE}/knowledge-base/{kb2_id}", json=update_data, headers=headers1, timeout=10)
                 update_blocked = response.status_code == 404
             
