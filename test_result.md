@@ -299,8 +299,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Email Processing Workflow"
-    - "Meeting Detection and Calendar Agent"
+    - "Calendar Events Add Event Functionality"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
