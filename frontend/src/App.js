@@ -2475,25 +2475,6 @@ const EmailAccounts = () => {
             </DialogHeader>
             
             <div className="space-y-6">
-              {/* Account Type Selection */}
-              <div>
-                <Label>Account Type</Label>
-                <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="oauth" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      OAuth (Recommended)
-                    </TabsTrigger>
-                    <TabsTrigger value="manual" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Manual Setup
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <Separator />
-
               <form onSubmit={handleCreateAccount} className="space-y-6">
                 {/* Common Fields */}
                 <div className="grid grid-cols-2 gap-4">
@@ -2518,105 +2499,114 @@ const EmailAccounts = () => {
                   </div>
                 </div>
 
-                {/* OAuth-specific UI */}
-                {accountType === 'oauth' && (
-                  <TabsContent value="oauth" className="space-y-4 mt-0">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                {/* Account Type Selection */}
+                <div>
+                  <Label>Account Type</Label>
+                  <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="oauth" className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        OAuth (Recommended)
+                      </TabsTrigger>
+                      <TabsTrigger value="manual" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Manual Setup
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* OAuth-specific UI */}
+                    <TabsContent value="oauth" className="space-y-4 mt-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-medium text-blue-900">OAuth Authentication</h4>
+                            <p className="text-sm text-blue-700 mt-1">
+                              OAuth provides secure access to Gmail without storing your password. 
+                              {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email')
+                                ? ' You are already authorized and can create an OAuth account.'
+                                : ' Please authorize Google access first.'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 text-green-700">
+                            <CheckCircle className="h-5 w-5" />
+                            <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <Alert className="border-yellow-200 bg-yellow-50">
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                            <AlertDescription className="text-yellow-700">
+                              You need to authorize Google email access first. Click the "Authorize Google" button above.
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Manual setup fields */}
+                    <TabsContent value="manual" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <h4 className="font-medium text-blue-900">OAuth Authentication</h4>
-                          <p className="text-sm text-blue-700 mt-1">
-                            OAuth provides secure access to Gmail without storing your password. 
-                            {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email')
-                              ? ' You are already authorized and can create an OAuth account.'
-                              : ' Please authorize Google access first.'
-                            }
-                          </p>
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                            placeholder="your@email.com"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="provider">Provider</Label>
+                          <Select value={formData.provider} onValueChange={(value) => setFormData(prev => ({ ...prev, provider: value }))}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="gmail">Gmail</SelectItem>
+                              <SelectItem value="outlook">Outlook/Hotmail</SelectItem>
+                              <SelectItem value="yahoo">Yahoo Mail</SelectItem>
+                              <SelectItem value="custom">Custom IMAP/SMTP</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-                    </div>
 
-                    {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle className="h-5 w-5" />
-                          <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="username">Username/Email</Label>
+                          <Input
+                            id="username"
+                            value={formData.username}
+                            onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                            placeholder="your@email.com"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="password">Password</Label>
+                          <Input
+                            id="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                            placeholder="Your email password"
+                            required
+                          />
                         </div>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Alert className="border-yellow-200 bg-yellow-50">
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          <AlertDescription className="text-yellow-700">
-                            You need to authorize Google email access first. Click the "Authorize Google" button above.
-                          </AlertDescription>
-                        </Alert>
-                      </div>
-                    )}
-                  </TabsContent>
-                )}
 
-                {/* Manual setup fields */}
-                {accountType === 'manual' && (
-                  <TabsContent value="manual" className="space-y-4 mt-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="your@email.com"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="provider">Provider</Label>
-                        <Select value={formData.provider} onValueChange={(value) => setFormData(prev => ({ ...prev, provider: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="gmail">Gmail</SelectItem>
-                            <SelectItem value="outlook">Outlook/Hotmail</SelectItem>
-                            <SelectItem value="yahoo">Yahoo Mail</SelectItem>
-                            <SelectItem value="custom">Custom IMAP/SMTP</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="username">Username/Email</Label>
-                        <Input
-                          id="username"
-                          value={formData.username}
-                          onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                          placeholder="your@email.com"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="password">Password/App Password</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={formData.password}
-                          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                          placeholder="Your password"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* IMAP/SMTP Settings */}
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-slate-700">Server Settings</h4>
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className="col-span-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
                           <Label htmlFor="imap_server">IMAP Server</Label>
                           <Input
                             id="imap_server"
@@ -2635,19 +2625,10 @@ const EmailAccounts = () => {
                             placeholder="993"
                           />
                         </div>
-                        <div className="flex items-end">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="is_active"
-                              checked={formData.is_active}
-                              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                            />
-                            <Label htmlFor="is_active" className="text-sm">Active</Label>
-                          </div>
-                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="col-span-2">
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
                           <Label htmlFor="smtp_server">SMTP Server</Label>
                           <Input
                             id="smtp_server"
@@ -2667,9 +2648,9 @@ const EmailAccounts = () => {
                           />
                         </div>
                       </div>
-                    </div>
-                  </TabsContent>
-                )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => {
