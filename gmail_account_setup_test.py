@@ -215,7 +215,7 @@ class GmailAccountSetupTester:
             self.log_test_result("Gmail Account Creation", False, f"Exception: {str(e)}")
             return False
     
-    def test_gmail_account_activation(self):
+    async def test_gmail_account_activation(self):
         """Test 3: Enable the account for polling (is_active = true)"""
         print("\n🔄 Testing Gmail Account Activation...")
         
