@@ -271,31 +271,68 @@ async def get_cohere_embedding(text: str) -> List[float]:
             raise HTTPException(status_code=500, detail=f"Cohere API error: {response.text}")
 
 async def groq_chat_completion(messages: List[Dict], system_prompt: str = "") -> str:
-    """Get completion from Groq API"""
+    """Get completion from Groq API with rate limiting and retry logic"""
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
     
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "messages": messages,
-                "model": "deepseek-r1-distill-llama-70b",
-                "temperature": 0.6,
-                "max_completion_tokens": 4096,
-                "top_p": 0.95,
-                "stream": False
-            }
-        )
-        if response.status_code == 200:
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        else:
-            raise HTTPException(status_code=500, detail=f"Groq API error: {response.text}")
+    # Calculate approximate tokens needed (rough estimate)
+    total_text = " ".join([msg.get("content", "") for msg in messages])
+    estimated_tokens = len(total_text) // 4  # Rough approximation: 4 chars per token
+    
+    # Acquire tokens from rate limiter
+    await groq_rate_limiter.acquire(estimated_tokens)
+    
+    max_retries = 3
+    base_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "messages": messages,
+                        "model": "deepseek-r1-distill-llama-70b",
+                        "temperature": 0.6,
+                        "max_completion_tokens": 2048,  # Reduced from 4096 to save tokens
+                        "top_p": 0.95,
+                        "stream": False
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result["choices"][0]["message"]["content"]
+                elif response.status_code == 429:  # Rate limit exceeded
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # Exponential backoff
+                        logger.warning(f"Groq rate limit hit, retrying in {delay}s (attempt {attempt + 1})")
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        raise HTTPException(status_code=429, detail="Groq API rate limit exceeded - please try again later")
+                else:
+                    raise HTTPException(status_code=500, detail=f"Groq API error: {response.text}")
+                    
+        except httpx.TimeoutException:
+            if attempt < max_retries - 1:
+                logger.warning(f"Groq API timeout, retrying (attempt {attempt + 1})")
+                await asyncio.sleep(base_delay)
+                continue
+            else:
+                raise HTTPException(status_code=500, detail="Groq API timeout")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Groq API error: {str(e)}, retrying (attempt {attempt + 1})")
+                await asyncio.sleep(base_delay)
+                continue
+            else:
+                raise HTTPException(status_code=500, detail=f"Groq API error: {str(e)}")
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
     """Calculate cosine similarity between two embeddings"""
