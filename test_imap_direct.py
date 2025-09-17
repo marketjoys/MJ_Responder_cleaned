@@ -2,6 +2,7 @@
 import imaplib
 import ssl
 import email
+import os
 from email.header import decode_header
 
 # Gmail account details - USE ENVIRONMENT VARIABLES FOR SECURITY
