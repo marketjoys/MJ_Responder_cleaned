@@ -633,13 +633,13 @@ async def main():
         
         # Test 2: Gmail Account Creation
         if user_setup_success:
-            gmail_creation_success = tester.test_gmail_account_creation()
+            gmail_creation_success = await tester.test_gmail_account_creation()
         else:
             gmail_creation_success = False
         
         # Test 3: Gmail Account Activation
         if gmail_creation_success:
-            activation_success = tester.test_gmail_account_activation()
+            activation_success = await tester.test_gmail_account_activation()
         else:
             activation_success = False
         
