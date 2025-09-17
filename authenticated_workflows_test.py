@@ -165,6 +165,7 @@ class AuthenticatedWorkflowsTester:
             no_meeting_test_data = {
                 "email_content": "Thanks for the information. I'll review the documents and get back to you with feedback by end of week.",
                 "sender": "colleague@company.com",
+                "subject": "Document Review Feedback",
                 "user_timezone": "UTC"
             }
             
