@@ -351,7 +351,13 @@ class UserIsolationTester:
             # Test update isolation
             update_blocked = True
             if account2_id:
-                update_data = {"name": "Hacked Account"}
+                update_data = {
+                    "name": "Hacked Account",
+                    "email": "hacked@example.com",
+                    "provider": "gmail",
+                    "username": "hacked@example.com",
+                    "password": "hacked_password"
+                }
                 response = requests.put(f"{API_BASE}/email-accounts/{account2_id}", json=update_data, headers=headers1, timeout=10)
                 update_blocked = response.status_code == 404
             
