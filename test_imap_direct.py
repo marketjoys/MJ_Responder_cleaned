@@ -4,9 +4,9 @@ import ssl
 import email
 from email.header import decode_header
 
-# Gmail account details
-email_account = "rohushanshinde@gmail.com"
-password = "pajbdmcpcegppguz"
+# Gmail account details - USE ENVIRONMENT VARIABLES FOR SECURITY
+email_account = os.environ.get("TEST_EMAIL_ACCOUNT", "your-test-email@gmail.com")
+password = os.environ.get("TEST_EMAIL_PASSWORD", "your-app-password")
 imap_server = "imap.gmail.com"
 imap_port = 993
 
