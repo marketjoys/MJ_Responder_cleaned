@@ -2104,43 +2104,22 @@ async def calendar_reminder_service():
             await asyncio.sleep(300)  # Wait 5 minutes on error
 
 async def initialize_email_accounts():
-    """Initialize default email accounts if they don't exist"""
+    """Email accounts are now user-specific and created when users add them"""
     try:
-        # Check if any email accounts exist
+        # Email accounts will be created by users through the UI
+        # No default accounts are created to ensure privacy and security
         existing_accounts = await db.email_accounts.count_documents({})
+        logger.info(f"ℹ️  Found {existing_accounts} user-created email accounts")
         
-        if existing_accounts == 0:
-            logger.info("📧 Initializing default email account...")
-            
-            # Create default Gmail account
-            default_account = {
-                "id": str(uuid.uuid4()),
-                "email": "rohushanshinde@gmail.com",
-                "username": "rohushanshinde@gmail.com",
-                "password": "pajbdmcpcegppguz",  # App password from test files
-                "name": "AI Email Assistant",
-                "provider": "gmail",
-                "imap_server": "imap.gmail.com",
-                "imap_port": 993,
-                "smtp_server": "smtp.gmail.com",
-                "smtp_port": 587,
-                "is_active": True,
-                "last_uid": 0,
-                "uidvalidity": None,
-                "last_polled": None,
-                "persona": "I am a helpful AI assistant representing a technology company. I respond professionally and courteously to all emails, providing accurate information and appropriate next steps.",
-                "signature": "Best regards,\nAI Email Assistant\nTechnology Solutions Team",
-                "auto_send": True,
-                "created_at": datetime.utcnow()
-            }
-            
-            await db.email_accounts.insert_one(default_account)
-            logger.info(f"✅ Created default email account: {default_account['email']}")
-        else:
-            logger.info(f"ℹ️  Found {existing_accounts} existing email accounts")
+        # Clean up any legacy hardcoded accounts for security
+        removed_count = await db.email_accounts.delete_many({
+            "email": "rohushanshinde@gmail.com"
+        })
+        if removed_count.deleted_count > 0:
+            logger.info(f"🔒 Removed {removed_count.deleted_count} legacy hardcoded email accounts for security")
             
     except Exception as e:
-        logger.error(f"❌ Error initializing email accounts: {str(e)}")
+        logger.error(f"❌ Error checking email accounts: {str(e)}")
 
 async def initialize_intents():
     """Initialize default intents for email classification"""
