@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 # Configuration
-BACKEND_URL = "https://google-auth-sync.preview.emergentagent.com"
+BACKEND_URL = "https://select-item-bugfix-1.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_specific_endpoints():
