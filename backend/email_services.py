@@ -64,10 +64,21 @@ class EmailConnection:
             
             # Connect to IMAP server
             self.imap_connection = imaplib.IMAP4_SSL(self.imap_server, self.imap_port, ssl_context=context)
-            self.imap_connection.login(self.username, self.password)
+            
+            # Login with error handling
+            try:
+                self.imap_connection.login(self.username, self.password)
+            except imaplib.IMAP4.error as login_error:
+                logger.error(f"❌ IMAP login failed for {self.email}: {str(login_error)}")
+                self.imap_connection = None
+                return False
             
             # Select INBOX
-            self.imap_connection.select('INBOX')
+            status, messages = self.imap_connection.select('INBOX')
+            if status != 'OK':
+                logger.error(f"❌ Failed to select INBOX for {self.email}: {messages}")
+                self.imap_connection = None
+                return False
             
             logger.info(f"✅ IMAP connected for {self.email}")
             return True
