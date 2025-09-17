@@ -125,6 +125,7 @@ class AuthenticatedWorkflowsTester:
             meeting_test_data = {
                 "email_content": "Hi team, let's schedule a meeting for next Tuesday at 2 PM EST to discuss the quarterly review. I'll send calendar invites to everyone. Please confirm your availability.",
                 "sender": "manager@company.com",
+                "subject": "Quarterly Review Meeting",
                 "user_timezone": "America/New_York"
             }
             
