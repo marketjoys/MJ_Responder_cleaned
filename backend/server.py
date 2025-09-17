@@ -92,9 +92,10 @@ EMAIL_PROVIDERS = {
     }
 }
 
-# Models
+# Models - Updated with user_id fields for proper isolation
 class Intent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Added for user isolation
     name: str
     description: str
     examples: List[str] = []
@@ -115,6 +116,7 @@ class IntentCreate(BaseModel):
 
 class EmailAccount(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Added for user isolation
     name: str
     email: str
     provider: str
@@ -149,6 +151,7 @@ class EmailAccountCreate(BaseModel):
 
 class KnowledgeBase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Added for user isolation
     title: str
     content: str
     tags: List[str] = []
@@ -188,6 +191,7 @@ class AccountPollingStatus(BaseModel):
 # Define EmailMessage model here to avoid circular imports
 class EmailMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Added for user isolation
     account_id: str
     message_id: str
     thread_id: str
@@ -416,7 +420,7 @@ async def create_calendar_provider(
             calendars = await service.get_calendars()
             calendar_count = len(calendars)
         except Exception as e:
-            logger.warning(f"Provider connection test failed: {e}")
+            logging.warning(f"Provider connection test failed: {e}")
             calendar_count = 0
         
         return CalendarProviderResponse(
@@ -704,9 +708,12 @@ async def confirm_meeting_intent(
             status_code=400,
             detail=f"Failed to confirm meeting: {str(e)}"
         )
+
+# Intent CRUD Routes - Updated with user isolation
 @api_router.post("/intents", response_model=Intent)
-async def create_intent(intent: IntentCreate):
+async def create_intent(intent: IntentCreate, current_user: User = Depends(get_current_active_user)):
     intent_dict = intent.dict()
+    intent_dict["user_id"] = current_user.id  # Add user isolation
     intent_obj = Intent(**intent_dict)
     
     # Create embedding for intent description + examples
@@ -720,21 +727,21 @@ async def create_intent(intent: IntentCreate):
     return intent_obj
 
 @api_router.get("/intents", response_model=List[Intent])
-async def get_intents():
-    intents = await db.intents.find().to_list(1000)
+async def get_intents(current_user: User = Depends(get_current_active_user)):
+    intents = await db.intents.find({"user_id": current_user.id}).to_list(1000)  # Filter by user
     return [Intent(**intent) for intent in intents]
 
 @api_router.get("/intents/{intent_id}", response_model=Intent)
-async def get_intent(intent_id: str):
-    intent_doc = await db.intents.find_one({"id": intent_id})
+async def get_intent(intent_id: str, current_user: User = Depends(get_current_active_user)):
+    intent_doc = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})  # Filter by user
     if not intent_doc:
         raise HTTPException(status_code=404, detail="Intent not found")
     return Intent(**intent_doc)
 
 @api_router.put("/intents/{intent_id}", response_model=Intent)
-async def update_intent(intent_id: str, intent: IntentCreate):
-    # Check if intent exists
-    existing_intent = await db.intents.find_one({"id": intent_id})
+async def update_intent(intent_id: str, intent: IntentCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if intent exists and belongs to user
+    existing_intent = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})
     if not existing_intent:
         raise HTTPException(status_code=404, detail="Intent not found")
     
@@ -751,29 +758,30 @@ async def update_intent(intent_id: str, intent: IntentCreate):
     
     # Update in database
     await db.intents.update_one(
-        {"id": intent_id},
+        {"id": intent_id, "user_id": current_user.id},  # Filter by user
         {"$set": update_data}
     )
     
     # Return updated intent
-    updated_intent = await db.intents.find_one({"id": intent_id})
+    updated_intent = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})
     return Intent(**updated_intent)
 
 @api_router.delete("/intents/{intent_id}")
-async def delete_intent(intent_id: str):
-    result = await db.intents.delete_one({"id": intent_id})
+async def delete_intent(intent_id: str, current_user: User = Depends(get_current_active_user)):
+    result = await db.intents.delete_one({"id": intent_id, "user_id": current_user.id})  # Filter by user
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Intent not found")
     return {"message": "Intent deleted successfully"}
 
-# Email Account Management Routes
+# Email Account Management Routes - Updated with user isolation
 @api_router.get("/email-providers")
 async def get_email_providers():
     return EMAIL_PROVIDERS
 
 @api_router.post("/email-accounts", response_model=EmailAccount)
-async def create_email_account(account: EmailAccountCreate):
+async def create_email_account(account: EmailAccountCreate, current_user: User = Depends(get_current_active_user)):
     account_dict = account.dict()
+    account_dict["user_id"] = current_user.id  # Add user isolation
     
     # Auto-fill provider settings if not custom
     if account.provider != "custom" and account.provider in EMAIL_PROVIDERS:
@@ -788,16 +796,16 @@ async def create_email_account(account: EmailAccountCreate):
     return account_obj
 
 @api_router.get("/email-accounts", response_model=List[EmailAccount])
-async def get_email_accounts():
-    accounts = await db.email_accounts.find().to_list(1000)
+async def get_email_accounts(current_user: User = Depends(get_current_active_user)):
+    accounts = await db.email_accounts.find({"user_id": current_user.id}).to_list(1000)  # Filter by user
     # Don't return passwords in response
     for account in accounts:
         account["password"] = "***"
     return [EmailAccount(**account) for account in accounts]
 
 @api_router.get("/email-accounts/{account_id}", response_model=EmailAccount)
-async def get_email_account(account_id: str):
-    account_doc = await db.email_accounts.find_one({"id": account_id})
+async def get_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
+    account_doc = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})  # Filter by user
     if not account_doc:
         raise HTTPException(status_code=404, detail="Email account not found")
     # Don't return password
@@ -805,9 +813,9 @@ async def get_email_account(account_id: str):
     return EmailAccount(**account_doc)
 
 @api_router.put("/email-accounts/{account_id}", response_model=EmailAccount)
-async def update_email_account(account_id: str, account: EmailAccountCreate):
-    # Check if account exists
-    existing_account = await db.email_accounts.find_one({"id": account_id})
+async def update_email_account(account_id: str, account: EmailAccountCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if account exists and belongs to user
+    existing_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     if not existing_account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
@@ -833,48 +841,48 @@ async def update_email_account(account_id: str, account: EmailAccountCreate):
             try:
                 polling_service.connections[account_id].disconnect_imap()
                 del polling_service.connections[account_id]
-                logger.info(f"🔌 Removed connection for updated account: {account.email}")
+                logging.info(f"🔌 Removed connection for updated account: {account.email}")
             except Exception as e:
-                logger.warning(f"⚠️  Error removing connection during update: {str(e)}")
+                logging.warning(f"⚠️  Error removing connection during update: {str(e)}")
     
     # Update in database
     await db.email_accounts.update_one(
-        {"id": account_id},
+        {"id": account_id, "user_id": current_user.id},  # Filter by user
         {"$set": update_data}
     )
     
     # Return updated account (without password)
-    updated_account = await db.email_accounts.find_one({"id": account_id})
+    updated_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     updated_account["password"] = "***"
     return EmailAccount(**updated_account)
 
 @api_router.delete("/email-accounts/{account_id}")
-async def delete_email_account(account_id: str):
+async def delete_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
     # Remove connection if exists
     global polling_service
     if polling_service and account_id in polling_service.connections:
         try:
             polling_service.connections[account_id].disconnect_imap()
             del polling_service.connections[account_id]
-            logger.info(f"🔌 Removed connection for deleted account")
+            logging.info(f"🔌 Removed connection for deleted account")
         except Exception as e:
-            logger.warning(f"⚠️  Error removing connection during delete: {str(e)}")
+            logging.warning(f"⚠️  Error removing connection during delete: {str(e)}")
     
-    result = await db.email_accounts.delete_one({"id": account_id})
+    result = await db.email_accounts.delete_one({"id": account_id, "user_id": current_user.id})  # Filter by user
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Email account not found")
     return {"message": "Email account deleted successfully"}
 
 @api_router.put("/email-accounts/{account_id}/toggle")
-async def toggle_email_account(account_id: str):
+async def toggle_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
     """Toggle email account active status"""
-    account = await db.email_accounts.find_one({"id": account_id})
+    account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})  # Filter by user
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
     new_status = not account.get("is_active", True)
     await db.email_accounts.update_one(
-        {"id": account_id},
+        {"id": account_id, "user_id": current_user.id},  # Filter by user
         {"$set": {"is_active": new_status}}
     )
     
@@ -885,16 +893,16 @@ async def toggle_email_account(account_id: str):
             try:
                 polling_service.connections[account_id].disconnect_imap()
                 del polling_service.connections[account_id]
-                logger.info(f"🔌 Removed connection for deactivated account: {account.get('email')}")
+                logging.info(f"🔌 Removed connection for deactivated account: {account.get('email')}")
             except Exception as e:
-                logger.warning(f"⚠️  Error removing connection during deactivation: {str(e)}")
+                logging.warning(f"⚠️  Error removing connection during deactivation: {str(e)}")
     
     return {"message": f"Account {'activated' if new_status else 'deactivated'} successfully"}
 
 @api_router.post("/email-accounts/{account_id}/polling")
-async def control_account_polling(account_id: str, request: PollingControlRequest):
+async def control_account_polling(account_id: str, request: PollingControlRequest, current_user: User = Depends(get_current_active_user)):
     """Control polling for individual email account"""
-    account = await db.email_accounts.find_one({"id": account_id})
+    account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})  # Filter by user
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
@@ -905,7 +913,7 @@ async def control_account_polling(account_id: str, request: PollingControlReques
     if request.action == "start":
         # Activate account and add to polling
         await db.email_accounts.update_one(
-            {"id": account_id},
+            {"id": account_id, "user_id": current_user.id},  # Filter by user
             {"$set": {"is_active": True}}
         )
         
@@ -915,14 +923,14 @@ async def control_account_polling(account_id: str, request: PollingControlReques
                 polling_service.connections[account_id].disconnect_imap()
                 del polling_service.connections[account_id]
             except Exception as e:
-                logger.warning(f"⚠️  Error removing old connection: {str(e)}")
+                logging.warning(f"⚠️  Error removing old connection: {str(e)}")
         
         return {"message": f"Polling started for account: {account['email']}"}
     
     elif request.action == "stop":
         # Deactivate account and remove from polling
         await db.email_accounts.update_one(
-            {"id": account_id},
+            {"id": account_id, "user_id": current_user.id},  # Filter by user
             {"$set": {"is_active": False}}
         )
         
@@ -931,9 +939,9 @@ async def control_account_polling(account_id: str, request: PollingControlReques
             try:
                 polling_service.connections[account_id].disconnect_imap()
                 del polling_service.connections[account_id]
-                logger.info(f"🔌 Stopped polling for account: {account['email']}")
+                logging.info(f"🔌 Stopped polling for account: {account['email']}")
             except Exception as e:
-                logger.warning(f"⚠️  Error stopping polling: {str(e)}")
+                logging.warning(f"⚠️  Error stopping polling: {str(e)}")
         
         return {"message": f"Polling stopped for account: {account['email']}"}
     
@@ -954,10 +962,11 @@ async def control_account_polling(account_id: str, request: PollingControlReques
     else:
         raise HTTPException(status_code=400, detail="Invalid action. Use 'start', 'stop', or 'status'")
 
-# Knowledge Base Routes
+# Knowledge Base Routes - Updated with user isolation
 @api_router.post("/knowledge-base", response_model=KnowledgeBase)
-async def create_knowledge_base(kb: KnowledgeBaseCreate):
+async def create_knowledge_base(kb: KnowledgeBaseCreate, current_user: User = Depends(get_current_active_user)):
     kb_dict = kb.dict()
+    kb_dict["user_id"] = current_user.id  # Add user isolation
     kb_obj = KnowledgeBase(**kb_dict)
     
     # Create embedding for content
@@ -970,21 +979,21 @@ async def create_knowledge_base(kb: KnowledgeBaseCreate):
     return kb_obj
 
 @api_router.get("/knowledge-base", response_model=List[KnowledgeBase])
-async def get_knowledge_base():
-    kb_items = await db.knowledge_base.find().to_list(1000)
+async def get_knowledge_base(current_user: User = Depends(get_current_active_user)):
+    kb_items = await db.knowledge_base.find({"user_id": current_user.id}).to_list(1000)  # Filter by user
     return [KnowledgeBase(**kb) for kb in kb_items]
 
 @api_router.get("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
-async def get_knowledge_base_item(kb_id: str):
-    kb_doc = await db.knowledge_base.find_one({"id": kb_id})
+async def get_knowledge_base_item(kb_id: str, current_user: User = Depends(get_current_active_user)):
+    kb_doc = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})  # Filter by user
     if not kb_doc:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     return KnowledgeBase(**kb_doc)
 
 @api_router.put("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
-async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate):
-    # Check if KB item exists
-    existing_kb = await db.knowledge_base.find_one({"id": kb_id})
+async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if KB item exists and belongs to user
+    existing_kb = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})
     if not existing_kb:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     
@@ -998,27 +1007,28 @@ async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate):
     
     # Update in database
     await db.knowledge_base.update_one(
-        {"id": kb_id},
+        {"id": kb_id, "user_id": current_user.id},  # Filter by user
         {"$set": update_data}
     )
     
     # Return updated KB item
-    updated_kb = await db.knowledge_base.find_one({"id": kb_id})
+    updated_kb = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})
     return KnowledgeBase(**updated_kb)
 
 @api_router.delete("/knowledge-base/{kb_id}")
-async def delete_knowledge_base(kb_id: str):
-    result = await db.knowledge_base.delete_one({"id": kb_id})
+async def delete_knowledge_base(kb_id: str, current_user: User = Depends(get_current_active_user)):
+    result = await db.knowledge_base.delete_one({"id": kb_id, "user_id": current_user.id})  # Filter by user
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     return {"message": "Knowledge base item deleted successfully"}
 
 # Email Processing Routes
 @api_router.post("/emails/test")
-async def test_email_processing(request: EmailTestRequest):
+async def test_email_processing(request: EmailTestRequest, current_user: User = Depends(get_current_active_user)):
     """Test email processing with manual input"""
     # Create a test email message
     email_obj = EmailMessage(
+        user_id=current_user.id,  # Add user isolation
         account_id=request.account_id,
         message_id=f"test-{uuid.uuid4()}",
         thread_id=f"thread-{uuid.uuid4()}",
@@ -1037,21 +1047,21 @@ async def test_email_processing(request: EmailTestRequest):
     await process_email_async(email_obj.id)
     
     # Return processed email
-    processed_email = await db.emails.find_one({"id": email_obj.id})
+    processed_email = await db.emails.find_one({"id": email_obj.id, "user_id": current_user.id})
     return EmailMessage(**processed_email)
 
 @api_router.post("/emails/{email_id}/send")
-async def send_email_reply(email_id: str, request: SendEmailRequest):
+async def send_email_reply(email_id: str, request: SendEmailRequest, current_user: User = Depends(get_current_active_user)):
     """Send email reply"""
-    email_doc = await db.emails.find_one({"id": email_id})
+    email_doc = await db.emails.find_one({"id": email_id, "user_id": current_user.id})  # Filter by user
     if not email_doc:
         raise HTTPException(status_code=404, detail="Email not found")
     
     if email_doc['status'] not in ['ready_to_send', 'needs_redraft'] and not request.manual_override:
         raise HTTPException(status_code=400, detail="Email not ready to send")
     
-    # Get account
-    account_doc = await db.email_accounts.find_one({"id": email_doc['account_id']})
+    # Get account (must belong to same user)
+    account_doc = await db.email_accounts.find_one({"id": email_doc['account_id'], "user_id": current_user.id})
     if not account_doc:
         raise HTTPException(status_code=404, detail="Email account not found")
     
@@ -1081,7 +1091,7 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
     if success:
         # Update status to sent
         await db.emails.update_one(
-            {"id": email_id},
+            {"id": email_id, "user_id": current_user.id},  # Filter by user
             {"$set": {
                 "status": "sent",
                 "sent_at": datetime.utcnow()
@@ -1091,7 +1101,7 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
     else:
         # Mark as failed to send
         await db.emails.update_one(
-            {"id": email_id},
+            {"id": email_id, "user_id": current_user.id},  # Filter by user
             {"$set": {"status": "send_failed"}}
         )
         raise HTTPException(status_code=500, detail="Failed to send email")
@@ -1140,11 +1150,11 @@ async def get_polling_status():
     return {"status": "stopped"}
 
 @api_router.get("/polling/accounts-status")
-async def get_all_accounts_polling_status():
-    """Get polling status for all accounts"""
+async def get_all_accounts_polling_status(current_user: User = Depends(get_current_active_user)):
+    """Get polling status for all accounts belonging to current user"""
     global polling_service
     
-    accounts = await db.email_accounts.find().to_list(1000)
+    accounts = await db.email_accounts.find({"user_id": current_user.id}).to_list(1000)  # Filter by user
     account_statuses = []
     
     for account in accounts:
@@ -1219,14 +1229,14 @@ async def classify_email_intents(email_message: EmailMessage) -> List[Dict[str, 
     
     # Skip delivery error/bounce emails
     if is_bounce_or_delivery_error(email_message):
-        logger.info(f"🚫 Skipping delivery error/bounce email: {email_message.subject}")
+        logging.info(f"🚫 Skipping delivery error/bounce email: {email_message.subject}")
         return []
     
     # Get email embedding
     email_embedding = await get_cohere_embedding(email_message.body)
     
-    # Get all intents with embeddings
-    intents = await db.intents.find().to_list(1000)
+    # Get all intents with embeddings for this user only
+    intents = await db.intents.find({"user_id": email_message.user_id}).to_list(1000)  # Filter by user
     
     intent_scores = []
     for intent in intents:
@@ -1251,22 +1261,22 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
     
     # Skip generating draft for delivery errors
     if is_bounce_or_delivery_error(email_message):
-        logger.info(f"🚫 Skipping draft generation for delivery error: {email_message.subject}")
+        logging.info(f"🚫 Skipping draft generation for delivery error: {email_message.subject}")
         return {
             "plain_text": "",
             "html": "",
             "reasoning": "Skipped - delivery error/bounce email detected"
         }
     
-    # Get account info
-    account = await db.email_accounts.find_one({"id": email_message.account_id})
+    # Get account info (ensure it belongs to same user)
+    account = await db.email_accounts.find_one({"id": email_message.account_id, "user_id": email_message.user_id})
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
-    # Get enhanced knowledge base context with links
-    kb_data = await get_enhanced_knowledge_context(email_message.body, intents)
+    # Get enhanced knowledge base context with links (user-scoped)
+    kb_data = await get_enhanced_knowledge_context(email_message.body, intents, email_message.user_id)
     
-    # Get thread history to avoid duplicates
+    # Get thread history to avoid duplicates (user-scoped)
     thread_history = await get_thread_history(email_message)
     
     # Build context
@@ -1373,8 +1383,8 @@ async def validate_draft(email_message: EmailMessage, draft: Dict[str, str], int
             "coverage_report": "Email identified as delivery error/bounce notification"
         }
     
-    # Get enhanced KB context and links for validation
-    kb_data = await get_enhanced_knowledge_context(email_message.body, intents)
+    # Get enhanced KB context and links for validation (user-scoped)
+    kb_data = await get_enhanced_knowledge_context(email_message.body, intents, email_message.user_id)
     thread_history = await get_thread_history(email_message)
     
     intent_descriptions = [f"- {intent['name']}: {intent['description']}" for intent in intents]
@@ -1520,11 +1530,12 @@ async def extract_links_from_knowledge_and_prompts(intents: List[Dict[str, Any]]
     return unique_links
 
 async def get_thread_history(email_message: EmailMessage) -> List[Dict[str, Any]]:
-    """Get previous emails in the same thread to avoid duplicate responses"""
+    """Get previous emails in the same thread to avoid duplicate responses (user-scoped)"""
     
-    # Find emails in the same thread
+    # Find emails in the same thread for this user
     thread_emails = await db.emails.find({
         "thread_id": email_message.thread_id,
+        "user_id": email_message.user_id,  # Filter by user
         "status": {"$in": ["sent", "ready_to_send"]},
         "id": {"$ne": email_message.id}  # Exclude current email
     }).sort("received_at", -1).limit(5).to_list(5)
@@ -1540,13 +1551,13 @@ async def get_thread_history(email_message: EmailMessage) -> List[Dict[str, Any]
     
     return history
 
-async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Enhanced knowledge base context with better retrieval and link extraction"""
+async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str, Any]], user_id: str) -> Dict[str, Any]:
+    """Enhanced knowledge base context with better retrieval and link extraction (user-scoped)"""
     # Get email embedding
     email_embedding = await get_cohere_embedding(email_body)
     
-    # Get all knowledge base items with embeddings
-    kb_items = await db.knowledge_base.find({"embedding": {"$exists": True}}).to_list(1000)
+    # Get all knowledge base items with embeddings for this user
+    kb_items = await db.knowledge_base.find({"embedding": {"$exists": True}, "user_id": user_id}).to_list(1000)
     
     relevant_items = []
     for item in kb_items:
@@ -1560,7 +1571,7 @@ async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str
                     "similarity": similarity
                 })
     
-    # Also include items that match intent keywords
+    # Also include items that match intent keywords (user-scoped)
     intent_keywords = []
     for intent in intents:
         intent_keywords.extend([intent['name'].lower(), intent['description'].lower()])
@@ -1605,9 +1616,9 @@ async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str
             "has_relevant_info": False
         }
 
-async def get_knowledge_context(email_body: str) -> str:
+async def get_knowledge_context(email_body: str, user_id: str = None) -> str:
     """Legacy function for backward compatibility"""
-    result = await get_enhanced_knowledge_context(email_body, [])
+    result = await get_enhanced_knowledge_context(email_body, [], user_id or "")
     return result["context"]
 
 async def auto_send_email(email_id: str):
@@ -1618,8 +1629,11 @@ async def auto_send_email(email_id: str):
         if not email_doc or email_doc['status'] != 'ready_to_send':
             return
         
-        # Get account
-        account_doc = await db.email_accounts.find_one({"id": email_doc['account_id']})
+        # Get account (must belong to same user as email)
+        account_doc = await db.email_accounts.find_one({
+            "id": email_doc['account_id'], 
+            "user_id": email_doc['user_id']  # Ensure same user
+        })
         if not account_doc or not account_doc.get('is_active') or not account_doc.get('auto_send', True):
             return
         
@@ -1655,7 +1669,7 @@ async def auto_send_email(email_id: str):
                     "sent_at": datetime.utcnow()
                 }}
             )
-            logger.info(f"✅ Auto-sent reply for email: {email_doc['subject']}")
+            logging.info(f"✅ Auto-sent reply for email: {email_doc['subject']}")
         else:
             # Mark as failed to send
             await db.emails.update_one(
@@ -1664,7 +1678,7 @@ async def auto_send_email(email_id: str):
             )
             
     except Exception as e:
-        logger.error(f"❌ Error auto-sending email {email_id}: {str(e)}")
+        logging.error(f"❌ Error auto-sending email {email_id}: {str(e)}")
         await db.emails.update_one(
             {"id": email_id},
             {"$set": {"status": "send_failed", "error": str(e)}}
@@ -1680,931 +1694,216 @@ async def process_email_async(email_id: str):
         
         email_message = EmailMessage(**email_doc)
         
-        # Get account info to find user
-        account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
+        # Get account info to find user (must belong to same user as email)
+        account_doc = await db.email_accounts.find_one({
+            "id": email_message.account_id,
+            "user_id": email_message.user_id  # Ensure same user
+        })
         if not account_doc:
-            logger.error(f"Account not found for email {email_id}")
+            logging.error(f"Account not found for email {email_id}")
             return
         
-        # Find user associated with this account (for now, create a default user)
-        user_doc = await db.users.find_one({"email": account_doc["email"]})
+        # Find user associated with this account
+        user_doc = await db.users.find_one({"id": email_message.user_id})
         if not user_doc:
-            # Create a default user for this email account
-            user_id = str(uuid.uuid4())
-            next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
-            next_month = next_month.replace(day=1)
-            
-            default_user = {
-                "id": user_id,
-                "email": account_doc["email"],
-                "full_name": account_doc.get("name", ""),
-                "hashed_password": "default",  # This should be set properly
-                "is_active": True,
-                "email_quota": 100,
-                "emails_used": 0,
-                "quota_reset_date": next_month,
-                "timezone": "UTC",
-                "created_at": datetime.utcnow()
-            }
-            
-            await db.users.insert_one(default_user)
-            user_doc = default_user
-        
-        # Step 1: Check if this is a delivery error - skip processing if so
-        if is_bounce_or_delivery_error(email_message):
-            await db.emails.update_one(
-                {"id": email_id},
-                {"$set": {
-                    "status": "ignored", 
-                    "processed_at": datetime.utcnow(),
-                    "intents": [],
-                    "draft": "",
-                    "validation_result": {
-                        "status": "SKIP",
-                        "feedback": "Delivery error/bounce email - no response needed"
-                    }
-                }}
-            )
-            logger.info(f"🚫 Ignored delivery error email: {email_message.subject}")
+            logging.error(f"User not found for email {email_id}")
             return
         
-        # Check user quota before processing
-        if not await check_email_quota(User(**user_doc)):
-            await db.emails.update_one(
-                {"id": email_id},
-                {"$set": {
-                    "status": "quota_exceeded",
-                    "processed_at": datetime.utcnow(),
-                    "error": "User email quota exceeded"
-                }}
-            )
-            logger.warning(f"Email processing skipped - quota exceeded for user {user_doc['id']}")
-            return
+        logging.info(f"🔄 Processing email: {email_message.subject}")
         
-        # Step 2: Classify intents (now takes EmailMessage object)
+        # Step 1: Classify email intents (user-scoped)
+        await db.emails.update_one(
+            {"id": email_id},
+            {"$set": {"status": "classifying"}}
+        )
+        
         intents = await classify_email_intents(email_message)
         
-        # Update email with intents
+        # Step 2: Generate draft response (user-scoped)
         await db.emails.update_one(
             {"id": email_id},
-            {"$set": {"intents": intents, "status": "classifying"}}
+            {"$set": {"status": "drafting", "intents": intents}}
         )
         
-        # Step 2.5: Check for meeting intents and calendar integration
-        meeting_related_intents = [intent for intent in intents if intent.get("is_meeting_related", False)]
-        calendar_action = None
+        draft_result = await generate_draft(email_message, intents)
         
-        if meeting_related_intents or any("meeting" in intent.get("name", "").lower() for intent in intents):
+        # Step 3: Validate draft (user-scoped)
+        validation_result = await validate_draft(email_message, draft_result, intents)
+        
+        # Check if we should process meeting-related emails with calendar agent
+        meeting_intents = [intent for intent in intents if intent.get("is_meeting_related", False)]
+        calendar_event_id = None
+        
+        if meeting_intents and user_doc:
+            # Process meeting detection and calendar integration
             try:
-                # Get thread context for better meeting detection
-                thread_context = await get_thread_history(email_message)
-                
-                # Analyze for meeting intents using the calendar agent
-                meeting_detection = await calendar_agent.analyze_email_for_meetings(
-                    email_message.body,
-                    email_message.subject,
-                    email_message.sender,
-                    user_doc.get("timezone", "UTC"),
-                    thread_context
+                calendar_event_id = await calendar_agent.process_meeting_intent(
+                    email_id, 
+                    email_message.user_id,  # Use email's user_id
+                    MeetingDetectionResponse(
+                        detected=True,
+                        confidence_score=meeting_intents[0]["confidence"],
+                        detected_datetime=None,  # Will be detected by calendar agent
+                        detected_timezone=user_doc.get("timezone", "UTC"),
+                        needs_confirmation=True,
+                        meeting_details={
+                            "subject": email_message.subject,
+                            "body": email_message.body,
+                            "sender": email_message.sender
+                        }
+                    ),
+                    email_message.thread_id
                 )
-                
-                if meeting_detection.meeting_detected:
-                    # Process meeting intent and potentially create calendar event
-                    calendar_action = await calendar_agent.process_meeting_intent(
-                        email_id,
-                        user_doc["id"],
-                        meeting_detection,
-                        email_message.thread_id
-                    )
-                    
-                    if calendar_action:
-                        logger.info(f"📅 Calendar action completed: {calendar_action}")
-                else:
-                    # Check if this is an update to existing meeting
-                    calendar_action = await calendar_agent.update_meeting_from_email(
-                        email_message.body,
-                        email_message.thread_id,
-                        user_doc["id"],
-                        user_doc.get("timezone", "UTC")
-                    )
-                    
-                    if calendar_action:
-                        logger.info(f"📅 Meeting update completed: {calendar_action}")
-                        
             except Exception as e:
-                logger.error(f"Calendar integration error: {e}")
-                # Continue with normal email processing even if calendar fails
+                logging.warning(f"⚠️  Calendar integration failed for email {email_id}: {str(e)}")
         
-        # Step 3: Generate draft
-        draft = await generate_draft(email_message, intents)
+        # Update email with final status
+        final_status = "ready_to_send" if validation_result["status"] == "PASS" else "needs_redraft"
         
-        # Step 4: Update email with draft
         await db.emails.update_one(
             {"id": email_id},
             {"$set": {
-                "draft": draft["plain_text"],
-                "draft_html": draft["html"],
-                "status": "drafting",
-                "calendar_action": calendar_action  # Store calendar action info
-            }}
-        )
-        
-        # Step 5: Validate draft
-        validation = await validate_draft(email_message, draft, intents)
-        
-        # Step 6: Determine final status based on validation
-        if validation["status"] == "SKIP":
-            final_status = "ignored"
-        elif validation["status"] == "PASS":
-            final_status = "ready_to_send"
-        else:
-            final_status = "needs_redraft"
-        
-        # Update email with validation
-        await db.emails.update_one(
-            {"id": email_id},
-            {"$set": {
-                "validation_result": validation,
                 "status": final_status,
-                "processed_at": datetime.utcnow()
+                "intents": intents,
+                "draft": draft_result["plain_text"],
+                "draft_html": draft_result["html"],
+                "validation_result": validation_result,
+                "processed_at": datetime.utcnow(),
+                "calendar_event_id": calendar_event_id
             }}
         )
         
-        # Step 7: Auto-send if validation passed and account has auto_send enabled
-        if validation["status"] == "PASS":
-            if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
-                await auto_send_email(email_id)
-                # Increment email usage after successful send
-                await increment_email_usage(user_doc["id"])
+        # Auto-send if approved and account has auto_send enabled
+        if final_status == "ready_to_send" and account_doc.get("auto_send", True):
+            await auto_send_email(email_id)
+        
+        logging.info(f"✅ Email processed successfully: {email_message.subject} -> {final_status}")
         
     except Exception as e:
-        # Update email with error status
+        logging.error(f"❌ Error processing email {email_id}: {str(e)}")
         await db.emails.update_one(
             {"id": email_id},
             {"$set": {"status": "error", "error": str(e)}}
         )
-        logger.error(f"❌ Error processing email {email_id}: {str(e)}")
 
-@api_router.post("/emails/{email_id}/redraft")
-async def redraft_email(email_id: str):
-    """Request a redraft of an email"""
-    email_doc = await db.emails.find_one({"id": email_id})
-    if not email_doc:
-        raise HTTPException(status_code=404, detail="Email not found")
-    
-    email_message = EmailMessage(**email_doc)
-    
-    # Get previous validation feedback for improvement
-    previous_feedback = email_message.validation_result.get("feedback", "") if email_message.validation_result else ""
-    
-    # Re-generate draft with feedback
-    intents = email_message.intents
-    draft = await generate_draft(email_message, intents)
-    
-    # Add improvement instruction based on previous feedback
-    if previous_feedback:
-        improvement_prompt = f"Previous draft had these issues: {previous_feedback}. Please address these in the new draft."
-        # Here you could enhance the draft generation with the feedback
-    
-    # Validate new draft
-    validation = await validate_draft(email_message, draft, intents)
-    
-    # Update email
-    final_status = "ready_to_send" if validation["status"] == "PASS" else "escalate"
-    await db.emails.update_one(
-        {"id": email_id},
-        {"$set": {
-            "draft": draft["plain_text"],
-            "draft_html": draft["html"],
-            "validation_result": validation,
-            "status": final_status,
-            "processed_at": datetime.utcnow()
-        }}
-    )
-    
-    # CRITICAL FIX: Auto-send if validation passed and account has auto_send enabled
-    if validation["status"] == "PASS":
-        # Get account to check auto_send setting
-        account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
-        if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
-            await auto_send_email(email_id)
-            # Also increment email usage for redrafted emails
-            user_doc = await db.users.find_one({"email": account_doc["email"]})
-            if user_doc:
-                await increment_email_usage(user_doc["id"])
-    
-    updated_email = await db.emails.find_one({"id": email_id})
-    return EmailMessage(**updated_email)
-
-@api_router.get("/emails", response_model=List[EmailMessage])
-async def get_emails():
-    emails = await db.emails.find().sort("received_at", -1).to_list(100)
+# Additional endpoint to get emails for current user
+@api_router.get("/emails")
+async def get_emails(current_user: User = Depends(get_current_active_user)):
+    """Get all emails for current user"""
+    emails = await db.emails.find({"user_id": current_user.id}).sort("received_at", -1).to_list(100)
     return [EmailMessage(**email) for email in emails]
 
-@api_router.get("/emails/{email_id}", response_model=EmailMessage)
-async def get_email(email_id: str):
-    email_doc = await db.emails.find_one({"id": email_id})
+@api_router.post("/emails/{email_id}/redraft")
+async def redraft_email(email_id: str, request: DraftRequest, current_user: User = Depends(get_current_active_user)):
+    """Redraft an email response"""
+    email_doc = await db.emails.find_one({"id": email_id, "user_id": current_user.id})  # Filter by user
     if not email_doc:
         raise HTTPException(status_code=404, detail="Email not found")
-    return EmailMessage(**email_doc)
+    
+    # Process the email again
+    await process_email_async(email_id)
+    
+    # Return updated email
+    updated_email = await db.emails.find_one({"id": email_id, "user_id": current_user.id})
+    return EmailMessage(**updated_email)
 
-# Dashboard/Stats Routes
-@api_router.get("/dashboard/stats")
-async def get_dashboard_stats():
-    total_emails = await db.emails.count_documents({})
-    processed_emails = await db.emails.count_documents({"status": {"$in": ["ready_to_send", "sent"]}})
-    escalated_emails = await db.emails.count_documents({"status": "escalate"})
-    sent_emails = await db.emails.count_documents({"status": "sent"})
-    total_intents = await db.intents.count_documents({})
-    total_accounts = await db.email_accounts.count_documents({})
-    active_accounts = await db.email_accounts.count_documents({"is_active": True})
-    
-    # Polling status
-    global polling_service
-    polling_status = "running" if polling_service and polling_service.is_running else "stopped"
-    
-    return {
-        "total_emails": total_emails,
-        "processed_emails": processed_emails,
-        "sent_emails": sent_emails,
-        "escalated_emails": escalated_emails,
-        "total_intents": total_intents,
-        "total_accounts": total_accounts,
-        "active_accounts": active_accounts,
-        "polling_status": polling_status,
-        "processing_rate": processed_emails / total_emails * 100 if total_emails > 0 else 0
-    }
-
-# Google OAuth endpoints
-@api_router.post("/oauth/google/authorize")
-async def initiate_google_oauth(
-    requested_services: List[str],
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Initiate Google OAuth flow for email and/or calendar access
-    
-    Body: ["email", "calendar"] - services to authorize
-    """
-    valid_services = ["email", "calendar"]
-    if not requested_services or not all(service in valid_services for service in requested_services):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid services. Must be one or both of: email, calendar"
-        )
-    
-    try:
-        auth_data = await google_oauth_service.generate_auth_url(
-            user_id=current_user.id,
-            requested_services=requested_services
-        )
-        
-        return {
-            "auth_url": auth_data["auth_url"],
-            "state": auth_data["state"],
-            "requested_services": requested_services,
-            "message": "Redirect user to auth_url to complete OAuth flow"
-        }
-        
-    except Exception as e:
-        logger.error(f"OAuth initiation error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to initiate OAuth: {str(e)}"
-        )
-
-@api_router.get("/oauth/google/callback")
-async def handle_google_oauth_callback(code: str, state: str):
-    """
-    Handle Google OAuth callback
-    
-    Query params: code, state
-    """
-    try:
-        result = await google_oauth_service.handle_callback(code, state)
-        
-        return {
-            "success": True,
-            "user_id": result["user_id"],
-            "authorized_services": result["authorized_services"],
-            "requested_services": result["requested_services"],
-            "user_info": result["user_info"],
-            "message": f"Successfully authorized {', '.join(result['authorized_services'])} services"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"OAuth callback error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"OAuth callback failed: {str(e)}"
-        )
-
+# OAuth Google Routes (already user-scoped in oauth_google.py)
 @api_router.get("/oauth/google/status")
 async def get_google_oauth_status(current_user: User = Depends(get_current_active_user)):
-    """Get current Google OAuth authorization status"""
-    try:
-        status = await google_oauth_service.get_oauth_status(current_user.id)
-        return status
-    except Exception as e:
-        logger.error(f"OAuth status error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get OAuth status: {str(e)}"
-        )
+    """Get Google OAuth authorization status for current user"""
+    return await google_oauth_service.get_oauth_status(current_user.id)
 
-@api_router.post("/oauth/google/revoke")
+@api_router.get("/oauth/google/authorize")
+async def initiate_google_oauth(
+    services: str = "email,calendar",  # Comma-separated list of services
+    current_user: User = Depends(get_current_active_user)
+):
+    """Initiate Google OAuth authorization for specified services"""
+    service_list = [s.strip() for s in services.split(",")]
+    return await google_oauth_service.initiate_oauth(current_user.id, service_list)
+
+@api_router.get("/oauth/google/callback")
+async def handle_google_oauth_callback(
+    code: str,
+    state: str,
+    error: Optional[str] = None
+):
+    """Handle Google OAuth callback"""
+    if error:
+        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+    
+    return await google_oauth_service.handle_oauth_callback(code, state)
+
+@api_router.delete("/oauth/google/revoke")
 async def revoke_google_oauth(current_user: User = Depends(get_current_active_user)):
-    """Revoke Google OAuth tokens"""
-    try:
-        success = await google_oauth_service.revoke_tokens(current_user.id)
-        return {
-            "success": success,
-            "message": "OAuth tokens revoked successfully" if success else "Failed to revoke some tokens"
-        }
-    except Exception as e:
-        logger.error(f"OAuth revoke error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to revoke OAuth: {str(e)}"
-        )
+    """Revoke Google OAuth tokens for current user"""
+    return await google_oauth_service.revoke_oauth_tokens(current_user.id)
 
-# Include the router in the main app
+# Dashboard and Stats Routes
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats(current_user: User = Depends(get_current_active_user)):
+    """Get dashboard statistics for current user"""
+    
+    # Count user's data
+    intents_count = await db.intents.count_documents({"user_id": current_user.id})
+    kb_count = await db.knowledge_base.count_documents({"user_id": current_user.id})
+    accounts_count = await db.email_accounts.count_documents({"user_id": current_user.id})
+    emails_count = await db.emails.count_documents({"user_id": current_user.id})
+    
+    # Get recent emails
+    recent_emails = await db.emails.find({"user_id": current_user.id}).sort("received_at", -1).limit(5).to_list(5)
+    
+    return {
+        "intents_count": intents_count,
+        "knowledge_base_count": kb_count,
+        "email_accounts_count": accounts_count,
+        "total_emails": emails_count,
+        "recent_emails": [EmailMessage(**email) for email in recent_emails],
+        "user_quota": {
+            "used": current_user.emails_used,
+            "limit": current_user.email_quota,
+            "percentage": (current_user.emails_used / current_user.email_quota * 100) if current_user.email_quota > 0 else 0
+        }
+    }
+
+# Health check
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+# Include the API router
 app.include_router(api_router)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
+# Start polling service on startup
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
     global polling_service
-    logger.info("🚀 Starting up email assistant services...")
-    
-    # Initialize all seed data
-    await initialize_email_accounts()
-    await initialize_intents()
-    await initialize_knowledge_base()
-    await initialize_test_emails()  # Add test email data
-    
-    # Initialize email polling service
     try:
-        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])  
-        # Start polling in background
+        # Remove any legacy hardcoded accounts for security
+        legacy_accounts = await db.email_accounts.find({"email": "rohushanshinde@gmail.com"}).to_list(100)
+        if legacy_accounts:
+            result = await db.email_accounts.delete_many({"email": "rohushanshinde@gmail.com"})
+            logging.info(f"🔒 Removed {result.deleted_count} legacy hardcoded email accounts for security")
+        
+        # Initialize polling service
+        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
         asyncio.create_task(polling_service.start_polling())
-        logger.info("✅ Email polling service started automatically")
+        logging.info("🚀 Email polling service started")
+        
     except Exception as e:
-        logger.error(f"❌ Failed to start email polling service: {str(e)}")
-    
-    # Start calendar reminder service
-    try:
-        asyncio.create_task(calendar_reminder_service())
-        logger.info("✅ Calendar reminder service started")
-    except Exception as e:
-        logger.error(f"❌ Failed to start calendar reminder service: {str(e)}")
-    
-    logger.info("🎉 Email assistant system fully initialized and ready!")
+        logging.error(f"❌ Startup error: {str(e)}")
 
-async def calendar_reminder_service():
-    """Background service to send calendar reminders"""
-    while True:
-        try:
-            # Get all active users
-            users = await db.users.find({"is_active": True}).to_list(1000)
-            
-            total_reminders = 0
-            for user in users:
-                try:
-                    reminders_sent = await calendar_agent.send_meeting_reminders(user["id"])
-                    total_reminders += reminders_sent
-                except Exception as e:
-                    logger.error(f"Error sending reminders for user {user['id']}: {e}")
-            
-            if total_reminders > 0:
-                logger.info(f"📅 Sent {total_reminders} calendar reminders")
-            
-            # Wait 15 minutes before checking again
-            await asyncio.sleep(900)
-            
-        except Exception as e:
-            logger.error(f"Calendar reminder service error: {e}")
-            await asyncio.sleep(300)  # Wait 5 minutes on error
-
-async def initialize_email_accounts():
-    """Email accounts are now user-specific and created when users add them"""
-    try:
-        # Email accounts will be created by users through the UI
-        # No default accounts are created to ensure privacy and security
-        existing_accounts = await db.email_accounts.count_documents({})
-        logger.info(f"ℹ️  Found {existing_accounts} user-created email accounts")
-        
-        # Clean up any legacy hardcoded accounts for security
-        removed_count = await db.email_accounts.delete_many({
-            "email": "rohushanshinde@gmail.com"
-        })
-        if removed_count.deleted_count > 0:
-            logger.info(f"🔒 Removed {removed_count.deleted_count} legacy hardcoded email accounts for security")
-            
-    except Exception as e:
-        logger.error(f"❌ Error checking email accounts: {str(e)}")
-
-async def initialize_intents():
-    """Initialize default intents for email classification"""
-    try:
-        existing_intents = await db.intents.count_documents({})
-        
-        if existing_intents == 0:
-            logger.info("🎯 Initializing default intents...")
-            
-            default_intents = [
-                {
-                    "name": "Sales Inquiry",
-                    "description": "Potential customer asking about products, services, or making purchase inquiries",
-                    "examples": [
-                        "I'm interested in your product",
-                        "Can you tell me more about pricing?",
-                        "I want to buy your service",
-                        "What packages do you offer?",
-                        "I need a quote for your solution"
-                    ],
-                    "system_prompt": "Respond professionally to sales inquiries. Provide helpful information, direct to appropriate resources like https://example.com/pricing for pricing details, and suggest next steps like scheduling a demo at https://example.com/demo or starting a free trial at https://example.com/trial.",
-                    "confidence_threshold": 0.75,
-                    "follow_up_hours": 4,
-                    "is_meeting_related": False
-                },
-                {
-                    "name": "Partnership Inquiry",
-                    "description": "Business partnership, collaboration, or B2B relationship proposals",
-                    "examples": [
-                        "We'd like to explore a partnership",
-                        "Let's collaborate on this project",
-                        "I represent a company interested in working together",
-                        "Business partnership opportunity",
-                        "Strategic alliance proposal"
-                    ],  
-                    "system_prompt": "Handle partnership inquiries professionally. Express interest, gather initial information, and direct to appropriate decision makers or partnership team. Share our partnership information at https://example.com/partners and suggest scheduling a partnership discussion call.",
-                    "confidence_threshold": 0.8,
-                    "follow_up_hours": 24,
-                    "is_meeting_related": True
-                },
-                {
-                    "name": "Support Request",
-                    "description": "Technical support, troubleshooting, or customer service issues",
-                    "examples": [
-                        "I'm having trouble with your product",
-                        "This feature isn't working",
-                        "I need help with setup",
-                        "Technical issue with the system",
-                        "How do I configure this?"
-                    ],
-                    "system_prompt": "Provide helpful support responses. Acknowledge the issue, provide initial troubleshooting steps if known, and direct to appropriate support channels. Include links to our help center at https://example.com/help and suggest submitting a support ticket at https://example.com/support for detailed assistance.",
-                    "confidence_threshold": 0.7,
-                    "follow_up_hours": 2,
-                    "is_meeting_related": False
-                },
-                {
-                    "name": "Meeting Request",
-                    "description": "Requests to schedule meetings, calls, demos, or consultations",
-                    "examples": [
-                        "Can we schedule a meeting?",
-                        "I'd like to book a demo",
-                        "Let's set up a call",
-                        "Available for a consultation?",
-                        "When can we meet to discuss?"
-                    ],
-                    "system_prompt": "Respond positively to meeting requests. Provide available time slots or direct to scheduling system at https://calendly.com/company-meetings. Confirm meeting purpose and attendees. For product demos, also include link to our demo overview at https://example.com/demo.",
-                    "confidence_threshold": 0.8,
-                    "follow_up_hours": 8,
-                    "is_meeting_related": True
-                },
-                {
-                    "name": "Product Information",
-                    "description": "General questions about products, features, capabilities, or specifications",
-                    "examples": [
-                        "What does your product do?",
-                        "Tell me about the features",
-                        "How does this work?",
-                        "What are the specifications?",
-                        "Product documentation request"
-                    ],
-                    "system_prompt": "Provide clear, informative responses about products. Use knowledge base information and direct to additional resources like documentation or product pages.",
-                    "confidence_threshold": 0.7,
-                    "follow_up_hours": 12,
-                    "is_meeting_related": False
-                },
-                {
-                    "name": "Complaint or Issue",
-                    "description": "Customer complaints, dissatisfaction, or service issues",
-                    "examples": [
-                        "I'm not happy with the service",
-                        "This is not working as expected",
-                        "I want to complain about",
-                        "Very disappointed with",
-                        "This is unacceptable"
-                    ],
-                    "system_prompt": "Handle complaints with empathy and professionalism. Acknowledge concerns, apologize if appropriate, and provide clear next steps for resolution.",
-                    "confidence_threshold": 0.75,
-                    "follow_up_hours": 1,
-                    "is_meeting_related": False
-                },
-                {
-                    "name": "General Inquiry",
-                    "description": "General questions, information requests, or miscellaneous inquiries",
-                    "examples": [
-                        "I have a question about",
-                        "Can you help me understand",
-                        "I'm curious about",
-                        "General question",
-                        "Need some information"
-                    ],
-                    "system_prompt": "Provide helpful, informative responses to general inquiries. Be friendly and professional while addressing the specific question asked.",
-                    "confidence_threshold": 0.6,
-                    "follow_up_hours": 24,
-                    "is_meeting_related": False
-                },
-                {
-                    "name": "Job Application",
-                    "description": "Employment inquiries, job applications, or career-related communications",
-                    "examples": [
-                        "I'm interested in working for your company",
-                        "Applying for the position",
-                        "Resume attached for consideration",
-                        "Career opportunities",
-                        "Job opening inquiry"
-                    ],
-                    "system_prompt": "Respond professionally to job applications. Acknowledge receipt, provide information about the hiring process, and direct to appropriate HR contacts.",
-                    "confidence_threshold": 0.8,
-                    "follow_up_hours": 48,
-                    "is_meeting_related": False
-                }
-            ]
-            
-            # Create intents with embeddings
-            for intent_data in default_intents:
-                intent_obj = Intent(**intent_data)
-                
-                # Create embedding for intent description + examples
-                text_for_embedding = f"{intent_obj.description} {' '.join(intent_obj.examples)}"
-                embedding = await get_cohere_embedding(text_for_embedding)
-                
-                # Store with embedding
-                doc = intent_obj.dict()
-                doc["embedding"] = embedding
-                await db.intents.insert_one(doc)
-                
-            logger.info(f"✅ Created {len(default_intents)} default intents")
-        else:
-            logger.info(f"ℹ️  Found {existing_intents} existing intents")
-            
-    except Exception as e:
-        logger.error(f"❌ Error initializing intents: {str(e)}")
-
-async def initialize_knowledge_base():
-    """Initialize default knowledge base entries"""
-    try:
-        existing_kb = await db.knowledge_base.count_documents({})
-        
-        if existing_kb == 0:
-            logger.info("📚 Initializing knowledge base...")
-            
-            kb_entries = [
-                {
-                    "title": "Company Overview",
-                    "content": "We are a technology solutions company specializing in AI-powered email automation and business process optimization. Our mission is to help businesses streamline their email communications and improve response times through intelligent automation. Visit our website at https://example.com/about for more information.",
-                    "tags": ["company", "about", "overview", "mission"]
-                },
-                {
-                    "title": "Product Features",
-                    "content": "Our AI Email Assistant offers: 1) Automated email classification and intent recognition, 2) AI-powered draft generation with customizable personas, 3) Multi-account email management, 4) Real-time email polling and processing, 5) Intelligent response validation, 6) Customizable knowledge base integration, 7) Auto-sending capabilities with manual override options. Learn more at https://example.com/features and see our demo at https://example.com/demo.",
-                    "tags": ["product", "features", "capabilities", "automation"]
-                },
-                {
-                    "title": "Pricing Information",
-                    "content": "We offer flexible pricing plans: Starter Plan ($29/month) for up to 3 email accounts and 500 emails/month, Professional Plan ($99/month) for up to 10 accounts and 2000 emails/month, Enterprise Plan (custom pricing) for unlimited accounts and volume. All plans include 24/7 support and onboarding assistance. View detailed pricing at https://example.com/pricing and start your free trial at https://example.com/trial.",
-                    "tags": ["pricing", "plans", "cost", "subscription"]
-                },
-                {
-                    "title": "Support Channels",
-                    "content": "We provide multiple support channels: 1) Email support at support@company.com, 2) Live chat available 9 AM - 6 PM EST, 3) Knowledge base with tutorials and FAQ at https://example.com/help, 4) Priority phone support for Enterprise customers, 5) Dedicated account managers for Enterprise plans. Average response time is under 2 hours. Submit a support ticket at https://example.com/support.",
-                    "tags": ["support", "help", "contact", "assistance"]
-                },
-                {
-                    "title": "Meeting Scheduling",
-                    "content": "We're happy to schedule meetings for demos, consultations, or discussions. Available time slots: Monday-Friday 9 AM - 5 PM EST. Meeting types available: 1) Product demo (30 minutes), 2) Consultation call (45 minutes), 3) Technical setup call (60 minutes). Please book at https://calendly.com/company-meetings or reply with your preferred times. You can also view our calendar availability at https://example.com/calendar.",
-                    "tags": ["meetings", "demo", "consultation", "schedule", "calendar"]
-                },
-                {
-                    "title": "Integration Capabilities",
-                    "content": "Our system integrates with: 1) All major email providers (Gmail, Outlook, Yahoo, Custom IMAP/SMTP), 2) CRM systems (Salesforce, HubSpot, Pipedrive), 3) Communication tools (Slack, Microsoft Teams), 4) Calendar systems (Google Calendar, Outlook Calendar), 5) Help desk platforms (Zendesk, ServiceNow). API documentation available at https://docs.example.com/api for custom integrations. View integration guides at https://example.com/integrations.",
-                    "tags": ["integration", "api", "crm", "email providers", "platforms"]
-                },
-                {
-                    "title": "Security and Privacy",
-                    "content": "We prioritize security: 1) End-to-end encryption for all email data, 2) SOC 2 Type II compliance, 3) GDPR compliant data handling, 4) Multi-factor authentication, 5) Regular security audits, 6) Data residency options available. Email credentials are encrypted and stored securely. We never access email content without explicit permission. Read our security whitepaper at https://example.com/security and privacy policy at https://example.com/privacy.",
-                    "tags": ["security", "privacy", "compliance", "encryption", "gdpr"]
-                },
-                {
-                    "title": "Getting Started",
-                    "content": "To get started: 1) Sign up for a free trial at https://example.com/signup, 2) Connect your email accounts using our secure setup wizard, 3) Configure your AI persona and response preferences, 4) Add knowledge base entries specific to your business, 5) Set up intents for your common email types, 6) Test the system with sample emails. Full onboarding typically takes 15-30 minutes. Access our getting started guide at https://example.com/getting-started and watch our tutorial videos at https://example.com/tutorials.",
-                    "tags": ["onboarding", "setup", "getting started", "trial", "configuration"]
-                }
-            ]
-            
-            # Create knowledge base entries with embeddings
-            for kb_data in kb_entries:
-                kb_obj = KnowledgeBase(**kb_data)
-                
-                # Create embedding for content
-                embedding = await get_cohere_embedding(kb_obj.content)
-                
-                # Store with embedding
-                doc = kb_obj.dict()
-                doc["embedding"] = embedding
-                await db.knowledge_base.insert_one(doc)
-                
-            logger.info(f"✅ Created {len(kb_entries)} knowledge base entries")
-        else:
-            logger.info(f"ℹ️  Found {existing_kb} existing knowledge base entries")
-            
-    except Exception as e:
-        logger.error(f"❌ Error initializing knowledge base: {str(e)}")
-
-async def initialize_test_emails():
-    """Initialize test email data for demonstration purposes"""
-    try:
-        existing_emails = await db.emails.count_documents({})
-        
-        if existing_emails == 0:
-            logger.info("📧 Initializing test email data...")
-            
-            # Get the first email account for test emails
-            account = await db.email_accounts.find_one({})
-            if not account:
-                logger.warning("⚠️  No email accounts found, skipping test email initialization")
-                return
-            
-            test_emails = [
-                {
-                    "id": str(uuid.uuid4()),
-                    "account_id": account["id"],
-                    "message_id": f"test-msg-{uuid.uuid4()}",
-                    "thread_id": f"test-thread-{uuid.uuid4()}",
-                    "subject": "Inquiry about your AI Email Assistant",
-                    "sender": "john.doe@example.com",
-                    "recipient": account["email"],
-                    "body": "Hi there! I'm interested in learning more about your AI Email Assistant product. Could you please provide me with information about pricing and features? I'm particularly interested in how it handles customer support emails. Thanks!",
-                    "body_html": "",
-                    "received_at": datetime.utcnow() - timedelta(hours=2),
-                    "in_reply_to": "",
-                    "references": "",
-                    "status": "new",
-                    "intents": [],
-                    "draft": "",
-                    "draft_html": "",
-                    "validation_result": None,
-                    "processed_at": None,
-                    "sent_at": None,
-                    "error": None,
-                    "created_at": datetime.utcnow() - timedelta(hours=2)
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "account_id": account["id"],
-                    "message_id": f"test-msg-{uuid.uuid4()}",
-                    "thread_id": f"test-thread-{uuid.uuid4()}",
-                    "subject": "Partnership Opportunity",
-                    "sender": "sarah.wilson@techcorp.com",
-                    "recipient": account["email"],
-                    "body": "Hello, I represent TechCorp and we're looking for strategic partnerships in the AI automation space. We believe there could be great synergy between our companies. Would you be interested in exploring a potential collaboration? I'd love to schedule a call to discuss this further.",
-                    "body_html": "",
-                    "received_at": datetime.utcnow() - timedelta(hours=1),
-                    "in_reply_to": "",
-                    "references": "",
-                    "status": "new",
-                    "intents": [],
-                    "draft": "",
-                    "draft_html": "",
-                    "validation_result": None,
-                    "processed_at": None,
-                    "sent_at": None,
-                    "error": None,
-                    "created_at": datetime.utcnow() - timedelta(hours=1)
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "account_id": account["id"],
-                    "message_id": f"test-msg-{uuid.uuid4()}",
-                    "thread_id": f"test-thread-{uuid.uuid4()}",
-                    "subject": "Technical Support Needed",
-                    "sender": "mike.johnson@company.com",
-                    "recipient": account["email"],
-                    "body": "I'm having trouble setting up the email integration with our IMAP server. The connection keeps timing out and I'm not sure what configuration settings I should be using. Can someone from your support team help me troubleshoot this issue?",
-                    "body_html": "",
-                    "received_at": datetime.utcnow() - timedelta(minutes=30),
-                    "in_reply_to": "",
-                    "references": "",
-                    "status": "new",
-                    "intents": [],
-                    "draft": "",
-                    "draft_html": "",
-                    "validation_result": None,
-                    "processed_at": None,
-                    "sent_at": None,
-                    "error": None,
-                    "created_at": datetime.utcnow() - timedelta(minutes=30)
-                }
-            ]
-            
-            # Insert test emails
-            for email_data in test_emails:
-                await db.emails.insert_one(email_data)
-            
-            logger.info(f"✅ Created {len(test_emails)} test emails")
-        else:
-            logger.info(f"ℹ️  Found {existing_emails} existing emails")
-            
-    except Exception as e:
-        logger.error(f"❌ Error initializing test emails: {str(e)}")
-
-# Enhanced Email Accounts with OAuth support
-class EmailAccountCreateOAuth(BaseModel):
-    name: str
-    email: str
-    provider: str = "gmail"  # oauth provider
-    auth_type: str = "oauth"  # "oauth" or "manual"
-    # Manual fields (existing)
-    username: Optional[str] = None
-    password: Optional[str] = None
-    imap_server: Optional[str] = None
-    imap_port: Optional[int] = None
-    smtp_server: Optional[str] = None
-    smtp_port: Optional[int] = None
-    # OAuth fields
-    use_oauth: bool = False
-    signature: str = ""
-    is_active: bool = True
-
-@api_router.post("/email-accounts/oauth", response_model=Dict[str, Any])
-async def create_oauth_email_account(
-    account_data: EmailAccountCreateOAuth,
-    current_user: User = Depends(get_current_active_user)
-):
-    """Create email account using OAuth credentials"""
-    
-    if not account_data.use_oauth:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for OAuth-based accounts only"
-        )
-    
-    # Check if user has OAuth authorization for email
-    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
-    if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google email access not authorized. Please complete OAuth flow first."
-        )
-    
-    try:
-        # Verify OAuth access by testing Gmail API
-        gmail_service = await get_google_gmail_service(current_user.id)
-        profile = await gmail_service.get_profile()
-        
-        # Use email from OAuth profile
-        oauth_email = oauth_status["user_email"]
-        
-        account = EmailAccount(
-            id=str(uuid.uuid4()),
-            user_id=current_user.id,
-            name=account_data.name,
-            email=oauth_email,
-            provider=account_data.provider,
-            auth_type="oauth",
-            use_oauth=True,
-            # OAuth accounts don't need manual credentials
-            username="",
-            password="",
-            imap_server="",
-            imap_port=0,
-            smtp_server="",
-            smtp_port=0,
-            signature=account_data.signature,
-            is_active=account_data.is_active,
-            last_uid=0,
-            uidvalidity=None,
-            last_polled=None
-        )
-        
-        # Insert into database
-        result = await db.email_accounts.insert_one(account.dict())
-        
-        # Return account without sensitive data
-        account_dict = account.dict()
-        account_dict["_id"] = str(result.inserted_id)
-        account_dict["oauth_user"] = oauth_status["user_name"]
-        
-        return account_dict
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating OAuth email account: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create OAuth email account: {str(e)}"
-        )
-
-# Enhanced Calendar Provider with OAuth support
-class CalendarProviderCreateOAuth(BaseModel):
-    provider_type: str = "google"  # For OAuth
-    provider_name: str
-    use_oauth: bool = True
-    timezone: str = "UTC"
-    # Manual credentials (for non-OAuth)
-    credentials: Optional[Dict[str, Any]] = {}
-
-@api_router.post("/calendar/providers/oauth", response_model=CalendarProviderResponse)
-async def create_oauth_calendar_provider(
-    provider_data: CalendarProviderCreateOAuth,
-    current_user: User = Depends(get_current_active_user)
-):
-    """Create calendar provider using OAuth credentials"""
-    
-    if not provider_data.use_oauth:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for OAuth-based providers only"
-        )
-    
-    # Check if user has OAuth authorization for calendar
-    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
-    if not oauth_status["is_authorized"] or "calendar" not in oauth_status["authorized_services"]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google calendar access not authorized. Please complete OAuth flow first."
-        )
-    
-    try:
-        # Verify OAuth access by testing Calendar API
-        calendar_service = await get_google_calendar_service(current_user.id)
-        calendars = await calendar_service.list_calendars()
-        
-        # Create provider record
-        provider = {
-            "id": str(uuid.uuid4()),
-            "user_id": current_user.id,
-            "provider_type": "google",
-            "provider_name": provider_data.provider_name,
-            "use_oauth": True,
-            "encrypted_credentials": "",  # No manual credentials needed
-            "is_active": True,
-            "default_calendar_id": "primary",
-            "timezone": provider_data.timezone,
-            "oauth_user": oauth_status["user_name"],
-            "oauth_email": oauth_status["user_email"],
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc)
-        }
-        
-        # Insert into database
-        await db.calendar_providers.insert_one(provider)
-        
-        return CalendarProviderResponse(
-            id=provider["id"],
-            provider_type=provider["provider_type"],
-            provider_name=provider["provider_name"],
-            is_active=provider["is_active"],
-            timezone=provider["timezone"],
-            calendar_count=len(calendars),
-            created_at=provider["created_at"],
-            updated_at=provider["updated_at"]
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating OAuth calendar provider: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create OAuth calendar provider: {str(e)}"
-        )
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    global polling_service
-    if polling_service:
-        polling_service.stop_polling()
-    client.close()
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
