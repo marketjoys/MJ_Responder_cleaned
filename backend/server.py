@@ -1702,6 +1702,29 @@ async def get_thread_history(email_message: EmailMessage) -> List[Dict[str, Any]
     
     return history
 
+async def get_enhanced_thread_context(email_message: EmailMessage) -> List[Dict[str, Any]]:
+    """Get ALL emails in the same thread for comprehensive meeting detection analysis"""
+    
+    # Find ALL emails in the same thread regardless of status for meeting detection
+    thread_emails = await db.emails.find({
+        "thread_id": email_message.thread_id,
+        "id": {"$ne": email_message.id}  # Exclude current email
+    }).sort("received_at", -1).limit(10).to_list(10)  # Increased limit for better context
+    
+    context = []
+    for email in thread_emails:
+        # Include full email body for meeting analysis, not just drafts
+        context.append({
+            "subject": email.get("subject", ""),
+            "body": email.get("body", ""),
+            "sender": email.get("sender", ""),
+            "received_at": email.get("received_at"),
+            "status": email.get("status", ""),
+            "intents": [intent.get("name") for intent in email.get("intents", [])],
+        })
+    
+    return context
+
 async def get_enhanced_knowledge_context(email_body: str, intents: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Enhanced knowledge base context with better retrieval and link extraction"""
     # Get email embedding
