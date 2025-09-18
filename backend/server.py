@@ -2286,6 +2286,56 @@ async def get_follow_up_emails(
     follow_ups = await db.follow_up_emails.find(query).limit(limit).to_list(100)
     return follow_ups
 
+# Follow-up Analytics Routes (must be before parameterized routes)
+@api_router.get("/follow-ups/analytics")
+async def get_follow_up_analytics(current_user: User = Depends(get_current_active_user)):
+    """Get follow-up analytics for the user"""
+    # Count follow-ups by status
+    pipeline = [
+        {"$match": {"user_id": current_user.id}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    
+    status_counts = {}
+    async for result in db.follow_up_emails.aggregate(pipeline):
+        status_counts[result["_id"]] = result["count"]
+    
+    # Count pending follow-ups due today
+    today = datetime.utcnow().replace(hour=23, minute=59, second=59)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+    
+    pending_today = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "pending",
+        "scheduled_time": {"$gte": today_start, "$lte": today}
+    })
+    
+    # Count overdue follow-ups
+    overdue = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "pending",
+        "scheduled_time": {"$lt": datetime.utcnow()}
+    })
+    
+    # Get response rate (follow-ups that received responses)
+    total_sent = status_counts.get("sent", 0)
+    responses_received = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "sent",
+        "response_received": True
+    })
+    
+    response_rate = (responses_received / total_sent * 100) if total_sent > 0 else 0
+    
+    return {
+        "status_counts": status_counts,
+        "pending_today": pending_today,
+        "overdue": overdue,
+        "response_rate": round(response_rate, 2),
+        "total_sent": total_sent,
+        "responses_received": responses_received
+    }
+
 @api_router.get("/follow-ups/{follow_up_id}", response_model=FollowUpEmail)
 async def get_follow_up_email(
     follow_up_id: str,
