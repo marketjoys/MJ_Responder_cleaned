@@ -314,7 +314,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Calendar Events Add Event Functionality"
+    - "Follow-up System Implementation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
