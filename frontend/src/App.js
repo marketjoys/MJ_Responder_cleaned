@@ -573,6 +573,7 @@ const Navigation = ({ activeTab, setActiveTab }) => {
     { id: 'accounts', label: 'Email Accounts', icon: Mail, path: '/accounts' },
     { id: 'knowledge', label: 'Knowledge Base', icon: Database, path: '/knowledge' },
     { id: 'emails', label: 'Email Processing', icon: MessageSquare, path: '/emails' },
+    { id: 'follow-ups', label: 'Follow-ups', icon: Timer, path: '/follow-ups' },
     { id: 'monitoring', label: 'Live Monitoring', icon: Activity, path: '/monitoring' },
     { id: 'test', label: 'Test Email', icon: Zap, path: '/test' }
   ];
