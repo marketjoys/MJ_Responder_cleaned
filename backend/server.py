@@ -1957,7 +1957,7 @@ async def process_email_async(email_id: str):
         
         try:
             # Get thread context for better meeting detection - collect ALL messages in thread
-            thread_context = await get_thread_history(email_message)
+            thread_context = await get_enhanced_thread_context(email_message)
             
             # Always analyze for meeting intents using the calendar agent
             # Let the agent decide based on email content, not pre-existing intents
