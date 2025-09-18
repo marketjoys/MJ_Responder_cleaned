@@ -2049,6 +2049,33 @@ const IntentManagement = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="follow_up_hours">Follow-up Duration (hours)</Label>
+                  <Input
+                    id="follow_up_hours"
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={formData.follow_up_hours}
+                    onChange={(e) => setFormData(prev => ({ ...prev, follow_up_hours: parseInt(e.target.value) }))}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Time to wait before sending first follow-up
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 pt-6">
+                  <Switch
+                    id="is_meeting_related"
+                    checked={formData.is_meeting_related}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_meeting_related: checked }))}
+                  />
+                  <Label htmlFor="is_meeting_related" className="text-sm">
+                    Meeting related intent
+                  </Label>
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
