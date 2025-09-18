@@ -181,12 +181,16 @@ RESPONSE FORMAT (JSON):
     "reasoning": "Explanation of detection"
 }}
 
-IMPORTANT RULES:
-- Only set detected=true if there's a SPECIFIC date and time
-- Confidence should be high (>0.8) only if date/time is very clear
-- Convert all times to the user's timezone
-- If no specific time, set detected=false
-- Consider conversation context when available
+ENHANCED DETECTION RULES:
+- Set detected=true for ANY clear meeting intent, even with partial date/time info
+- High confidence (>0.8): Specific date, time, and clear meeting purpose
+- Medium confidence (0.6-0.8): Clear meeting intent with date OR time
+- Low confidence (0.3-0.6): Meeting keywords present but vague timing
+- Consider conversation context - if previous emails mentioned dates/times
+- If current email is a reply to meeting discussion, inherit context
+- Convert all times to user's timezone
+- Use conversation context to infer missing date/time details
+- Be generous with detection but conservative with confidence scoring
 
 EMAIL TO ANALYZE:
 {content}
