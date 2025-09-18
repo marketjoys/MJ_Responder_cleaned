@@ -2865,7 +2865,26 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Failed to start calendar reminder service: {str(e)}")
     
+    # Start follow-up processing service
+    try:
+        asyncio.create_task(follow_up_service())
+        logger.info("✅ Follow-up processing service started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start follow-up processing service: {str(e)}")
+    
     logger.info("🎉 Email assistant system fully initialized and ready!")
+
+async def follow_up_service():
+    """Background service to process scheduled follow-up emails"""
+    logger.info("🔄 Follow-up processing service started")
+    while True:
+        try:
+            await process_scheduled_follow_ups()
+            # Wait 10 minutes before checking again
+            await asyncio.sleep(600)
+        except Exception as e:
+            logger.error(f"Error in follow-up service: {str(e)}")
+            await asyncio.sleep(600)  # Wait before retrying
 
 async def calendar_reminder_service():
     """Background service to send calendar reminders"""
