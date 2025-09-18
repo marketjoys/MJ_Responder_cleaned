@@ -2846,6 +2846,50 @@ const EmailAccounts = () => {
                     </div>
                   </div>
                 </div>
+                
+                {/* Follow-up Settings Display */}
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Timer className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium text-slate-700 text-sm">Follow-up Settings:</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-slate-600">Status:</span>
+                      <div className={`font-medium ${account.enable_follow_ups ? 'text-green-600' : 'text-slate-500'}`}>
+                        {account.enable_follow_ups ? 'Enabled' : 'Disabled'}
+                      </div>
+                    </div>
+                    {account.enable_follow_ups && (
+                      <>
+                        <div>
+                          <span className="text-slate-600">Duration Override:</span>
+                          <div className="font-medium text-slate-700">
+                            {account.follow_up_hours_override ? `${account.follow_up_hours_override}h` : 'Global'}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Max Follow-ups:</span>
+                          <div className="font-medium text-slate-700">
+                            {account.max_follow_ups_override || 'Global'}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {account.custom_follow_up_template && (
+                    <div className="mt-2">
+                      <span className="text-slate-600 text-sm">Custom Template:</span>
+                      <div className="text-slate-600 text-sm mt-1 bg-slate-50 rounded p-2">
+                        {account.custom_follow_up_template.length > 100 
+                          ? account.custom_follow_up_template.substring(0, 100) + '...'
+                          : account.custom_follow_up_template
+                        }
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
                 {account.signature && (
                   <div className="mt-4 pt-4 border-t border-slate-200">
                     <span className="font-medium text-slate-700 text-sm">Signature:</span>
