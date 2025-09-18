@@ -1818,6 +1818,22 @@ async def auto_send_email(email_id: str):
                 }}
             )
             logger.info(f"✅ Auto-sent reply for email: {email_doc['subject']}")
+            
+            # CREATE FOLLOW-UP EMAILS if enabled for this account
+            if account_doc.get('enable_follow_ups', True):
+                try:
+                    # Get user ID (assuming we can derive it from account)
+                    user_doc = await db.users.find_one({"email": account_doc.get("email")})
+                    if user_doc:
+                        await create_follow_up_for_email(
+                            email_id, 
+                            account_doc['id'], 
+                            user_doc['id']
+                        )
+                        logger.info(f"📅 Created follow-up schedule for email: {email_doc['subject']}")
+                except Exception as e:
+                    logger.error(f"Error creating follow-up for email {email_id}: {str(e)}")
+            
         else:
             # Mark as failed to send
             await db.emails.update_one(
