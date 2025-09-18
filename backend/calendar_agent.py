@@ -116,13 +116,21 @@ class CalendarAgent:
         """Use AI to detect meeting intents and extract details"""
         
         try:
-            # Prepare thread context
+            # Prepare enhanced thread context - prioritize email bodies over subjects
             context_info = ""
             if thread_context:
-                context_info = "PREVIOUS CONVERSATION CONTEXT:\n"
-                for msg in thread_context[-3:]:  # Last 3 messages
-                    context_info += f"- {msg.get('subject', '')}: {msg.get('body', '')[:200]}...\n"
-                context_info += "\n"
+                context_info = "PREVIOUS CONVERSATION CONTEXT (showing full message content):\n"
+                for i, msg in enumerate(thread_context[-5:]):  # Last 5 messages for better context
+                    msg_date = msg.get('received_at', 'Unknown date')
+                    sender = msg.get('sender', 'Unknown sender')
+                    subject = msg.get('subject', 'No subject')
+                    body = msg.get('body', msg.get('draft', ''))[:500]  # Increased to 500 chars
+                    
+                    context_info += f"Message {i+1} ({msg_date}):\n"
+                    context_info += f"From: {sender}\n"
+                    context_info += f"Subject: {subject}\n"
+                    context_info += f"Content: {body}...\n\n"
+                context_info += "END OF CONVERSATION CONTEXT\n\n"
             
             # Get current time for context
             current_time = datetime.now(pytz.timezone(user_timezone))
@@ -135,19 +143,30 @@ CURRENT CONTEXT:
 
 {context_info}
 
-TASK: Analyze the email content and determine if it contains a meeting request or scheduling intent.
+TASK: Analyze the email content AND conversation context to determine if it contains a meeting request or scheduling intent.
 
-DETECTION CRITERIA:
-1. Meeting Intent: Look for words like "meeting", "call", "appointment", "discussion", "demo", "interview", etc.
-2. Specific Date/Time: Must have clear date and time information (not vague like "soon" or "later")
-3. Clear Intent: The email should express desire to schedule or confirm a meeting
+ENHANCED DETECTION CRITERIA:
+1. Meeting Intent: Look for explicit or implicit meeting language:
+   - Direct: "meeting", "call", "appointment", "discussion", "demo", "interview"
+   - Indirect: "let's connect", "catch up", "chat", "sync", "touch base", "get together"
+   - Scheduling: "schedule", "book", "arrange", "set up", "plan"
+   
+2. Date/Time Information: Extract from BOTH current email and thread context:
+   - Specific: "Tuesday at 3pm", "January 15th at 2:00", "tomorrow at 10am"
+   - Relative: "next week", "this Friday", "in 2 hours"
+   - Consider thread context for date/time mentioned in previous messages
+   
+3. Contextual Clues:
+   - Replies to meeting requests should be treated as meeting-related
+   - Follow-up emails about previously discussed meetings
+   - Confirmation or rescheduling requests
 
 EXTRACTION REQUIREMENTS:
-- Date/Time: Extract specific date and time mentioned
-- Duration: Estimate duration (default 30 minutes if not specified)
-- Location: Extract any mentioned location (physical or virtual)
-- Attendees: Identify mentioned attendees
-- Title: Suggest a meeting title based on context
+- Date/Time: Extract the most specific date and time mentioned in email or context
+- Duration: Estimate based on meeting type (30 min default, 60 min for demos/interviews)
+- Location: Physical address, conference room, or virtual meeting link
+- Attendees: Email addresses or names mentioned
+- Title: Generate descriptive title based on meeting purpose
 
 RESPONSE FORMAT (JSON):
 {{
