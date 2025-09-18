@@ -256,6 +256,11 @@ function App() {
                 <EmailProcessing />
               </ProtectedRoute>
             } />
+            <Route path="/follow-ups" element={
+              <ProtectedRoute>
+                <FollowUpManagement />
+              </ProtectedRoute>
+            } />
             <Route path="/test" element={
               <ProtectedRoute>
                 <EmailTesting />
