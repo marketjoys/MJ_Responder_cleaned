@@ -179,6 +179,51 @@ class SendEmailRequest(BaseModel):
 class PollingControlRequest(BaseModel):
     action: str  # start, stop, status
 
+# Follow-up Configuration Models
+class FollowUpConfig(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Link to user who owns this config
+    global_follow_up_hours: int = 24  # Default global follow-up time
+    max_follow_ups: int = 3  # Maximum number of follow-ups per email
+    follow_up_interval_hours: int = 48  # Time between follow-ups
+    auto_follow_up: bool = True  # Enable automatic follow-ups
+    business_hours_only: bool = False  # Only send follow-ups during business hours
+    business_start_hour: int = 9  # 9 AM
+    business_end_hour: int = 17  # 5 PM
+    business_days: List[int] = [1, 2, 3, 4, 5]  # Monday=1 to Sunday=7
+    exclude_weekends: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FollowUpConfigCreate(BaseModel):
+    global_follow_up_hours: int = 24
+    max_follow_ups: int = 3
+    follow_up_interval_hours: int = 48
+    auto_follow_up: bool = True
+    business_hours_only: bool = False
+    business_start_hour: int = 9
+    business_end_hour: int = 17
+    business_days: List[int] = [1, 2, 3, 4, 5]
+    exclude_weekends: bool = True
+
+class FollowUpConfigUpdate(BaseModel):
+    global_follow_up_hours: Optional[int] = None
+    max_follow_ups: Optional[int] = None
+    follow_up_interval_hours: Optional[int] = None
+    auto_follow_up: Optional[bool] = None
+    business_hours_only: Optional[bool] = None
+    business_start_hour: Optional[int] = None
+    business_end_hour: Optional[int] = None
+    business_days: Optional[List[int]] = None
+    exclude_weekends: Optional[bool] = None
+
+# Enhanced Email Account with Follow-up Settings
+class EmailAccountFollowUp(BaseModel):
+    enable_follow_ups: bool = True
+    follow_up_hours_override: Optional[int] = None  # Override global setting
+    max_follow_ups_override: Optional[int] = None
+    custom_follow_up_template: Optional[str] = None
+
 class AccountPollingStatus(BaseModel):
     account_id: str
     email: str
