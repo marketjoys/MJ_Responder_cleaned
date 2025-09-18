@@ -133,6 +133,11 @@ class EmailAccount(BaseModel):
     uidvalidity: Optional[str] = None
     last_polled: Optional[datetime] = None
     auto_send: bool = True  # Auto-send approved replies
+    # Follow-up configuration
+    enable_follow_ups: bool = True
+    follow_up_hours_override: Optional[int] = None  # Override global setting
+    max_follow_ups_override: Optional[int] = None
+    custom_follow_up_template: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class EmailAccountCreate(BaseModel):
