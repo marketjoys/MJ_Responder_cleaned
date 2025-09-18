@@ -2663,6 +2663,91 @@ const EmailAccounts = () => {
                   </Tabs>
                 </div>
 
+                {/* Follow-up Settings Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Timer className="h-5 w-5 text-purple-600" />
+                    <h3 className="text-lg font-semibold text-slate-800">Follow-up Settings</h3>
+                  </div>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable_follow_ups"
+                        checked={formData.enable_follow_ups}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enable_follow_ups: checked }))}
+                      />
+                      <Label htmlFor="enable_follow_ups" className="text-sm font-medium">
+                        Enable automatic follow-ups for this account
+                      </Label>
+                    </div>
+
+                    {formData.enable_follow_ups && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="follow_up_hours_override" className="text-sm">
+                              Follow-up Duration Override (hours)
+                            </Label>
+                            <Input
+                              id="follow_up_hours_override"
+                              type="number"
+                              min="1"
+                              max="168"
+                              value={formData.follow_up_hours_override || ''}
+                              onChange={(e) => setFormData(prev => ({ 
+                                ...prev, 
+                                follow_up_hours_override: e.target.value ? parseInt(e.target.value) : null 
+                              }))}
+                              placeholder="Leave empty to use global setting"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">
+                              Override global follow-up timing for this account
+                            </p>
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="max_follow_ups_override" className="text-sm">
+                              Max Follow-ups Override
+                            </Label>
+                            <Input
+                              id="max_follow_ups_override"
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={formData.max_follow_ups_override || ''}
+                              onChange={(e) => setFormData(prev => ({ 
+                                ...prev, 
+                                max_follow_ups_override: e.target.value ? parseInt(e.target.value) : null 
+                              }))}
+                              placeholder="Leave empty to use global setting"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">
+                              Override global max follow-ups for this account
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="custom_follow_up_template" className="text-sm">
+                            Custom Follow-up Template (Optional)
+                          </Label>
+                          <Textarea
+                            id="custom_follow_up_template"
+                            value={formData.custom_follow_up_template}
+                            onChange={(e) => setFormData(prev => ({ ...prev, custom_follow_up_template: e.target.value }))}
+                            placeholder="Enter a custom template for follow-up emails. Use {original_subject}, {original_sender}, {follow_up_number} as placeholders."
+                            rows={3}
+                          />
+                          <p className="text-xs text-slate-500 mt-1">
+                            Leave empty to use AI-generated follow-up content
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => {
                     setIsCreating(false);
