@@ -3123,6 +3123,40 @@ async def initialize_intents():
                     "confidence_threshold": 0.8,
                     "follow_up_hours": 48,
                     "is_meeting_related": False
+                },
+                {
+                    "name": "Meeting Request",
+                    "description": "Requests to schedule meetings, calls, or appointments for discussions, demos, or consultations",
+                    "examples": [
+                        "I'd like to schedule a meeting",
+                        "Can we set up a call to discuss",
+                        "Are you available for a meeting",
+                        "Let's schedule some time to talk",
+                        "I would like to book an appointment",
+                        "Can we arrange a demo session",
+                        "Let's have a discussion about"
+                    ],
+                    "system_prompt": "Respond professionally to meeting requests. Acknowledge the request, suggest available time slots, and ask for any specific requirements or agenda items. Be helpful in coordinating schedules.",
+                    "confidence_threshold": 0.7,
+                    "follow_up_hours": 24,
+                    "is_meeting_related": True
+                },
+                {
+                    "name": "Interview Scheduling",
+                    "description": "Scheduling job interviews, candidate evaluations, or interview-related communications",
+                    "examples": [
+                        "Interview scheduling",
+                        "Available for interview on",
+                        "Let's schedule your interview",
+                        "Interview confirmation",
+                        "Can we reschedule the interview",
+                        "Interview time change",
+                        "Final round interview"
+                    ],
+                    "system_prompt": "Handle interview scheduling professionally. Confirm availability, provide interview details, and ensure all logistics are clear. Be accommodating with scheduling changes when possible.", 
+                    "confidence_threshold": 0.8,
+                    "follow_up_hours": 12,
+                    "is_meeting_related": True
                 }
             ]
             
