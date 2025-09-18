@@ -2192,6 +2192,287 @@ async def revoke_google_oauth(current_user: User = Depends(get_current_active_us
             detail=f"Failed to revoke OAuth: {str(e)}"
         )
 
+# Follow-up Configuration Routes
+@api_router.get("/follow-up/config", response_model=FollowUpConfig)
+async def get_follow_up_config(current_user: User = Depends(get_current_active_user)):
+    """Get user's follow-up configuration"""
+    config = await db.follow_up_configs.find_one({"user_id": current_user.id})
+    
+    if not config:
+        # Create default config if none exists
+        default_config = FollowUpConfig(user_id=current_user.id)
+        await db.follow_up_configs.insert_one(default_config.dict())
+        return default_config
+    
+    return config
+
+@api_router.post("/follow-up/config", response_model=FollowUpConfig)
+async def create_follow_up_config(
+    config_data: FollowUpConfigCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create or update user's follow-up configuration"""
+    existing_config = await db.follow_up_configs.find_one({"user_id": current_user.id})
+    
+    if existing_config:
+        # Update existing config
+        updated_data = config_data.dict()
+        updated_data["updated_at"] = datetime.utcnow()
+        
+        await db.follow_up_configs.update_one(
+            {"user_id": current_user.id},
+            {"$set": updated_data}
+        )
+        
+        updated_config = await db.follow_up_configs.find_one({"user_id": current_user.id})
+        return updated_config
+    else:
+        # Create new config
+        new_config = FollowUpConfig(user_id=current_user.id, **config_data.dict())
+        await db.follow_up_configs.insert_one(new_config.dict())
+        return new_config
+
+@api_router.put("/follow-up/config", response_model=FollowUpConfig)
+async def update_follow_up_config(
+    config_updates: FollowUpConfigUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update user's follow-up configuration"""
+    existing_config = await db.follow_up_configs.find_one({"user_id": current_user.id})
+    
+    if not existing_config:
+        raise HTTPException(status_code=404, detail="Follow-up configuration not found")
+    
+    # Update only provided fields
+    update_data = {k: v for k, v in config_updates.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.follow_up_configs.update_one(
+        {"user_id": current_user.id},
+        {"$set": update_data}
+    )
+    
+    updated_config = await db.follow_up_configs.find_one({"user_id": current_user.id})
+    return updated_config
+
+# Follow-up Email Management Routes
+@api_router.get("/follow-ups", response_model=List[FollowUpEmail])
+async def get_follow_up_emails(
+    status: Optional[str] = None,
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get user's follow-up emails"""
+    query = {"user_id": current_user.id}
+    if status:
+        query["status"] = status
+    
+    follow_ups = await db.follow_up_emails.find(query).limit(limit).to_list(100)
+    return follow_ups
+
+@api_router.get("/follow-ups/{follow_up_id}", response_model=FollowUpEmail)
+async def get_follow_up_email(
+    follow_up_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get specific follow-up email"""
+    follow_up = await db.follow_up_emails.find_one({
+        "id": follow_up_id,
+        "user_id": current_user.id
+    })
+    
+    if not follow_up:
+        raise HTTPException(status_code=404, detail="Follow-up email not found")
+    
+    return follow_up
+
+@api_router.post("/follow-ups", response_model=FollowUpEmail)
+async def create_follow_up_email(
+    follow_up_data: FollowUpEmailCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new follow-up email"""
+    # Get the original email to validate and extract thread info
+    original_email = await db.emails.find_one({"id": follow_up_data.original_email_id})
+    if not original_email:
+        raise HTTPException(status_code=404, detail="Original email not found")
+    
+    # Create follow-up email
+    new_follow_up = FollowUpEmail(
+        user_id=current_user.id,
+        thread_id=original_email.get("thread_id", ""),
+        **follow_up_data.dict()
+    )
+    
+    await db.follow_up_emails.insert_one(new_follow_up.dict())
+    return new_follow_up
+
+@api_router.put("/follow-ups/{follow_up_id}", response_model=FollowUpEmail)
+async def update_follow_up_email(
+    follow_up_id: str,
+    follow_up_updates: FollowUpEmailUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update follow-up email"""
+    existing_follow_up = await db.follow_up_emails.find_one({
+        "id": follow_up_id,
+        "user_id": current_user.id
+    })
+    
+    if not existing_follow_up:
+        raise HTTPException(status_code=404, detail="Follow-up email not found")
+    
+    # Update only provided fields
+    update_data = {k: v for k, v in follow_up_updates.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.follow_up_emails.update_one(
+        {"id": follow_up_id, "user_id": current_user.id},
+        {"$set": update_data}
+    )
+    
+    updated_follow_up = await db.follow_up_emails.find_one({
+        "id": follow_up_id,
+        "user_id": current_user.id
+    })
+    return updated_follow_up
+
+@api_router.delete("/follow-ups/{follow_up_id}")
+async def delete_follow_up_email(
+    follow_up_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete/cancel follow-up email"""
+    result = await db.follow_up_emails.delete_one({
+        "id": follow_up_id,
+        "user_id": current_user.id
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Follow-up email not found")
+    
+    return {"message": "Follow-up email cancelled successfully"}
+
+@api_router.post("/follow-ups/{follow_up_id}/send")
+async def send_follow_up_email(
+    follow_up_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Manually send a follow-up email"""
+    follow_up = await db.follow_up_emails.find_one({
+        "id": follow_up_id,
+        "user_id": current_user.id
+    })
+    
+    if not follow_up:
+        raise HTTPException(status_code=404, detail="Follow-up email not found")
+    
+    if follow_up["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Follow-up email is not in pending status")
+    
+    try:
+        # Get email account
+        account = await db.email_accounts.find_one({"id": follow_up["account_id"]})
+        if not account:
+            raise HTTPException(status_code=404, detail="Email account not found")
+        
+        # Import EmailConnection here to avoid circular imports
+        from email_services import EmailConnection
+        
+        # Send the follow-up email
+        connection = EmailConnection(account)
+        success = connection.send_email(
+            to_email=follow_up["recipient_email"],
+            subject=follow_up["subject"],
+            body=follow_up["draft_content"],
+            body_html=follow_up["draft_html"]
+        )
+        
+        if success:
+            # Update follow-up status
+            await db.follow_up_emails.update_one(
+                {"id": follow_up_id},
+                {"$set": {
+                    "status": "sent",
+                    "sent_time": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            return {"message": "Follow-up email sent successfully"}
+        else:
+            # Update with error status
+            await db.follow_up_emails.update_one(
+                {"id": follow_up_id},
+                {"$set": {
+                    "status": "failed",
+                    "error_message": "Failed to send email",
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            raise HTTPException(status_code=500, detail="Failed to send follow-up email")
+            
+    except Exception as e:
+        logger.error(f"Error sending follow-up email {follow_up_id}: {str(e)}")
+        await db.follow_up_emails.update_one(
+            {"id": follow_up_id},
+            {"$set": {
+                "status": "failed",
+                "error_message": str(e),
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to send follow-up email: {str(e)}")
+
+# Follow-up Analytics Routes
+@api_router.get("/follow-ups/analytics")
+async def get_follow_up_analytics(current_user: User = Depends(get_current_active_user)):
+    """Get follow-up analytics for the user"""
+    # Count follow-ups by status
+    pipeline = [
+        {"$match": {"user_id": current_user.id}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    
+    status_counts = {}
+    async for result in db.follow_up_emails.aggregate(pipeline):
+        status_counts[result["_id"]] = result["count"]
+    
+    # Count pending follow-ups due today
+    today = datetime.utcnow().replace(hour=23, minute=59, second=59)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0)
+    
+    pending_today = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "pending",
+        "scheduled_time": {"$gte": today_start, "$lte": today}
+    })
+    
+    # Count overdue follow-ups
+    overdue = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "pending",
+        "scheduled_time": {"$lt": datetime.utcnow()}
+    })
+    
+    # Get response rate (follow-ups that received responses)
+    total_sent = status_counts.get("sent", 0)
+    responses_received = await db.follow_up_emails.count_documents({
+        "user_id": current_user.id,
+        "status": "sent",
+        "response_received": True
+    })
+    
+    response_rate = (responses_received / total_sent * 100) if total_sent > 0 else 0
+    
+    return {
+        "status_counts": status_counts,
+        "pending_today": pending_today,
+        "overdue": overdue,
+        "response_rate": round(response_rate, 2),
+        "total_sent": total_sent,
+        "responses_received": responses_received
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
