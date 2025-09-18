@@ -153,6 +153,11 @@ class EmailAccountCreate(BaseModel):
     persona: str = ""
     signature: str = ""
     auto_send: bool = True
+    # Follow-up configuration  
+    enable_follow_ups: bool = True
+    follow_up_hours_override: Optional[int] = None
+    max_follow_ups_override: Optional[int] = None
+    custom_follow_up_template: Optional[str] = None
 
 class KnowledgeBase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
