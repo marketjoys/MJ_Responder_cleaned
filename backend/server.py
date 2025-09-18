@@ -1928,50 +1928,54 @@ async def process_email_async(email_id: str):
             {"$set": {"intents": intents, "status": "classifying"}}
         )
         
-        # Step 2.5: Check for meeting intents and calendar integration
-        meeting_related_intents = [intent for intent in intents if intent.get("is_meeting_related", False)]
+        # Step 2.5: Always check for meeting intents and calendar integration
+        # This ensures meeting detection runs for ALL emails, not just those with existing meeting intents
         calendar_action = None
         
-        if meeting_related_intents or any("meeting" in intent.get("name", "").lower() for intent in intents):
-            try:
-                # Get thread context for better meeting detection
-                thread_context = await get_thread_history(email_message)
-                
-                # Analyze for meeting intents using the calendar agent
-                meeting_detection = await calendar_agent.analyze_email_for_meetings(
-                    email_message.body,
-                    email_message.subject,
-                    email_message.sender,
-                    user_doc.get("timezone", "UTC"),
-                    thread_context
+        try:
+            # Get thread context for better meeting detection - collect ALL messages in thread
+            thread_context = await get_thread_history(email_message)
+            
+            # Always analyze for meeting intents using the calendar agent
+            # Let the agent decide based on email content, not pre-existing intents
+            meeting_detection = await calendar_agent.analyze_email_for_meetings(
+                email_message.body,
+                email_message.subject,
+                email_message.sender,
+                user_doc.get("timezone", "UTC"),
+                thread_context
+            )
+            
+            logger.info(f"🔍 Meeting detection result: detected={meeting_detection.meeting_detected}, confidence={meeting_detection.confidence_score}")
+            
+            if meeting_detection.meeting_detected and meeting_detection.confidence_score >= 0.6:
+                # Process meeting intent and potentially create calendar event only with high confidence
+                calendar_action = await calendar_agent.process_meeting_intent(
+                    email_id,
+                    user_doc["id"],
+                    meeting_detection,
+                    email_message.thread_id
                 )
                 
-                if meeting_detection.meeting_detected:
-                    # Process meeting intent and potentially create calendar event
-                    calendar_action = await calendar_agent.process_meeting_intent(
-                        email_id,
-                        user_doc["id"],
-                        meeting_detection,
-                        email_message.thread_id
-                    )
+                if calendar_action:
+                    logger.info(f"📅 Calendar action completed: {calendar_action}")
+            elif meeting_detection.meeting_detected:
+                logger.info(f"📅 Meeting detected but confidence too low ({meeting_detection.confidence_score}) - no action taken")
+            else:
+                # Check if this is an update to existing meeting
+                calendar_action = await calendar_agent.update_meeting_from_email(
+                    email_message.body,
+                    email_message.thread_id,
+                    user_doc["id"],
+                    user_doc.get("timezone", "UTC")
+                )
+                
+                if calendar_action:
+                    logger.info(f"📅 Meeting update completed: {calendar_action}")
                     
-                    if calendar_action:
-                        logger.info(f"📅 Calendar action completed: {calendar_action}")
-                else:
-                    # Check if this is an update to existing meeting
-                    calendar_action = await calendar_agent.update_meeting_from_email(
-                        email_message.body,
-                        email_message.thread_id,
-                        user_doc["id"],
-                        user_doc.get("timezone", "UTC")
-                    )
-                    
-                    if calendar_action:
-                        logger.info(f"📅 Meeting update completed: {calendar_action}")
-                        
-            except Exception as e:
-                logger.error(f"Calendar integration error: {e}")
-                # Continue with normal email processing even if calendar fails
+        except Exception as e:
+            logger.error(f"Calendar integration error: {e}")
+            # Continue with normal email processing even if calendar fails
         
         # Step 3: Generate draft
         draft = await generate_draft(email_message, intents)
