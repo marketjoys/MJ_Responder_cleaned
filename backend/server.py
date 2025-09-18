@@ -2473,6 +2473,352 @@ async def get_follow_up_analytics(current_user: User = Depends(get_current_activ
         "responses_received": responses_received
     }
 
+# Follow-up Processing Functions
+async def create_follow_up_for_email(email_id: str, account_id: str, user_id: str = None):
+    """Create follow-up entries for an email that needs follow-up"""
+    try:
+        # Get the email
+        email = await db.emails.find_one({"id": email_id})
+        if not email:
+            logger.error(f"Email {email_id} not found for follow-up creation")
+            return
+        
+        # Get user from account if not provided
+        if not user_id:
+            account = await db.email_accounts.find_one({"id": account_id})
+            if not account:
+                logger.error(f"Account {account_id} not found for follow-up creation")
+                return
+            # For now, we'll use a default user_id or get it from account if available
+            user_id = account.get("user_id", "default_user")
+        
+        # Get user's follow-up configuration
+        follow_up_config = await db.follow_up_configs.find_one({"user_id": user_id})
+        if not follow_up_config:
+            # Create default config
+            default_config = FollowUpConfig(user_id=user_id)
+            await db.follow_up_configs.insert_one(default_config.dict())
+            follow_up_config = default_config.dict()
+        
+        # Check if follow-ups are enabled
+        if not follow_up_config.get("auto_follow_up", True):
+            logger.info(f"Auto follow-up disabled for user {user_id}")
+            return
+        
+        # Get account follow-up settings
+        account = await db.email_accounts.find_one({"id": account_id})
+        if not account.get("enable_follow_ups", True):
+            logger.info(f"Follow-ups disabled for account {account_id}")
+            return
+        
+        # Calculate follow-up schedules
+        max_follow_ups = account.get("max_follow_ups_override") or follow_up_config.get("max_follow_ups", 3)
+        first_follow_up_hours = account.get("follow_up_hours_override") or follow_up_config.get("global_follow_up_hours", 24)
+        interval_hours = follow_up_config.get("follow_up_interval_hours", 48)
+        
+        # Extract sender email for reply
+        sender_email = email["sender"]
+        if '<' in sender_email:
+            sender_email = sender_email.split('<')[1].split('>')[0]
+        
+        # Generate follow-up subject
+        subject = email["subject"]
+        if not subject.lower().startswith('re:'):
+            subject = f"Re: {subject}"
+        
+        # Create follow-up emails
+        current_time = datetime.utcnow()
+        
+        for follow_up_num in range(1, max_follow_ups + 1):
+            # Calculate scheduled time for this follow-up
+            if follow_up_num == 1:
+                scheduled_time = current_time + timedelta(hours=first_follow_up_hours)
+            else:
+                scheduled_time = current_time + timedelta(hours=first_follow_up_hours + (follow_up_num - 1) * interval_hours)
+            
+            # Adjust for business hours if needed
+            if follow_up_config.get("business_hours_only", False):
+                scheduled_time = adjust_to_business_hours(
+                    scheduled_time,
+                    follow_up_config.get("business_start_hour", 9),
+                    follow_up_config.get("business_end_hour", 17),
+                    follow_up_config.get("business_days", [1, 2, 3, 4, 5]),
+                    follow_up_config.get("exclude_weekends", True)
+                )
+            
+            # Generate follow-up content based on number
+            follow_up_content = await generate_follow_up_content(
+                email, follow_up_num, account.get("custom_follow_up_template")
+            )
+            
+            # Create follow-up email record
+            follow_up_email = FollowUpEmail(
+                original_email_id=email_id,
+                account_id=account_id,
+                user_id=user_id,
+                thread_id=email.get("thread_id", ""),
+                recipient_email=sender_email,
+                subject=f"{subject} - Follow-up #{follow_up_num}",
+                follow_up_number=follow_up_num,
+                scheduled_time=scheduled_time,
+                draft_content=follow_up_content["text"],
+                draft_html=follow_up_content["html"]
+            )
+            
+            await db.follow_up_emails.insert_one(follow_up_email.dict())
+            logger.info(f"Created follow-up #{follow_up_num} for email {email_id}, scheduled for {scheduled_time}")
+    
+    except Exception as e:
+        logger.error(f"Error creating follow-up for email {email_id}: {str(e)}")
+
+def adjust_to_business_hours(target_time: datetime, start_hour: int, end_hour: int, 
+                           business_days: List[int], exclude_weekends: bool) -> datetime:
+    """Adjust scheduled time to fall within business hours"""
+    # Monday=1, Sunday=7
+    weekday = target_time.isoweekday()
+    
+    # Check if it's a weekend and weekends are excluded
+    if exclude_weekends and weekday in [6, 7]:  # Saturday, Sunday
+        # Move to next Monday
+        days_until_monday = (8 - weekday) % 7
+        if days_until_monday == 0:
+            days_until_monday = 1
+        target_time = target_time + timedelta(days=days_until_monday)
+        target_time = target_time.replace(hour=start_hour, minute=0, second=0)
+        return target_time
+    
+    # Check if it's a business day
+    if weekday not in business_days:
+        # Find next business day
+        for i in range(1, 8):
+            next_day = (weekday + i - 1) % 7 + 1
+            if next_day in business_days:
+                target_time = target_time + timedelta(days=i)
+                target_time = target_time.replace(hour=start_hour, minute=0, second=0)
+                break
+        return target_time
+    
+    # Adjust hour if outside business hours
+    if target_time.hour < start_hour:
+        target_time = target_time.replace(hour=start_hour, minute=0, second=0)
+    elif target_time.hour >= end_hour:
+        # Move to next business day
+        target_time = target_time + timedelta(days=1)
+        target_time = target_time.replace(hour=start_hour, minute=0, second=0)
+        # Recursively check if new day is a business day
+        return adjust_to_business_hours(target_time, start_hour, end_hour, business_days, exclude_weekends)
+    
+    return target_time
+
+async def generate_follow_up_content(email: Dict[str, Any], follow_up_number: int, 
+                                   custom_template: Optional[str] = None) -> Dict[str, str]:
+    """Generate follow-up email content using AI"""
+    try:
+        if custom_template:
+            # Use custom template
+            content = custom_template.format(
+                original_subject=email["subject"],
+                original_sender=email["sender"],
+                follow_up_number=follow_up_number,
+                days_ago=follow_up_number * 2  # Approximate
+            )
+            return {"text": content, "html": f"<p>{content.replace(chr(10), '</p><p>')}</p>"}
+        
+        # Generate AI follow-up content
+        follow_up_prompts = {
+            1: "Generate a polite follow-up email asking if the recipient had a chance to review the previous message.",
+            2: "Generate a second follow-up email with a more direct approach, emphasizing the importance of the matter.",
+            3: "Generate a final follow-up email indicating this is the last attempt to reach out on this matter."
+        }
+        
+        prompt = follow_up_prompts.get(follow_up_number, follow_up_prompts[3])
+        
+        system_prompt = f"""
+        You are writing a professional follow-up email. 
+        
+        Original email details:
+        Subject: {email["subject"]}
+        From: {email["sender"]}
+        Body preview: {email["body"][:200] if email["body"] else "No preview available"}...
+        
+        {prompt}
+        
+        Keep the tone professional and friendly. The email should be concise and to the point.
+        """
+        
+        # Use Groq API to generate follow-up content
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {os.environ['GROQ_API_KEY']}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama3-70b-8192",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Write follow-up #{follow_up_number} for the above email."}
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.7
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content = result["choices"][0]["message"]["content"]
+                return {
+                    "text": content,
+                    "html": f"<p>{content.replace(chr(10), '</p><p>')}</p>"
+                }
+            else:
+                logger.error(f"Groq API error in follow-up generation: {response.text}")
+                # Fallback content
+                fallback_content = f"""
+Hi,
+
+I wanted to follow up on my previous email regarding "{email["subject"]}".
+
+I haven't heard back from you yet, and I wanted to make sure my message didn't get lost in your inbox.
+
+Could you please let me know your thoughts when you have a chance?
+
+Thank you for your time.
+
+Best regards
+                """.strip()
+                return {"text": fallback_content, "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>"}
+    
+    except Exception as e:
+        logger.error(f"Error generating follow-up content: {str(e)}")
+        # Fallback content
+        fallback_content = f"""
+Hi,
+
+I wanted to follow up on my previous email regarding "{email.get('subject', 'our previous conversation')}".
+
+Could you please provide an update when you have a moment?
+
+Thank you.
+
+Best regards
+        """.strip()
+        return {"text": fallback_content, "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>"}
+
+async def process_scheduled_follow_ups():
+    """Process and send scheduled follow-up emails"""
+    try:
+        # Get all pending follow-ups that are due
+        current_time = datetime.utcnow()
+        due_follow_ups = await db.follow_up_emails.find({
+            "status": "pending",
+            "scheduled_time": {"$lte": current_time}
+        }).to_list(100)
+        
+        logger.info(f"Processing {len(due_follow_ups)} due follow-ups")
+        
+        for follow_up in due_follow_ups:
+            try:
+                # Check if original email received a response
+                if await check_email_received_response(follow_up["original_email_id"], follow_up["thread_id"]):
+                    # Cancel remaining follow-ups for this thread
+                    await db.follow_up_emails.update_many(
+                        {
+                            "thread_id": follow_up["thread_id"],
+                            "status": "pending"
+                        },
+                        {"$set": {
+                            "status": "cancelled",
+                            "updated_at": current_time,
+                            "error_message": "Response received, follow-up cancelled"
+                        }}
+                    )
+                    logger.info(f"Cancelled follow-ups for thread {follow_up['thread_id']} - response received")
+                    continue
+                
+                # Get account info
+                account = await db.email_accounts.find_one({"id": follow_up["account_id"]})
+                if not account or not account.get("is_active", True):
+                    await db.follow_up_emails.update_one(
+                        {"id": follow_up["id"]},
+                        {"$set": {
+                            "status": "failed",
+                            "error_message": "Account not found or inactive",
+                            "updated_at": current_time
+                        }}
+                    )
+                    continue
+                
+                # Import EmailConnection here to avoid circular imports
+                from email_services import EmailConnection
+                
+                # Send the follow-up email
+                connection = EmailConnection(account)
+                success = connection.send_email(
+                    to_email=follow_up["recipient_email"],
+                    subject=follow_up["subject"],
+                    body=follow_up["draft_content"],
+                    body_html=follow_up["draft_html"]
+                )
+                
+                if success:
+                    await db.follow_up_emails.update_one(
+                        {"id": follow_up["id"]},
+                        {"$set": {
+                            "status": "sent",
+                            "sent_time": current_time,
+                            "updated_at": current_time
+                        }}
+                    )
+                    logger.info(f"Successfully sent follow-up {follow_up['id']}")
+                else:
+                    await db.follow_up_emails.update_one(
+                        {"id": follow_up["id"]},
+                        {"$set": {
+                            "status": "failed",
+                            "error_message": "Failed to send email",
+                            "updated_at": current_time
+                        }}
+                    )
+                    logger.error(f"Failed to send follow-up {follow_up['id']}")
+                
+            except Exception as e:
+                logger.error(f"Error processing follow-up {follow_up['id']}: {str(e)}")
+                await db.follow_up_emails.update_one(
+                    {"id": follow_up["id"]},
+                    {"$set": {
+                        "status": "failed",
+                        "error_message": str(e),
+                        "updated_at": current_time
+                    }}
+                )
+    
+    except Exception as e:
+        logger.error(f"Error in process_scheduled_follow_ups: {str(e)}")
+
+async def check_email_received_response(original_email_id: str, thread_id: str) -> bool:
+    """Check if an email thread received a response"""
+    try:
+        # Get the original email
+        original_email = await db.emails.find_one({"id": original_email_id})
+        if not original_email:
+            return False
+        
+        # Look for newer emails in the same thread
+        newer_emails = await db.emails.find({
+            "thread_id": thread_id,
+            "received_at": {"$gt": original_email["received_at"]},
+            "sender": {"$ne": original_email.get("account_email", "")}  # Not from the same account
+        }).to_list(10)
+        
+        return len(newer_emails) > 0
+    
+    except Exception as e:
+        logger.error(f"Error checking email response for {original_email_id}: {str(e)}")
+        return False
+
 # Include the router in the main app
 app.include_router(api_router)
 
