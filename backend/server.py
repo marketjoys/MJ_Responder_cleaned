@@ -234,6 +234,44 @@ class EmailAccountFollowUp(BaseModel):
     max_follow_ups_override: Optional[int] = None
     custom_follow_up_template: Optional[str] = None
 
+# Follow-up Email Tracking Models
+class FollowUpEmail(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    original_email_id: str  # Reference to the original email
+    account_id: str  # Email account that will send the follow-up
+    user_id: str  # User who owns this follow-up
+    thread_id: str  # Email thread identifier
+    recipient_email: str  # Who to send follow-up to
+    subject: str  # Follow-up email subject
+    status: str = "pending"  # pending, scheduled, sent, cancelled, failed
+    follow_up_number: int = 1  # 1st, 2nd, 3rd follow-up etc.
+    scheduled_time: datetime  # When to send this follow-up
+    sent_time: Optional[datetime] = None
+    draft_content: str = ""  # Generated follow-up content
+    draft_html: str = ""
+    error_message: Optional[str] = None
+    response_received: bool = False  # Did we get a response after sending?
+    last_response_time: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FollowUpEmailCreate(BaseModel):
+    original_email_id: str
+    account_id: str
+    recipient_email: str
+    subject: str
+    follow_up_number: int = 1
+    scheduled_time: datetime
+    draft_content: str = ""
+
+class FollowUpEmailUpdate(BaseModel):
+    status: Optional[str] = None
+    scheduled_time: Optional[datetime] = None
+    draft_content: Optional[str] = None
+    draft_html: Optional[str] = None
+    response_received: Optional[bool] = None
+    error_message: Optional[str] = None
+
 class AccountPollingStatus(BaseModel):
     account_id: str
     email: str
