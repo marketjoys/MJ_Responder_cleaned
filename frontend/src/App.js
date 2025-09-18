@@ -3469,4 +3469,396 @@ const EmailTesting = () => {
   );
 };
 
+// Follow-Up Management Component
+const FollowUpManagement = () => {
+  const [followUps, setFollowUps] = useState([]);
+  const [followUpConfig, setFollowUpConfig] = useState(null);
+  const [analytics, setAnalytics] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('pending');
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [configForm, setConfigForm] = useState({
+    global_follow_up_hours: 24,
+    max_follow_ups: 3,
+    follow_up_interval_hours: 48,
+    auto_follow_up: true,
+    business_hours_only: false,
+    business_start_hour: 9,
+    business_end_hour: 17,
+    exclude_weekends: true
+  });
+
+  useEffect(() => {
+    fetchFollowUps();
+    fetchFollowUpConfig();
+    fetchAnalytics();
+  }, []);
+
+  const fetchFollowUps = async (status = null) => {
+    try {
+      setIsLoading(true);
+      const params = status ? `?status=${status}` : '';
+      const response = await axios.get(`${API}/follow-ups${params}`);
+      setFollowUps(response.data);
+    } catch (error) {
+      console.error('Error fetching follow-ups:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchFollowUpConfig = async () => {
+    try {
+      const response = await axios.get(`${API}/follow-up/config`);
+      setFollowUpConfig(response.data);
+      setConfigForm(response.data);
+    } catch (error) {
+      console.error('Error fetching follow-up config:', error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      const response = await axios.get(`${API}/follow-ups/analytics`);
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  };
+
+  const updateFollowUpConfig = async () => {
+    try {
+      const response = await axios.put(`${API}/follow-up/config`, configForm);
+      setFollowUpConfig(response.data);
+      setShowConfigDialog(false);
+      alert('Follow-up configuration updated successfully!');
+    } catch (error) {
+      console.error('Error updating config:', error);
+      alert('Failed to update configuration');
+    }
+  };
+
+  const sendFollowUp = async (followUpId) => {
+    try {
+      await axios.post(`${API}/follow-ups/${followUpId}/send`);
+      alert('Follow-up sent successfully!');
+      fetchFollowUps(activeTab === 'all' ? null : activeTab);
+      fetchAnalytics();
+    } catch (error) {
+      console.error('Error sending follow-up:', error);
+      alert('Failed to send follow-up');
+    }
+  };
+
+  const cancelFollowUp = async (followUpId) => {
+    try {
+      await axios.delete(`${API}/follow-ups/${followUpId}`);
+      alert('Follow-up cancelled successfully!');
+      fetchFollowUps(activeTab === 'all' ? null : activeTab);
+      fetchAnalytics();
+    } catch (error) {
+      console.error('Error cancelling follow-up:', error);
+      alert('Failed to cancel follow-up');
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      sent: 'bg-green-100 text-green-800',
+      failed: 'bg-red-100 text-red-800',
+      cancelled: 'bg-slate-100 text-slate-800'
+    };
+    return colors[status] || 'bg-slate-100 text-slate-800';
+  };
+
+  useEffect(() => {
+    fetchFollowUps(activeTab === 'all' ? null : activeTab);
+  }, [activeTab]);
+
+  return (
+    <Layout>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">Follow-up Management</h1>
+            <p className="text-slate-600 mt-2">Manage your email follow-up settings and track pending follow-ups</p>
+          </div>
+          <Button onClick={() => setShowConfigDialog(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
+
+        {/* Analytics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-800">{analytics.pending_today || 0}</div>
+                  <div className="text-sm text-slate-600">Due Today</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-800">{analytics.overdue || 0}</div>
+                  <div className="text-sm text-slate-600">Overdue</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Send className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-800">{analytics.total_sent || 0}</div>
+                  <div className="text-sm text-slate-600">Total Sent</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-slate-800">{analytics.response_rate || 0}%</div>
+                  <div className="text-sm text-slate-600">Response Rate</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Follow-ups List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5" />
+              Follow-up Emails
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-5 w-full max-w-lg">
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="sent">Sent</TabsTrigger>
+                <TabsTrigger value="failed">Failed</TabsTrigger>
+                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab} className="mt-6">
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto"></div>
+                    <p className="text-slate-600 mt-4">Loading follow-ups...</p>
+                  </div>
+                ) : followUps.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Timer className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-600 mb-2">No follow-ups found</h3>
+                    <p className="text-slate-500">
+                      {activeTab === 'pending' ? 'No pending follow-ups at the moment' : 
+                       activeTab === 'all' ? 'No follow-ups have been created yet' :
+                       `No ${activeTab} follow-ups found`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {followUps.map((followUp) => (
+                      <div key={followUp.id} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-semibold text-slate-800">{followUp.subject}</h3>
+                              <Badge className={getStatusBadge(followUp.status)}>
+                                {followUp.status}
+                              </Badge>
+                              <Badge variant="secondary">
+                                Follow-up #{followUp.follow_up_number}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-slate-600 space-y-1">
+                              <div>To: {followUp.recipient_email}</div>
+                              <div>Scheduled: {formatDateTime(followUp.scheduled_time)}</div>
+                              {followUp.sent_time && (
+                                <div>Sent: {formatDateTime(followUp.sent_time)}</div>
+                              )}
+                              {followUp.error_message && (
+                                <div className="text-red-600">Error: {followUp.error_message}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {followUp.status === 'pending' && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => sendFollowUp(followUp.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Send className="h-4 w-4 mr-1" />
+                                  Send Now
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => cancelFollowUp(followUp.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 rounded p-3 text-sm">
+                          <div className="font-medium text-slate-700 mb-2">Follow-up Content:</div>
+                          <div className="text-slate-600">{followUp.draft_content.substring(0, 200)}...</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Configuration Dialog */}
+        <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Follow-up Configuration</DialogTitle>
+              <DialogDescription>
+                Configure your automatic follow-up settings
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="follow_up_hours">Initial Follow-up (hours)</Label>
+                  <Input
+                    id="follow_up_hours"
+                    type="number"
+                    value={configForm.global_follow_up_hours}
+                    onChange={(e) => setConfigForm({...configForm, global_follow_up_hours: parseInt(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="max_follow_ups">Max Follow-ups</Label>
+                  <Input
+                    id="max_follow_ups"
+                    type="number"
+                    value={configForm.max_follow_ups}
+                    onChange={(e) => setConfigForm({...configForm, max_follow_ups: parseInt(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="interval_hours">Interval between Follow-ups (hours)</Label>
+                <Input
+                  id="interval_hours"
+                  type="number"
+                  value={configForm.follow_up_interval_hours}
+                  onChange={(e) => setConfigForm({...configForm, follow_up_interval_hours: parseInt(e.target.value)})}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="auto_follow_up"
+                  checked={configForm.auto_follow_up}
+                  onCheckedChange={(checked) => setConfigForm({...configForm, auto_follow_up: checked})}
+                />
+                <Label htmlFor="auto_follow_up">Enable automatic follow-ups</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="business_hours_only"
+                  checked={configForm.business_hours_only}
+                  onCheckedChange={(checked) => setConfigForm({...configForm, business_hours_only: checked})}
+                />
+                <Label htmlFor="business_hours_only">Only send during business hours</Label>
+              </div>
+
+              {configForm.business_hours_only && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="start_hour">Business Start Hour</Label>
+                    <Input
+                      id="start_hour"
+                      type="number"
+                      min="0"
+                      max="23"
+                      value={configForm.business_start_hour}
+                      onChange={(e) => setConfigForm({...configForm, business_start_hour: parseInt(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="end_hour">Business End Hour</Label>
+                    <Input
+                      id="end_hour"
+                      type="number"
+                      min="0"
+                      max="23"
+                      value={configForm.business_end_hour}
+                      onChange={(e) => setConfigForm({...configForm, business_end_hour: parseInt(e.target.value)})}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="exclude_weekends"
+                  checked={configForm.exclude_weekends}
+                  onCheckedChange={(checked) => setConfigForm({...configForm, exclude_weekends: checked})}
+                />
+                <Label htmlFor="exclude_weekends">Exclude weekends</Label>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end mt-6">
+              <Button variant="outline" onClick={() => setShowConfigDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={updateFollowUpConfig} className="bg-purple-600 hover:bg-purple-700">
+                Save Configuration
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </Layout>
+  );
+};
+
 export default App;
