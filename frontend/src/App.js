@@ -2228,7 +2228,12 @@ const EmailAccounts = () => {
     smtp_server: '',
     smtp_port: 587,
     signature: '',
-    is_active: true
+    is_active: true,
+    // Follow-up settings
+    enable_follow_ups: true,
+    follow_up_hours_override: null,
+    max_follow_ups_override: null,
+    custom_follow_up_template: ''
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
