@@ -2125,6 +2125,76 @@ async def get_emails():
     emails = await db.emails.find().sort("received_at", -1).to_list(100)
     return [EmailMessage(**email) for email in emails]
 
+@api_router.get("/emails/threads", response_model=List[EmailThread])
+async def get_email_threads():
+    """Get all email threads with their follow-ups and responses"""
+    try:
+        # Get all emails grouped by thread_id
+        pipeline = [
+            {"$sort": {"received_at": -1}},
+            {"$group": {
+                "_id": "$thread_id",
+                "emails": {"$push": "$$ROOT"},
+                "subject": {"$first": "$subject"},
+                "thread_id": {"$first": "$thread_id"},
+                "last_activity": {"$max": "$received_at"},
+                "created_at": {"$min": "$received_at"}
+            }},
+            {"$sort": {"last_activity": -1}}
+        ]
+        
+        email_groups = await db.emails.aggregate(pipeline).to_list(100)
+        threads = []
+        
+        for group in email_groups:
+            thread_id = group["thread_id"]
+            emails = group["emails"]
+            
+            # Get follow-ups for this thread
+            follow_ups = await db.follow_up_emails.find({"thread_id": thread_id}).to_list(100)
+            
+            # Determine original email (first chronologically)
+            original_email = min(emails, key=lambda e: e["received_at"])
+            
+            # Separate responses from the original
+            responses = [e for e in emails if e["id"] != original_email["id"]]
+            
+            # Check if thread has responses (emails from different senders)
+            original_sender = original_email.get("sender", "")
+            has_response = any(
+                email.get("sender", "") != original_sender and 
+                email.get("received_at", datetime.min) > original_email.get("received_at", datetime.min)
+                for email in responses
+            )
+            
+            # Get unique participants  
+            participants = list(set([
+                email.get("sender", "") for email in emails
+            ] + [
+                email.get("recipient", "") for email in emails  
+            ]))
+            participants = [p for p in participants if p]  # Remove empty strings
+            
+            thread = EmailThread(
+                thread_id=thread_id,
+                subject=group["subject"],
+                participants=participants,
+                original_email=original_email,
+                follow_ups=follow_ups,
+                responses=responses,
+                has_response=has_response,
+                follow_ups_active=not has_response,  # Stop follow-ups if response received
+                last_activity=group["last_activity"],
+                created_at=group["created_at"]
+            )
+            threads.append(thread)
+            
+        return threads
+        
+    except Exception as e:
+        logger.error(f"Error fetching email threads: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch email threads: {str(e)}")
+
 @api_router.get("/emails/{email_id}", response_model=EmailMessage)
 async def get_email(email_id: str):
     email_doc = await db.emails.find_one({"id": email_id})
