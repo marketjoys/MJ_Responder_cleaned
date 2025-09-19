@@ -2150,7 +2150,7 @@ async def get_emails():
     emails = await db.emails.find().sort("received_at", -1).to_list(100)
     return [EmailMessage(**email) for email in emails]
 
-@api_router.get("/emails/threads", response_model=List[EmailThread])
+@api_router.get("/emails/threads")
 async def get_email_threads():
     """Get all email threads with their follow-ups and responses"""
     try:
@@ -2175,20 +2175,52 @@ async def get_email_threads():
             thread_id = group["thread_id"]
             emails = group["emails"]
             
+            # Convert ObjectIds to strings and clean up the data
+            for email in emails:
+                if "_id" in email:
+                    del email["_id"]
+                # Ensure datetime fields are properly serialized
+                if "received_at" in email and isinstance(email["received_at"], datetime):
+                    email["received_at"] = email["received_at"].isoformat()
+                if "created_at" in email and isinstance(email["created_at"], datetime):
+                    email["created_at"] = email["created_at"].isoformat()
+                if "processed_at" in email and email["processed_at"] and isinstance(email["processed_at"], datetime):
+                    email["processed_at"] = email["processed_at"].isoformat()
+                if "sent_at" in email and email["sent_at"] and isinstance(email["sent_at"], datetime):
+                    email["sent_at"] = email["sent_at"].isoformat()
+            
             # Get follow-ups for this thread
-            follow_ups = await db.follow_up_emails.find({"thread_id": thread_id}).to_list(100)
+            follow_ups_cursor = await db.follow_up_emails.find({"thread_id": thread_id}).to_list(100)
+            follow_ups = []
+            for follow_up in follow_ups_cursor:
+                if "_id" in follow_up:
+                    del follow_up["_id"]
+                # Clean datetime fields
+                if "created_at" in follow_up and isinstance(follow_up["created_at"], datetime):
+                    follow_up["created_at"] = follow_up["created_at"].isoformat()
+                if "updated_at" in follow_up and isinstance(follow_up["updated_at"], datetime):
+                    follow_up["updated_at"] = follow_up["updated_at"].isoformat()
+                if "scheduled_time" in follow_up and isinstance(follow_up["scheduled_time"], datetime):
+                    follow_up["scheduled_time"] = follow_up["scheduled_time"].isoformat()
+                if "sent_time" in follow_up and follow_up["sent_time"] and isinstance(follow_up["sent_time"], datetime):
+                    follow_up["sent_time"] = follow_up["sent_time"].isoformat()
+                if "last_response_time" in follow_up and follow_up["last_response_time"] and isinstance(follow_up["last_response_time"], datetime):
+                    follow_up["last_response_time"] = follow_up["last_response_time"].isoformat()
+                follow_ups.append(follow_up)
             
             # Determine original email (first chronologically)
-            original_email = min(emails, key=lambda e: e["received_at"])
+            original_email = min(emails, key=lambda e: datetime.fromisoformat(e["received_at"]) if isinstance(e["received_at"], str) else e["received_at"])
             
             # Separate responses from the original
             responses = [e for e in emails if e["id"] != original_email["id"]]
             
             # Check if thread has responses (emails from different senders)
             original_sender = original_email.get("sender", "")
+            original_received_at = datetime.fromisoformat(original_email["received_at"]) if isinstance(original_email["received_at"], str) else original_email["received_at"]
+            
             has_response = any(
                 email.get("sender", "") != original_sender and 
-                email.get("received_at", datetime.min) > original_email.get("received_at", datetime.min)
+                (datetime.fromisoformat(email.get("received_at", "")) if isinstance(email.get("received_at"), str) else email.get("received_at", datetime.min)) > original_received_at
                 for email in responses
             )
             
@@ -2200,19 +2232,19 @@ async def get_email_threads():
             ]))
             participants = [p for p in participants if p]  # Remove empty strings
             
-            thread = EmailThread(
-                thread_id=thread_id,
-                subject=group["subject"],
-                participants=participants,
-                original_email=original_email,
-                follow_ups=follow_ups,
-                responses=responses,
-                has_response=has_response,
-                follow_ups_active=not has_response,  # Stop follow-ups if response received
-                last_activity=group["last_activity"],
-                created_at=group["created_at"]
-            )
-            threads.append(thread)
+            thread_data = {
+                "thread_id": thread_id,
+                "subject": group["subject"],
+                "participants": participants,
+                "original_email": original_email,
+                "follow_ups": follow_ups,
+                "responses": responses,
+                "has_response": has_response,
+                "follow_ups_active": not has_response,  # Stop follow-ups if response received
+                "last_activity": group["last_activity"].isoformat() if isinstance(group["last_activity"], datetime) else group["last_activity"],
+                "created_at": group["created_at"].isoformat() if isinstance(group["created_at"], datetime) else group["created_at"]
+            }
+            threads.append(thread_data)
             
         return threads
         
