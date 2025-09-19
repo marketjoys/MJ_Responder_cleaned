@@ -280,6 +280,25 @@ class AccountPollingStatus(BaseModel):
     last_polled: Optional[str] = None
     last_uid: int = 0
 
+# Thread conversation models
+class EmailThread(BaseModel):
+    thread_id: str
+    subject: str
+    participants: List[str]
+    original_email: Dict[str, Any]  # The original email that started the thread
+    follow_ups: List[Dict[str, Any]] = []  # Associated follow-ups
+    responses: List[Dict[str, Any]] = []  # Response emails in the thread
+    has_response: bool = False  # Whether thread received responses
+    follow_ups_active: bool = True  # Whether follow-ups should continue
+    last_activity: datetime
+    created_at: datetime
+    
+class ThreadSummary(BaseModel):
+    total_threads: int
+    active_follow_ups: int
+    threads_with_responses: int
+    pending_follow_ups: int
+
 # Define EmailMessage model here to avoid circular imports
 class EmailMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
