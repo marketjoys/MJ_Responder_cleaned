@@ -3137,6 +3137,18 @@ async def follow_up_service():
             logger.error(f"Error in follow-up service: {str(e)}")
             await asyncio.sleep(600)  # Wait before retrying
 
+async def response_detection_service():
+    """Background service to detect responses and cancel follow-ups"""
+    logger.info("🔍 Response detection service started")
+    while True:
+        try:
+            await detect_and_handle_responses()
+            # Check every 5 minutes for responses
+            await asyncio.sleep(300)
+        except Exception as e:
+            logger.error(f"Error in response detection service: {str(e)}")
+            await asyncio.sleep(300)  # Wait before retrying
+
 async def calendar_reminder_service():
     """Background service to send calendar reminders"""
     while True:
