@@ -3212,7 +3212,7 @@ const EmailProcessing = () => {
   const handleRedraft = async (emailId) => {
     try {
       await axios.post(`${API}/emails/${emailId}/redraft`);
-      fetchEmails();
+      fetchEmailThreads();
     } catch (error) {
       console.error('Error redrafting email:', error);
     }
@@ -3221,9 +3221,27 @@ const EmailProcessing = () => {
   const handleSendEmail = async (emailId) => {
     try {
       await axios.post(`${API}/emails/${emailId}/send`, { manual_override: false });
-      fetchEmails();
+      fetchEmailThreads();
     } catch (error) {
       console.error('Error sending email:', error);
+    }
+  };
+
+  const handleSendFollowUp = async (followUpId) => {
+    try {
+      await axios.post(`${API}/follow-ups/${followUpId}/send`);
+      fetchEmailThreads();
+    } catch (error) {
+      console.error('Error sending follow-up:', error);
+    }
+  };
+
+  const handleCancelFollowUp = async (followUpId) => {
+    try {
+      await axios.delete(`${API}/follow-ups/${followUpId}`);
+      fetchEmailThreads();
+    } catch (error) {
+      console.error('Error cancelling follow-up:', error);
     }
   };
 
