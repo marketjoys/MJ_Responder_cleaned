@@ -2724,6 +2724,72 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
     except Exception as e:
         logger.error(f"Error creating follow-up for email {email_id}: {str(e)}")
 
+async def cancel_follow_ups_for_thread(thread_id: str, reason: str = "Response received"):
+    """Cancel all pending follow-ups for a thread when a response is received"""
+    try:
+        # Cancel all pending follow-ups for this thread
+        result = await db.follow_up_emails.update_many(
+            {
+                "thread_id": thread_id,
+                "status": "pending"
+            },
+            {
+                "$set": {
+                    "status": "cancelled",
+                    "error_message": reason,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Cancelled {result.modified_count} pending follow-ups for thread {thread_id}: {reason}")
+        
+        return result.modified_count
+        
+    except Exception as e:
+        logger.error(f"Error cancelling follow-ups for thread {thread_id}: {str(e)}")
+        return 0
+
+async def detect_and_handle_responses():
+    """Background task to detect responses and cancel follow-ups"""
+    try:
+        # Find threads with pending follow-ups
+        pending_threads = await db.follow_up_emails.distinct("thread_id", {"status": "pending"})
+        
+        for thread_id in pending_threads:
+            # Get all emails in this thread, sorted by received time
+            thread_emails = await db.emails.find({
+                "thread_id": thread_id
+            }).sort("received_at", 1).to_list(100)
+            
+            if len(thread_emails) < 2:
+                continue  # Need at least 2 emails to detect response
+            
+            # Find the original email (earliest one)
+            original_email = thread_emails[0]
+            original_sender = original_email.get("sender", "")
+            original_received_at = original_email.get("received_at", datetime.min)
+            
+            # Check for responses (emails from different senders after original)
+            responses = [
+                email for email in thread_emails[1:]
+                if (email.get("sender", "") != original_sender and 
+                    email.get("received_at", datetime.min) > original_received_at)
+            ]
+            
+            if responses:
+                # Response detected - cancel pending follow-ups
+                cancelled_count = await cancel_follow_ups_for_thread(
+                    thread_id, 
+                    f"Response received from {responses[0].get('sender', 'unknown')}"
+                )
+                if cancelled_count > 0:
+                    logger.info(f"Thread {thread_id}: Detected response, cancelled {cancelled_count} follow-ups")
+        
+    except Exception as e:
+        logger.error(f"Error in response detection: {str(e)}")
+
 def adjust_to_business_hours(target_time: datetime, start_hour: int, end_hour: int, 
                            business_days: List[int], exclude_weekends: bool) -> datetime:
     """Adjust scheduled time to fall within business hours"""
