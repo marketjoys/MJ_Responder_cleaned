@@ -3116,6 +3116,13 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Failed to start follow-up processing service: {str(e)}")
     
+    # Start response detection service
+    try:
+        asyncio.create_task(response_detection_service())
+        logger.info("✅ Response detection service started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start response detection service: {str(e)}")
+    
     logger.info("🎉 Email assistant system fully initialized and ready!")
 
 async def follow_up_service():
