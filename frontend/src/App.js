@@ -3182,21 +3182,32 @@ const KnowledgeBase = () => {
 
 // Email Processing Component
 const EmailProcessing = () => {
-  const [emails, setEmails] = useState([]);
+  const [emailThreads, setEmailThreads] = useState([]);
   const [selectedEmail, setSelectedEmail] = useState(null);
+  const [viewMode, setViewMode] = useState('threads'); // 'threads' or 'individual'
 
   useEffect(() => {
-    fetchEmails();
+    fetchEmailThreads();
   }, []);
 
-  const fetchEmails = async () => {
+  const fetchEmailThreads = async () => {
     try {
-      const response = await axios.get(`${API}/emails`);
-      setEmails(response.data);
+      if (viewMode === 'threads') {
+        const response = await axios.get(`${API}/emails/threads`);
+        setEmailThreads(response.data);
+      } else {
+        const response = await axios.get(`${API}/emails`);
+        setEmailThreads(response.data);
+      }
     } catch (error) {
-      console.error('Error fetching emails:', error);
+      console.error('Error fetching email threads:', error);
     }
   };
+
+  // Update when view mode changes
+  useEffect(() => {
+    fetchEmailThreads();
+  }, [viewMode]);
 
   const handleRedraft = async (emailId) => {
     try {
