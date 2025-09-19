@@ -332,7 +332,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Follow-up System Implementation"
+    - "Threading Functionality Implementation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
