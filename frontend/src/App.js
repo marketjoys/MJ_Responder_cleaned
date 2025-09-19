@@ -3261,137 +3261,269 @@ const EmailProcessing = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">Email Processing</h1>
-          <p className="text-slate-600">View and manage processed emails</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800 mb-2">Email Conversations</h1>
+            <p className="text-slate-600">View threaded email conversations and manage follow-ups</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'threads' ? 'default' : 'outline'}
+              onClick={() => setViewMode('threads')}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Threaded View
+            </Button>
+            <Button
+              variant={viewMode === 'individual' ? 'default' : 'outline'}
+              onClick={() => setViewMode('individual')}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Individual Emails
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6">
-          {emails.map(email => (
-            <Card key={email.id} className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2 mb-2">
-                      <MessageSquare className="h-5 w-5 text-blue-600" />
-                      {email.subject}
-                      <Badge className={getStatusColor(email.status)}>
-                        {email.status.replace('_', ' ')}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      From: {email.sender} • {new Date(email.received_at).toLocaleString()}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
+          {viewMode === 'threads' ? (
+            // Threaded Conversation View
+            emailThreads.map(thread => (
+              <Card key={thread.thread_id} className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="h-5 w-5 text-blue-600" />
+                        {thread.subject}
+                        <Badge className={getStatusColor(thread.original_email.status)}>
+                          {thread.original_email.status.replace('_', ' ')}
+                        </Badge>
+                        {thread.has_response && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Responded
+                          </Badge>
+                        )}
+                        {thread.follow_ups.length > 0 && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                            <Timer className="h-3 w-3 mr-1" />
+                            {thread.follow_ups.length} Follow-ups
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        Original: {thread.original_email.sender} • {new Date(thread.original_email.received_at).toLocaleString()}
+                        {thread.participants.length > 2 && (
+                          <span className="ml-2">• {thread.participants.length} participants</span>
+                        )}
+                      </CardDescription>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
+                      onClick={() => setSelectedEmail(selectedEmail?.thread_id === thread.thread_id ? null : thread)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {email.status === 'ready_to_send' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleSendEmail(email.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
+                  </div>
+                </CardHeader>
+
+                {selectedEmail?.thread_id === thread.thread_id && (
+                  <CardContent className="border-t space-y-6">
+                    {/* Original Email */}
+                    <div className="bg-slate-50 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold text-slate-800">Original Email</h4>
+                        <div className="flex gap-2">
+                          {thread.original_email.status === 'ready_to_send' && (
+                            <Button size="sm" onClick={() => handleSendEmail(thread.original_email.id)} className="bg-green-600 hover:bg-green-700">
+                              <Send className="h-4 w-4 mr-1" />
+                              Send
+                            </Button>
+                          )}
+                          {(thread.original_email.status === 'needs_redraft' || thread.original_email.status === 'escalate') && (
+                            <Button variant="outline" size="sm" onClick={() => handleRedraft(thread.original_email.id)}>
+                              <RefreshCw className="h-4 w-4 mr-1" />
+                              Redraft
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-600 mb-2">
+                        From: {thread.original_email.sender} | To: {thread.original_email.recipient}
+                      </div>
+                      <div className="bg-white p-3 rounded border text-sm">
+                        {thread.original_email.body}
+                      </div>
+                      {thread.original_email.draft && (
+                        <div className="mt-3">
+                          <h5 className="font-medium text-slate-700 mb-2">Generated Response:</h5>
+                          <div className="bg-green-50 p-3 rounded border text-sm">
+                            {thread.original_email.draft}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Responses */}
+                    {thread.responses.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-3">Responses ({thread.responses.length})</h4>
+                        <div className="space-y-3">
+                          {thread.responses.map((response, index) => (
+                            <div key={response.id} className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="font-medium text-blue-800">Response #{index + 1}</div>
+                                <div className="text-sm text-blue-600">
+                                  {new Date(response.received_at).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="text-sm text-blue-700 mb-2">
+                                From: {response.sender}
+                              </div>
+                              <div className="bg-white p-3 rounded text-sm">
+                                {response.body}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    {(email.status === 'needs_redraft' || email.status === 'escalate') && (
+
+                    {/* Follow-ups */}
+                    {thread.follow_ups.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-slate-800 mb-3">Follow-ups ({thread.follow_ups.length})</h4>
+                        <div className="space-y-3">
+                          {thread.follow_ups.map((followUp) => (
+                            <div key={followUp.id} className={`rounded-lg p-4 border-l-4 ${
+                              followUp.status === 'pending' ? 'bg-yellow-50 border-yellow-400' :
+                              followUp.status === 'sent' ? 'bg-green-50 border-green-400' :
+                              followUp.status === 'cancelled' ? 'bg-slate-50 border-slate-400' :
+                              'bg-red-50 border-red-400'
+                            }`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium">Follow-up #{followUp.follow_up_number}</span>
+                                    <Badge className={`text-xs ${
+                                      followUp.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                      followUp.status === 'sent' ? 'bg-green-100 text-green-800' :
+                                      followUp.status === 'cancelled' ? 'bg-slate-100 text-slate-800' :
+                                      'bg-red-100 text-red-800'
+                                    }`}>
+                                      {followUp.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-sm text-slate-600">
+                                    Scheduled: {new Date(followUp.scheduled_time).toLocaleString()}
+                                    {followUp.sent_time && (
+                                      <span className="ml-2">| Sent: {new Date(followUp.sent_time).toLocaleString()}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  {followUp.status === 'pending' && (
+                                    <>
+                                      <Button size="sm" onClick={() => handleSendFollowUp(followUp.id)} className="bg-green-600 hover:bg-green-700">
+                                        <Send className="h-4 w-4 mr-1" />
+                                        Send Now
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => handleCancelFollowUp(followUp.id)}>
+                                        <X className="h-4 w-4 mr-1" />
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm">
+                                <strong>Subject:</strong> {followUp.subject}
+                              </div>
+                              {followUp.draft_content && (
+                                <div className="mt-2 bg-white p-3 rounded text-sm">
+                                  {followUp.draft_content}
+                                </div>
+                              )}
+                              {followUp.error_message && (
+                                <div className="mt-2 text-sm text-red-600">
+                                  <strong>Error:</strong> {followUp.error_message}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          ) : (
+            // Individual Email View (existing logic)
+            emailThreads.map(email => (
+              <Card key={email.id} className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="h-5 w-5 text-blue-600" />
+                        {email.subject}
+                        <Badge className={getStatusColor(email.status)}>
+                          {email.status.replace('_', ' ')}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        From: {email.sender} • {new Date(email.received_at).toLocaleString()}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleRedraft(email.id)}
+                        onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    )}
+                      {email.status === 'ready_to_send' && (
+                        <Button size="sm" onClick={() => handleSendEmail(email.id)} className="bg-green-600 hover:bg-green-700">
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(email.status === 'needs_redraft' || email.status === 'escalate') && (
+                        <Button variant="outline" size="sm" onClick={() => handleRedraft(email.id)}>
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              
-              {selectedEmail?.id === email.id && (
-                <CardContent className="border-t">
-                  <Tabs defaultValue="email" className="w-full">
-                    <TabsList>
-                      <TabsTrigger value="email">Original Email</TabsTrigger>
-                      <TabsTrigger value="intents">Intents</TabsTrigger>
-                      <TabsTrigger value="draft">Draft Response</TabsTrigger>
-                      <TabsTrigger value="validation">Validation</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="email" className="space-y-4">
-                      <div>
-                        <Label className="font-medium">Email Body:</Label>
-                        <div className="bg-slate-50 p-4 rounded-lg mt-2">
-                          <p className="whitespace-pre-wrap">{email.body}</p>
+                </CardHeader>
+                
+                {selectedEmail?.id === email.id && (
+                  <CardContent className="border-t">
+                    <div className="bg-slate-50 p-4 rounded-lg">
+                      <p className="whitespace-pre-wrap">{email.body}</p>
+                    </div>
+                    {email.draft && (
+                      <div className="mt-4">
+                        <Label className="font-medium">Generated Draft:</Label>
+                        <div className="bg-green-50 p-4 rounded-lg mt-2">
+                          <p className="whitespace-pre-wrap">{email.draft}</p>
                         </div>
                       </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="intents" className="space-y-4">
-                      {email.intents && email.intents.length > 0 ? (
-                        email.intents.map((intent, index) => (
-                          <div key={index} className="bg-purple-50 p-4 rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
-                              <h4 className="font-medium text-purple-800">{intent.name}</h4>
-                              <Badge variant="outline">
-                                {(intent.confidence * 100).toFixed(1)}% confidence
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-purple-700">{intent.description}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-slate-500">No intents identified</p>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="draft" className="space-y-4">
-                      {email.draft ? (
-                        <div>
-                          <Label className="font-medium">Generated Draft:</Label>
-                          <div className="bg-green-50 p-4 rounded-lg mt-2">
-                            <p className="whitespace-pre-wrap">{email.draft}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-slate-500">No draft generated yet</p>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="validation" className="space-y-4">
-                      {email.validation_result ? (
-                        <div>
-                          <Label className="font-medium">Validation Result:</Label>
-                          <div className={`p-4 rounded-lg mt-2 ${
-                            email.validation_result.status === 'PASS' 
-                              ? 'bg-green-50 text-green-800' 
-                              : 'bg-red-50 text-red-800'
-                          }`}>
-                            <p className="font-medium mb-2">{email.validation_result.status}</p>
-                            <p className="whitespace-pre-wrap">{email.validation_result.feedback}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-slate-500">No validation result yet</p>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+                    )}
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          )}
           
-          {emails.length === 0 && (
+          {emailThreads.length === 0 && (
             <Card className="text-center py-12">
               <CardContent>
                 <MessageSquare className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-600 mb-2">No emails processed yet</h3>
-                <p className="text-slate-500">Processed emails will appear here</p>
+                <h3 className="text-lg font-medium text-slate-600 mb-2">No email conversations yet</h3>
+                <p className="text-slate-500">Email conversations will appear here</p>
               </CardContent>
             </Card>
           )}
