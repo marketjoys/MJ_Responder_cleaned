@@ -2617,6 +2617,25 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
             logger.error(f"Email {email_id} not found for follow-up creation")
             return
         
+        # CRITICAL: Check if thread already has responses - if so, don't create follow-ups
+        thread_id = email.get("thread_id", "")
+        if thread_id:
+            # Check for response emails in the same thread
+            original_sender = email.get("sender", "")
+            original_received_at = email.get("received_at", datetime.min)
+            
+            # Look for emails in same thread from different senders after this email
+            response_emails = await db.emails.find({
+                "thread_id": thread_id,
+                "received_at": {"$gt": original_received_at},
+                "sender": {"$ne": original_sender},
+                "id": {"$ne": email_id}
+            }).to_list(10)
+            
+            if response_emails:
+                logger.info(f"Thread {thread_id} already has {len(response_emails)} responses - skipping follow-up creation")
+                return
+        
         # Get user from account if not provided
         if not user_id:
             account = await db.email_accounts.find_one({"id": account_id})
