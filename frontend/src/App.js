@@ -2529,11 +2529,11 @@ const EmailAccounts = () => {
                   </div>
                   <div>
                     <Label htmlFor="signature">Email Signature</Label>
-                    <Input
-                      id="signature"
+                    <RichTextEditor
                       value={formData.signature}
-                      onChange={(e) => setFormData(prev => ({ ...prev, signature: e.target.value }))}
+                      onChange={(value) => setFormData(prev => ({ ...prev, signature: value }))}
                       placeholder="Best regards, Your Name"
+                      className="mt-2"
                     />
                   </div>
                 </div>
