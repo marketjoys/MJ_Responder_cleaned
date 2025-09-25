@@ -1579,6 +1579,202 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
         "reasoning": f"Used KB items: {kb_data.get('items_count', 0)}, Links included: {len(all_links)}, Intents: {', '.join([i['name'] for i in intents])}"
     }
 
+async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]], account_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Enhanced validation that checks the final email including signature"""
+    
+    # Skip validation for delivery errors
+    if is_bounce_or_delivery_error(email_message):
+        return {
+            "status": "SKIP",
+            "feedback": "Delivery error email - no response needed",
+            "coverage_report": "Email identified as delivery error/bounce notification"
+        }
+    
+    # Prepare final email content with signature
+    final_plain_text = draft['plain_text']
+    final_html = draft['html']
+    
+    signature = account_config.get('signature', '')
+    if signature:
+        final_plain_text += f"\n\n{signature}"
+        # Convert signature to HTML properly
+        import html
+        html_signature = html.escape(signature).replace('\n', '<br>')
+        # Convert email addresses to mailto links
+        import re
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
+        # Convert URLs to clickable links
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        html_signature = re.sub(url_pattern, r'<a href="\g<0>">\g<0></a>', html_signature)
+        final_html += f"<br><br>{html_signature}"
+    
+    # Create final draft object for validation
+    final_draft = {
+        'plain_text': final_plain_text,
+        'html': final_html
+    }
+    
+    # Get enhanced KB context and links for validation
+    kb_data = await get_enhanced_knowledge_context(email_message.body, intents)
+    thread_history = await get_thread_history(email_message)
+    
+    intent_descriptions = [f"- {intent['name']}: {intent['description']}" for intent in intents]
+    
+    # Check for knowledge base usage
+    kb_info_present = kb_data.get("has_relevant_info", False)
+    kb_content_used = any(
+        kb_item["title"].lower() in final_draft['plain_text'].lower() or 
+        any(word in final_draft['plain_text'].lower() for word in kb_item["content"].lower().split()[:10])
+        for kb_item in [{"title": "test", "content": kb_data.get("context", "")}]
+    )
+    
+    # Check for links inclusion
+    expected_links = kb_data.get("links", [])
+    links_included = any(link in final_draft['plain_text'] for link in expected_links) if expected_links else True
+    
+    # Check for thread duplicate avoidance
+    avoids_duplicates = True
+    if thread_history:
+        for prev_email in thread_history:
+            prev_draft = prev_email.get('draft', '')
+            if prev_draft and len(prev_draft) > 50:
+                # Check if current draft is too similar to previous ones
+                similarity_words = set(final_draft['plain_text'].lower().split()) & set(prev_draft.lower().split())
+                if len(similarity_words) > len(final_draft['plain_text'].split()) * 0.6:  # More than 60% word overlap
+                    avoids_duplicates = False
+                    break
+    
+    system_prompt = f"""You are Agent B - an enhanced email validator. Check if the FINAL EMAIL (including signature) correctly addresses the email, uses knowledge base information, includes relevant links, and avoids duplicating previous responses.
+
+ORIGINAL EMAIL:
+Subject: {email_message.subject}
+From: {email_message.sender}
+Body: {email_message.body}
+
+IDENTIFIED INTENTS TO ADDRESS:
+{chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents"}
+
+AVAILABLE KNOWLEDGE BASE INFORMATION:
+{kb_data.get("context", "No knowledge base information available")}
+
+EXPECTED LINKS TO INCLUDE:
+{chr(10).join(f"- {link}" for link in expected_links) if expected_links else "No specific links required"}
+
+THREAD HISTORY:
+{f"Previous responses exist - final email should provide varied content" if thread_history else "No previous responses in thread"}
+
+ACCOUNT SIGNATURE:
+{signature if signature else "No signature configured"}
+
+FINAL EMAIL TO VALIDATE (INCLUDING SIGNATURE):
+{final_draft['plain_text']}
+
+VALIDATION CRITERIA:
+1. Does the final email address each identified intent appropriately?
+2. Is relevant knowledge base information incorporated into the response?
+3. Are required links included naturally in the response?
+4. Does the response avoid duplicating previous thread responses?
+5. Is the tone appropriate and professional?
+6. Are actionable next steps provided where needed?
+7. Is the response length appropriate for the inquiry complexity?
+8. CRITICAL: Does the final email contain any placeholders like [name], [insert link], {{company}}, <add here>, TODO, INSERT, etc.?
+9. CRITICAL: Are all sentences complete without obvious gaps, underscores, or ellipses indicating missing content?
+10. Is the signature properly formatted and professional?
+
+AUTOMATED CHECK RESULTS:
+- KB Information Available: {kb_info_present}
+- Expected Links Count: {len(expected_links)}
+- Thread History Present: {len(thread_history) > 0}
+- Signature Included: {bool(signature)}
+
+IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by detailed explanation.
+
+For PASS: The final email must address intents, use available KB information, include relevant links, provide unique content, have proper signature, AND contain NO placeholders or incomplete sections.
+For FAIL: Clearly state what's missing - KB usage, links, intent coverage, duplicate content issues, signature formatting issues, OR any placeholders/incomplete content that must be completed before sending.
+
+CRITICAL: This final email (including signature) will be sent to the customer. Ensure it's complete, professional, and ready for delivery without any placeholders or missing information.
+
+Validate the final email now:"""
+
+    messages = [
+        {"role": "user", "content": "Please validate this final email response (including signature) focusing on knowledge base usage, link inclusion, signature formatting, and thread uniqueness. Start with PASS: or FAIL:"}
+    ]
+    
+    validation_response = await groq_chat_completion(messages, system_prompt)
+    
+    # Clean and properly parse the validation response
+    validation_response = validation_response.strip()
+    
+    # Remove any thinking tags if present
+    import re
+    validation_response = re.sub(r'<think>.*?</think>', '', validation_response, flags=re.DOTALL).strip()
+    
+    # Determine if it's a pass or fail - check the entire response
+    is_pass = "PASS:" in validation_response.upper() or validation_response.upper().startswith("PASS")
+    
+    # Additional automated checks including placeholder detection
+    automated_issues = []
+    
+    # Check for placeholders in the final email
+    placeholder_patterns = [
+        r'\[.*?\]',  # [name], [insert link], [company name]
+        r'\{.*?\}',  # {name}, {company}
+        r'{{.*?}}',  # {{name}}, {{company}}
+        r'<.*?>',    # <name>, <insert here>
+        r'XXX.*?XXX',  # XXXNAMEXXXX
+        r'TODO',     # TODO: add name
+        r'INSERT',   # INSERT LINK HERE
+        r'PLACEHOLDER', # PLACEHOLDER text
+        r'your name here',  # common placeholder text
+        r'company name',    # placeholder for company
+    ]
+    
+    found_placeholders = []
+    final_text = final_draft['plain_text'].lower()
+    for pattern in placeholder_patterns:
+        matches = re.findall(pattern, final_draft['plain_text'], re.IGNORECASE)
+        if matches:
+            found_placeholders.extend(matches)
+    
+    if found_placeholders:
+        automated_issues.append(f"Final email contains placeholders that need to be replaced: {', '.join(found_placeholders[:3])}")
+    
+    # Check for incomplete sentences or obvious gaps
+    incomplete_patterns = [
+        r'\.\.\.+',  # Multiple dots indicating incomplete
+        r'\s+_+\s+', # Underscores as placeholders
+        r'TBD',      # To be determined
+        r'TBA',      # To be announced  
+    ]
+    
+    for pattern in incomplete_patterns:
+        if re.search(pattern, final_draft['plain_text'], re.IGNORECASE):
+            automated_issues.append(f"Final email appears to have incomplete content (pattern: {pattern})")
+    
+    # Override pass status if automated issues found
+    if automated_issues:
+        is_pass = False
+        validation_response += f"\n\nAUTOMATED ISSUES DETECTED:\n" + "\n".join(automated_issues)
+    
+    # Create comprehensive validation report
+    status = "PASS" if is_pass else "FAIL"
+    
+    return {
+        "status": status,
+        "feedback": validation_response,
+        "automated_checks": {
+            "kb_info_available": kb_info_present,
+            "kb_content_used": kb_content_used,
+            "links_expected": len(expected_links),
+            "links_included": links_included,
+            "avoids_duplicates": avoids_duplicates,
+            "placeholders_found": found_placeholders,
+            "signature_included": bool(signature)
+        },
+        "coverage_report": f"KB: {'✓' if kb_content_used else '✗'}, Links: {'✓' if links_included else '✗'}, Unique: {'✓' if avoids_duplicates else '✗'}, Signature: {'✓' if signature else '✗'}"
+    }
+
 async def validate_draft(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Enhanced draft validation using Agent B - checks KB usage, links, and thread context"""
     
