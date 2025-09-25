@@ -362,8 +362,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Threading Functionality Implementation"
-  stuck_tasks: []
+    - "Email Processing Page Bug Fixes"
+  stuck_tasks:
+    - "Email Processing Page Bug Fixes"
   test_all: false
   test_priority: "high_first"
 
