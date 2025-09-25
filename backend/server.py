@@ -1660,8 +1660,10 @@ AUTOMATED CHECK RESULTS:
 
 IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by detailed explanation.
 
-For PASS: The draft must address intents, use available KB information, include relevant links, and provide unique content.
-For FAIL: Clearly state what's missing - KB usage, links, intent coverage, or duplicate content issues.
+For PASS: The draft must address intents, use available KB information, include relevant links, provide unique content, AND contain NO placeholders or incomplete sections.
+For FAIL: Clearly state what's missing - KB usage, links, intent coverage, duplicate content issues, OR any placeholders/incomplete content that must be completed before sending.
+
+CRITICAL: This draft will be sent as the final email to the customer. Ensure it's complete, professional, and ready for delivery without any placeholders or missing information.
 
 Validate the draft now:"""
 
