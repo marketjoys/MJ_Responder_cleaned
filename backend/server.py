@@ -2338,8 +2338,8 @@ async def process_email_async(email_id: str):
             }}
         )
         
-        # Step 5: Validate draft
-        validation = await validate_draft(email_message, draft, intents)
+        # Step 5: Validate final email with signature
+        validation = await validate_final_email(email_message, draft, intents, account_doc)
         
         # Step 6: Determine final status based on validation
         if validation["status"] == "SKIP":
