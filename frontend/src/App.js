@@ -1803,7 +1803,7 @@ const EmailMonitoring = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className={getStatusColor(email.status)} variant="outline">
                         {getStatusIcon(email.status)}
-                        <span className="ml-1">{email.status.replace('_', ' ')}</span>
+                        <span className="ml-1">{email.status ? email.status.replace('_', ' ') : 'unknown'}</span>
                       </Badge>
                       <span className="text-sm text-slate-500">
                         {new Date(email.received_at).toLocaleString()}
