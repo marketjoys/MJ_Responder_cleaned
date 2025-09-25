@@ -3504,7 +3504,7 @@ const EmailProcessing = () => {
                           <MessageSquare className="h-5 w-5 text-blue-600" />
                           {safeEmail.subject}
                           <Badge className={getStatusColor(safeEmail.status)}>
-                            {safeEmail.status.replace('_', ' ')}
+                            {safeEmail.status ? safeEmail.status.replace('_', ' ') : 'unknown'}
                           </Badge>
                           
                           {/* AI Agent Status Indicators */}
