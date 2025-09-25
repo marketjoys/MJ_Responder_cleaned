@@ -362,7 +362,9 @@ class EmailConnection:
                 if body:
                     body += f"\n\n{signature}"
                 if body_html:
-                    body_html += f"<br><br>{signature.replace(chr(10), '<br>')}"
+                    # Properly convert signature to HTML
+                    html_signature = self._convert_signature_to_html(signature)
+                    body_html += f"<br><br>{html_signature}"
             
             # Add body parts with signature included
             if body:
