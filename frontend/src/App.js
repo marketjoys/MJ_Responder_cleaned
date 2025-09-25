@@ -3567,7 +3567,7 @@ const EmailProcessing = () => {
                       {/* Original Email Content */}
                       <div className="bg-slate-50 p-4 rounded-lg">
                         <h4 className="font-medium text-slate-700 mb-2">Original Email:</h4>
-                        <p className="whitespace-pre-wrap text-sm">{email.body}</p>
+                        <p className="whitespace-pre-wrap text-sm">{safeEmail.body}</p>
                       </div>
                       
                       {/* AI Processing Status */}
@@ -3578,9 +3578,9 @@ const EmailProcessing = () => {
                             <Brain className="h-4 w-4 text-blue-600" />
                             <span className="font-medium text-blue-800">Intent Classification</span>
                           </div>
-                          {email.intents && email.intents.length > 0 ? (
+                          {safeEmail.intents && safeEmail.intents.length > 0 ? (
                             <div className="space-y-1">
-                              {email.intents.map((intent, idx) => (
+                              {safeEmail.intents.map((intent, idx) => (
                                 <div key={idx} className="text-xs text-blue-700">
                                   • {intent.name} ({intent.confidence ? Math.round(intent.confidence * 100) : 0}%)
                                 </div>
@@ -3598,8 +3598,8 @@ const EmailProcessing = () => {
                             <span className="font-medium text-green-800">Draft Agent</span>
                           </div>
                           <div className="text-xs text-green-700">
-                            {email.draft ? (
-                              <span>✓ Draft generated ({email.draft.length} chars)</span>
+                            {safeEmail.draft ? (
+                              <span>✓ Draft generated ({safeEmail.draft.length} chars)</span>
                             ) : (
                               <span>⏳ No draft available</span>
                             )}
@@ -3608,34 +3608,34 @@ const EmailProcessing = () => {
                         
                         {/* Validation Status */}
                         <div className={`p-3 rounded-lg border-l-4 ${
-                          email.validation_result?.status === 'PASS' 
+                          safeEmail.validation_result?.status === 'PASS' 
                             ? 'bg-green-50 border-green-400' 
-                            : email.validation_result?.status === 'FAIL'
+                            : safeEmail.validation_result?.status === 'FAIL'
                             ? 'bg-red-50 border-red-400'
                             : 'bg-gray-50 border-gray-400'
                         }`}>
                           <div className="flex items-center gap-2 mb-2">
                             <Shield className={`h-4 w-4 ${
-                              email.validation_result?.status === 'PASS' ? 'text-green-600' :
-                              email.validation_result?.status === 'FAIL' ? 'text-red-600' : 'text-gray-600'
+                              safeEmail.validation_result?.status === 'PASS' ? 'text-green-600' :
+                              safeEmail.validation_result?.status === 'FAIL' ? 'text-red-600' : 'text-gray-600'
                             }`} />
                             <span className={`font-medium ${
-                              email.validation_result?.status === 'PASS' ? 'text-green-800' :
-                              email.validation_result?.status === 'FAIL' ? 'text-red-800' : 'text-gray-800'
+                              safeEmail.validation_result?.status === 'PASS' ? 'text-green-800' :
+                              safeEmail.validation_result?.status === 'FAIL' ? 'text-red-800' : 'text-gray-800'
                             }`}>
                               Validation Agent
                             </span>
                           </div>
                           <div className={`text-xs ${
-                            email.validation_result?.status === 'PASS' ? 'text-green-700' :
-                            email.validation_result?.status === 'FAIL' ? 'text-red-700' : 'text-gray-700'
+                            safeEmail.validation_result?.status === 'PASS' ? 'text-green-700' :
+                            safeEmail.validation_result?.status === 'FAIL' ? 'text-red-700' : 'text-gray-700'
                           }`}>
-                            {email.validation_result ? (
+                            {safeEmail.validation_result ? (
                               <span>
-                                {email.validation_result.status === 'PASS' ? '✓' : '✗'} {email.validation_result.status}
-                                {email.validation_result.feedback && (
+                                {safeEmail.validation_result.status === 'PASS' ? '✓' : '✗'} {safeEmail.validation_result.status}
+                                {safeEmail.validation_result.feedback && (
                                   <div className="mt-1 text-xs opacity-75">
-                                    {email.validation_result.feedback.substring(0, 100)}...
+                                    {safeEmail.validation_result.feedback.substring(0, 100)}...
                                   </div>
                                 )}
                               </span>
@@ -3647,12 +3647,12 @@ const EmailProcessing = () => {
                       </div>
                       
                       {/* Generated Draft */}
-                      {email.draft && (
+                      {safeEmail.draft && (
                         <div className="bg-green-50 p-4 rounded-lg">
                           <div className="flex justify-between items-center mb-2">
                             <h4 className="font-medium text-green-800">Generated Response:</h4>
                             {/* Placeholder Detection Warning */}
-                            {(/\[.*\]/g.test(email.draft) || /{{.*}}/g.test(email.draft)) && (
+                            {(/\[.*\]/g.test(safeEmail.draft) || /{{.*}}/g.test(safeEmail.draft)) && (
                               <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                                 <AlertCircle className="h-3 w-3 mr-1" />
                                 Contains placeholders
@@ -3660,44 +3660,44 @@ const EmailProcessing = () => {
                             )}
                           </div>
                           <div className="bg-white p-3 rounded border text-sm">
-                            <p className="whitespace-pre-wrap">{email.draft}</p>
+                            <p className="whitespace-pre-wrap">{safeEmail.draft}</p>
                           </div>
                         </div>
                       )}
                       
                       {/* Validation Result Details */}
-                      {email.validation_result && email.validation_result.feedback && (
+                      {safeEmail.validation_result && safeEmail.validation_result.feedback && (
                         <div className={`p-4 rounded-lg ${
-                          email.validation_result.status === 'PASS' 
+                          safeEmail.validation_result.status === 'PASS' 
                             ? 'bg-green-50' 
                             : 'bg-red-50'
                         }`}>
                           <h4 className={`font-medium mb-2 ${
-                            email.validation_result.status === 'PASS' 
+                            safeEmail.validation_result.status === 'PASS' 
                               ? 'text-green-800' 
                               : 'text-red-800'
                           }`}>
                             Validation Feedback:
                           </h4>
                           <div className={`text-sm ${
-                            email.validation_result.status === 'PASS' 
+                            safeEmail.validation_result.status === 'PASS' 
                               ? 'text-green-700' 
                               : 'text-red-700'
                           }`}>
-                            <p className="whitespace-pre-wrap">{email.validation_result.feedback}</p>
+                            <p className="whitespace-pre-wrap">{safeEmail.validation_result.feedback}</p>
                           </div>
                         </div>
                       )}
                       
                       {/* Error Information */}
-                      {email.error && (
+                      {safeEmail.error && (
                         <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
                           <div className="flex items-center gap-2 mb-2">
                             <AlertCircle className="h-4 w-4 text-red-600" />
                             <span className="font-medium text-red-800">Processing Error</span>
                           </div>
                           <div className="text-sm text-red-700">
-                            <p className="whitespace-pre-wrap">{email.error}</p>
+                            <p className="whitespace-pre-wrap">{safeEmail.error}</p>
                           </div>
                         </div>
                       )}
@@ -3705,7 +3705,7 @@ const EmailProcessing = () => {
                   )}
                 </Card>
               );
-            })
+            }).filter(Boolean) // Remove any null entries
           )}
           
           {emailThreads.length === 0 && (
