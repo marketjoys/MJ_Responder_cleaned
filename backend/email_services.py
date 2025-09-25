@@ -41,6 +41,29 @@ class EmailConnection:
         self.last_uid = account_config.get('last_uid', 0)
         self.uidvalidity = account_config.get('uidvalidity', None)
         
+    def _convert_signature_to_html(self, signature: str) -> str:
+        """Convert plain text signature to proper HTML format"""
+        if not signature:
+            return ""
+        
+        # Escape HTML characters first
+        import html
+        html_signature = html.escape(signature)
+        
+        # Convert newlines to <br> tags
+        html_signature = html_signature.replace('\n', '<br>')
+        
+        # Convert email addresses to mailto links
+        import re
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
+        
+        # Convert URLs to clickable links
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        html_signature = re.sub(url_pattern, r'<a href="\g<0>">\g<0></a>', html_signature)
+        
+        return html_signature
+
     def _is_connection_healthy(self) -> bool:
         """Check if IMAP connection is healthy and ready to use"""
         if not self.imap_connection:
