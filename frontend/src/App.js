@@ -3502,41 +3502,41 @@ const EmailProcessing = () => {
                       <div className="flex-1">
                         <CardTitle className="flex items-center gap-2 mb-2">
                           <MessageSquare className="h-5 w-5 text-blue-600" />
-                          {email.subject || thread.subject}
-                          <Badge className={getStatusColor(email.status)}>
-                            {email.status ? email.status.replace('_', ' ') : 'unknown'}
+                          {safeEmail.subject}
+                          <Badge className={getStatusColor(safeEmail.status)}>
+                            {safeEmail.status.replace('_', ' ')}
                           </Badge>
                           
                           {/* AI Agent Status Indicators */}
                           <div className="flex gap-1 ml-2">
-                            {email.intents && email.intents.length > 0 && (
+                            {safeEmail.intents && safeEmail.intents.length > 0 && (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                                 <Brain className="h-3 w-3 mr-1" />
-                                Intent: {email.intents.length} identified
+                                Intent: {safeEmail.intents.length} identified
                               </Badge>
                             )}
-                            {email.draft && (
+                            {safeEmail.draft && (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                                 <Bot className="h-3 w-3 mr-1" />
                                 Draft: Generated
                               </Badge>
                             )}
-                            {email.validation_result && (
+                            {safeEmail.validation_result && (
                               <Badge variant="outline" className={`text-xs ${
-                                email.validation_result.status === 'PASS' 
+                                safeEmail.validation_result.status === 'PASS' 
                                   ? 'bg-green-50 text-green-700 border-green-200'
                                   : 'bg-red-50 text-red-700 border-red-200'
                               }`}>
                                 <Shield className="h-3 w-3 mr-1" />
-                                Validation: {email.validation_result.status}
+                                Validation: {safeEmail.validation_result.status}
                               </Badge>
                             )}
                           </div>
                         </CardTitle>
                         <CardDescription>
-                          From: {email.sender} • {new Date(email.received_at).toLocaleString()}
-                          {email.processed_at && (
-                            <span className="ml-2">• Processed: {new Date(email.processed_at).toLocaleString()}</span>
+                          From: {safeEmail.sender} • {new Date(safeEmail.received_at).toLocaleString()}
+                          {safeEmail.processed_at && (
+                            <span className="ml-2">• Processed: {new Date(safeEmail.processed_at).toLocaleString()}</span>
                           )}
                         </CardDescription>
                       </div>
@@ -3544,17 +3544,17 @@ const EmailProcessing = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : thread)}
+                          onClick={() => setSelectedEmail(selectedEmail?.id === safeEmail.id ? null : { ...thread, email: safeEmail })}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {email.status === 'ready_to_send' && (
-                          <Button size="sm" onClick={() => handleSendEmail(email.id)} className="bg-green-600 hover:bg-green-700">
+                        {safeEmail.status === 'ready_to_send' && (
+                          <Button size="sm" onClick={() => handleSendEmail(safeEmail.id)} className="bg-green-600 hover:bg-green-700">
                             <Send className="h-4 w-4" />
                           </Button>
                         )}
-                        {(email.status === 'needs_redraft' || email.status === 'escalate') && (
-                          <Button variant="outline" size="sm" onClick={() => handleRedraft(email.id)}>
+                        {(safeEmail.status === 'needs_redraft' || safeEmail.status === 'escalate') && (
+                          <Button variant="outline" size="sm" onClick={() => handleRedraft(safeEmail.id)}>
                             <RefreshCw className="h-4 w-4" />
                           </Button>
                         )}
@@ -3562,7 +3562,7 @@ const EmailProcessing = () => {
                     </div>
                   </CardHeader>
                   
-                  {selectedEmail?.thread_id === thread.thread_id && (
+                  {selectedEmail?.email?.id === safeEmail.id && (
                     <CardContent className="border-t space-y-4">
                       {/* Original Email Content */}
                       <div className="bg-slate-50 p-4 rounded-lg">
