@@ -3194,13 +3194,22 @@ const EmailProcessing = () => {
     try {
       if (viewMode === 'threads') {
         const response = await axios.get(`${API}/emails/threads`);
-        setEmailThreads(response.data);
+        // Ensure each thread has proper structure
+        const validThreads = response.data.filter(thread => 
+          thread && thread.thread_id && thread.original_email
+        );
+        setEmailThreads(validThreads);
       } else {
         const response = await axios.get(`${API}/emails`);
-        setEmailThreads(response.data);
+        // For individual view, ensure each email has required properties
+        const validEmails = response.data.filter(email => 
+          email && email.id && email.hasOwnProperty('status')
+        );
+        setEmailThreads(validEmails);
       }
     } catch (error) {
       console.error('Error fetching email threads:', error);
+      setEmailThreads([]); // Set empty array on error to prevent undefined errors
     }
   };
 
