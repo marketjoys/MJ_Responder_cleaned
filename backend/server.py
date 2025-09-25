@@ -2395,8 +2395,13 @@ async def redraft_email(email_id: str):
         improvement_prompt = f"Previous draft had these issues: {previous_feedback}. Please address these in the new draft."
         # Here you could enhance the draft generation with the feedback
     
-    # Validate new draft
-    validation = await validate_draft(email_message, draft, intents)
+    # Get account info for validation with signature
+    account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Validate new final email with signature
+    validation = await validate_final_email(email_message, draft, intents, account_doc)
     
     # Update email
     final_status = "ready_to_send" if validation["status"] == "PASS" else "escalate"
