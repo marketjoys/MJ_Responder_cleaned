@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 # Configuration
-BACKEND_URL = "https://signature-resolver.preview.emergentagent.com"
+BACKEND_URL = "https://email-process-debug.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_specific_endpoints():
