@@ -1476,6 +1476,24 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
             links_section += f"- {link}\n"
         links_section += "IMPORTANT: Include relevant links naturally in your response when appropriate.\n"
     
+    # Extract sender name for personalized salutation
+    sender_name = email_message.sender
+    if '<' in sender_name:
+        # Extract name from "John Doe <john.doe@example.com>" format
+        sender_name = sender_name.split('<')[0].strip()
+    elif '@' in sender_name:
+        # Extract name from email address
+        sender_name = sender_name.split('@')[0].replace('.', ' ').title()
+    else:
+        # Use sender name as is
+        sender_name = sender_name.strip()
+    
+    # Clean up sender name - if it's too long or has numbers, use "there" instead
+    if len(sender_name) > 30 or any(char.isdigit() for char in sender_name) or not sender_name.replace(' ', '').replace('.', '').isalpha():
+        salutation = "Hello,"
+    else:
+        salutation = f"Dear {sender_name},"
+
     system_prompt = f"""You are Agent A - an email draft generator. Generate ONLY the email body content for a professional reply.
 
 ACCOUNT PERSONA: {account.get('persona', 'Professional and helpful')}
@@ -1498,19 +1516,21 @@ INTENT-SPECIFIC GUIDANCE:
 {links_section}
 
 CRITICAL INSTRUCTIONS:
-1. Generate ONLY the email body content - no subject lines, no signatures, no placeholders
-2. Do not include any reasoning, thinking, or meta-content
-3. MUST use information from the knowledge base when relevant - this is critical
-4. Include relevant links naturally in the response when provided above
-5. Keep response comprehensive but professional (200-400 words when detailed info is needed)
-6. Address all identified intents directly using knowledge base information
-7. Maintain a {account.get('persona', 'professional')} tone
-8. Include actionable next steps where appropriate
-9. If thread history exists, provide varied content - do not repeat previous responses exactly
-10. Start directly with the email content (e.g., "Thank you for your inquiry...")
+1. MUST start with the salutation: "{salutation}"
+2. Generate ONLY the email body content - no subject lines, NO SIGNATURES, no placeholders
+3. Do not include any reasoning, thinking, or meta-content
+4. MUST use information from the knowledge base when relevant - this is critical
+5. Include relevant links naturally in the response when provided above
+6. Keep response comprehensive but professional (200-400 words when detailed info is needed)
+7. Address all identified intents directly using knowledge base information
+8. Maintain a {account.get('persona', 'professional')} tone
+9. Include actionable next steps where appropriate
+10. If thread history exists, provide varied content - do not repeat previous responses exactly
 11. When links are provided, integrate them naturally (e.g., "You can learn more at [link]" or "Please visit [link] for details")
+12. DO NOT include any signatures, closing remarks like "Best regards", "Sincerely", etc. - these will be added automatically
+13. End the email body with the main content, not with a signature block
 
-Generate the email body content now, ensuring you use the knowledge base information and include relevant links:"""
+Generate the email body content now, ensuring you start with "{salutation}" and use the knowledge base information:"""
 
     messages = [
         {"role": "user", "content": f"Generate a comprehensive email body response using the knowledge base information and including relevant links for: {email_message.body}"}
