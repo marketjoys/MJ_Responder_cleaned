@@ -1650,6 +1650,8 @@ VALIDATION CRITERIA:
 5. Is the tone appropriate and professional?
 6. Are actionable next steps provided where needed?
 7. Is the response length appropriate for the inquiry complexity?
+8. CRITICAL: Does the draft contain any placeholders like [name], [insert link], {{company}}, <add here>, TODO, INSERT, etc.?
+9. CRITICAL: Are all sentences complete without obvious gaps, underscores, or ellipses indicating missing content?
 
 AUTOMATED CHECK RESULTS:
 - KB Information Available: {kb_info_present}
