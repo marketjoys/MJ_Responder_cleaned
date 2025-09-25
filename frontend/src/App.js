@@ -2255,7 +2255,7 @@ const EmailAccounts = () => {
     imap_port: 993,
     smtp_server: '',
     smtp_port: 587,
-    signature: '',
+    signature: 'Best regards,<br>[Your Name]<br>[Your Title]<br>[Company Name]',
     is_active: true,
     // Follow-up settings
     enable_follow_ups: true,
