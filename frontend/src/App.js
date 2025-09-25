@@ -6,6 +6,7 @@ import './App.css';
 // Import Calendar Components
 import { CalendarEvents, MeetingDetection } from './CalendarComponents';
 import OAuthCallback from './OAuthCallback';
+import { RichTextEditor } from './components/ui/rich-text-editor';
 
 // UI Components
 import { Button } from './components/ui/button';
