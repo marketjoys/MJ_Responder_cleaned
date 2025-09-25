@@ -3460,62 +3460,220 @@ const EmailProcessing = () => {
               </Card>
             ))
           ) : (
-            // Individual Email View (existing logic)
-            emailThreads.map(email => (
-              <Card key={email.id} className="shadow-lg hover:shadow-xl transition-shadow">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2 mb-2">
-                        <MessageSquare className="h-5 w-5 text-blue-600" />
-                        {email.subject}
-                        <Badge className={getStatusColor(email.status)}>
-                          {email.status ? email.status.replace('_', ' ') : 'unknown'}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        From: {email.sender} • {new Date(email.received_at).toLocaleString()}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : email)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {email.status === 'ready_to_send' && (
-                        <Button size="sm" onClick={() => handleSendEmail(email.id)} className="bg-green-600 hover:bg-green-700">
-                          <Send className="h-4 w-4" />
+            // Individual Email View - Fixed to handle thread structure properly
+            emailThreads.map(thread => {
+              const email = thread.original_email || thread; // Handle both thread and email objects
+              return (
+                <Card key={email.id || thread.thread_id} className="shadow-lg hover:shadow-xl transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center gap-2 mb-2">
+                          <MessageSquare className="h-5 w-5 text-blue-600" />
+                          {email.subject || thread.subject}
+                          <Badge className={getStatusColor(email.status)}>
+                            {email.status ? email.status.replace('_', ' ') : 'unknown'}
+                          </Badge>
+                          
+                          {/* AI Agent Status Indicators */}
+                          <div className="flex gap-1 ml-2">
+                            {email.intents && email.intents.length > 0 && (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                <Brain className="h-3 w-3 mr-1" />
+                                Intent: {email.intents.length} identified
+                              </Badge>
+                            )}
+                            {email.draft && (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                                <Bot className="h-3 w-3 mr-1" />
+                                Draft: Generated
+                              </Badge>
+                            )}
+                            {email.validation_result && (
+                              <Badge variant="outline" className={`text-xs ${
+                                email.validation_result.status === 'PASS' 
+                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                  : 'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                                <Shield className="h-3 w-3 mr-1" />
+                                Validation: {email.validation_result.status}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardTitle>
+                        <CardDescription>
+                          From: {email.sender} • {new Date(email.received_at).toLocaleString()}
+                          {email.processed_at && (
+                            <span className="ml-2">• Processed: {new Date(email.processed_at).toLocaleString()}</span>
+                          )}
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedEmail(selectedEmail?.id === email.id ? null : thread)}
+                        >
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                      {(email.status === 'needs_redraft' || email.status === 'escalate') && (
-                        <Button variant="outline" size="sm" onClick={() => handleRedraft(email.id)}>
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {email.status === 'ready_to_send' && (
+                          <Button size="sm" onClick={() => handleSendEmail(email.id)} className="bg-green-600 hover:bg-green-700">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {(email.status === 'needs_redraft' || email.status === 'escalate') && (
+                          <Button variant="outline" size="sm" onClick={() => handleRedraft(email.id)}>
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                
-                {selectedEmail?.id === email.id && (
-                  <CardContent className="border-t">
-                    <div className="bg-slate-50 p-4 rounded-lg">
-                      <p className="whitespace-pre-wrap">{email.body}</p>
-                    </div>
-                    {email.draft && (
-                      <div className="mt-4">
-                        <Label className="font-medium">Generated Draft:</Label>
-                        <div className="bg-green-50 p-4 rounded-lg mt-2">
-                          <p className="whitespace-pre-wrap">{email.draft}</p>
+                  </CardHeader>
+                  
+                  {selectedEmail?.thread_id === thread.thread_id && (
+                    <CardContent className="border-t space-y-4">
+                      {/* Original Email Content */}
+                      <div className="bg-slate-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-slate-700 mb-2">Original Email:</h4>
+                        <p className="whitespace-pre-wrap text-sm">{email.body}</p>
+                      </div>
+                      
+                      {/* AI Processing Status */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Intent Classification Status */}
+                        <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="h-4 w-4 text-blue-600" />
+                            <span className="font-medium text-blue-800">Intent Classification</span>
+                          </div>
+                          {email.intents && email.intents.length > 0 ? (
+                            <div className="space-y-1">
+                              {email.intents.map((intent, idx) => (
+                                <div key={idx} className="text-xs text-blue-700">
+                                  • {intent.name} ({intent.confidence ? Math.round(intent.confidence * 100) : 0}%)
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-blue-600">No intents identified</div>
+                          )}
+                        </div>
+                        
+                        {/* Draft Generation Status */}
+                        <div className="bg-green-50 p-3 rounded-lg border-l-4 border-green-400">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Bot className="h-4 w-4 text-green-600" />
+                            <span className="font-medium text-green-800">Draft Agent</span>
+                          </div>
+                          <div className="text-xs text-green-700">
+                            {email.draft ? (
+                              <span>✓ Draft generated ({email.draft.length} chars)</span>
+                            ) : (
+                              <span>⏳ No draft available</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Validation Status */}
+                        <div className={`p-3 rounded-lg border-l-4 ${
+                          email.validation_result?.status === 'PASS' 
+                            ? 'bg-green-50 border-green-400' 
+                            : email.validation_result?.status === 'FAIL'
+                            ? 'bg-red-50 border-red-400'
+                            : 'bg-gray-50 border-gray-400'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Shield className={`h-4 w-4 ${
+                              email.validation_result?.status === 'PASS' ? 'text-green-600' :
+                              email.validation_result?.status === 'FAIL' ? 'text-red-600' : 'text-gray-600'
+                            }`} />
+                            <span className={`font-medium ${
+                              email.validation_result?.status === 'PASS' ? 'text-green-800' :
+                              email.validation_result?.status === 'FAIL' ? 'text-red-800' : 'text-gray-800'
+                            }`}>
+                              Validation Agent
+                            </span>
+                          </div>
+                          <div className={`text-xs ${
+                            email.validation_result?.status === 'PASS' ? 'text-green-700' :
+                            email.validation_result?.status === 'FAIL' ? 'text-red-700' : 'text-gray-700'
+                          }`}>
+                            {email.validation_result ? (
+                              <span>
+                                {email.validation_result.status === 'PASS' ? '✓' : '✗'} {email.validation_result.status}
+                                {email.validation_result.feedback && (
+                                  <div className="mt-1 text-xs opacity-75">
+                                    {email.validation_result.feedback.substring(0, 100)}...
+                                  </div>
+                                )}
+                              </span>
+                            ) : (
+                              <span>⏳ Not validated yet</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                )}
-              </Card>
-            ))
+                      
+                      {/* Generated Draft */}
+                      {email.draft && (
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <div className="flex justify-between items-center mb-2">
+                            <h4 className="font-medium text-green-800">Generated Response:</h4>
+                            {/* Placeholder Detection Warning */}
+                            {(/\[.*\]/g.test(email.draft) || /{{.*}}/g.test(email.draft)) && (
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Contains placeholders
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="bg-white p-3 rounded border text-sm">
+                            <p className="whitespace-pre-wrap">{email.draft}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Validation Result Details */}
+                      {email.validation_result && email.validation_result.feedback && (
+                        <div className={`p-4 rounded-lg ${
+                          email.validation_result.status === 'PASS' 
+                            ? 'bg-green-50' 
+                            : 'bg-red-50'
+                        }`}>
+                          <h4 className={`font-medium mb-2 ${
+                            email.validation_result.status === 'PASS' 
+                              ? 'text-green-800' 
+                              : 'text-red-800'
+                          }`}>
+                            Validation Feedback:
+                          </h4>
+                          <div className={`text-sm ${
+                            email.validation_result.status === 'PASS' 
+                              ? 'text-green-700' 
+                              : 'text-red-700'
+                          }`}>
+                            <p className="whitespace-pre-wrap">{email.validation_result.feedback}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Error Information */}
+                      {email.error && (
+                        <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-400">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="h-4 w-4 text-red-600" />
+                            <span className="font-medium text-red-800">Processing Error</span>
+                          </div>
+                          <div className="text-sm text-red-700">
+                            <p className="whitespace-pre-wrap">{email.error}</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })
           )}
           
           {emailThreads.length === 0 && (
