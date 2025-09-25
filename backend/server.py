@@ -1751,7 +1751,12 @@ Validate the draft now:"""
         "coverage_report": validation_response,
         "kb_usage": kb_info_present,
         "links_included": len([link for link in expected_links if link in draft['plain_text']]),
-        "avoids_duplicates": avoids_duplicates
+        "avoids_duplicates": avoids_duplicates,
+        "placeholder_check": {
+            "has_placeholders": bool(found_placeholders),
+            "placeholders_found": found_placeholders[:5] if found_placeholders else [],
+            "is_complete": not bool(found_placeholders)
+        }
     }
 
 async def extract_links_from_knowledge_and_prompts(intents: List[Dict[str, Any]], kb_context: str) -> List[str]:
