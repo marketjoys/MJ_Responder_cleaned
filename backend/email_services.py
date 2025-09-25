@@ -356,15 +356,6 @@ class EmailConnection:
             # Generate unique Message-ID
             msg['Message-ID'] = f"<{uuid.uuid4()}@{self.email.split('@')[1]}>"
             
-            # Add body parts
-            if body:
-                text_part = MIMEText(body, 'plain', 'utf-8')
-                msg.attach(text_part)
-            
-            if body_html:
-                html_part = MIMEText(body_html, 'html', 'utf-8')
-                msg.attach(html_part)
-            
             # Add signature if configured
             signature = self.account_config.get('signature', '')
             if signature:
@@ -372,6 +363,15 @@ class EmailConnection:
                     body += f"\n\n{signature}"
                 if body_html:
                     body_html += f"<br><br>{signature.replace(chr(10), '<br>')}"
+            
+            # Add body parts with signature included
+            if body:
+                text_part = MIMEText(body, 'plain', 'utf-8')
+                msg.attach(text_part)
+            
+            if body_html:
+                html_part = MIMEText(body_html, 'html', 'utf-8')
+                msg.attach(html_part)
             
             # Connect to SMTP and send
             context = ssl.create_default_context()
