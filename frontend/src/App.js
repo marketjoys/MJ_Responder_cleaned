@@ -3469,11 +3469,34 @@ const EmailProcessing = () => {
               </Card>
             ))
           ) : (
-            // Individual Email View - Fixed to handle thread structure properly
-            emailThreads.map(thread => {
+            // Individual Email View - Fixed to handle thread structure properly with null checks
+            emailThreads.map((thread, index) => {
+              // Defensive programming: ensure we have valid data
+              if (!thread) return null;
+              
               const email = thread.original_email || thread; // Handle both thread and email objects
+              
+              // Ensure email object has required properties
+              if (!email || !email.id) return null;
+              
+              // Provide default values for missing properties
+              const safeEmail = {
+                id: email.id,
+                subject: email.subject || thread?.subject || 'No Subject',
+                status: email.status || 'unknown',
+                sender: email.sender || 'Unknown Sender',
+                recipient: email.recipient || 'Unknown Recipient',
+                received_at: email.received_at || new Date().toISOString(),
+                processed_at: email.processed_at || null,
+                body: email.body || '',
+                intents: email.intents || [],
+                draft: email.draft || '',
+                validation_result: email.validation_result || null,
+                error: email.error || null
+              };
+              
               return (
-                <Card key={email.id || thread.thread_id} className="shadow-lg hover:shadow-xl transition-shadow">
+                <Card key={safeEmail.id || `email-${index}`} className="shadow-lg hover:shadow-xl transition-shadow">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
