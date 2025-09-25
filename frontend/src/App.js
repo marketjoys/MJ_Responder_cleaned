@@ -3470,7 +3470,7 @@ const EmailProcessing = () => {
                         <MessageSquare className="h-5 w-5 text-blue-600" />
                         {email.subject}
                         <Badge className={getStatusColor(email.status)}>
-                          {email.status.replace('_', ' ')}
+                          {email.status ? email.status.replace('_', ' ') : 'unknown'}
                         </Badge>
                       </CardTitle>
                       <CardDescription>
