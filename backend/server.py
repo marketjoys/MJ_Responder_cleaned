@@ -1546,6 +1546,22 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
     clean_response = re.sub(r'<think>.*?</think>', '', clean_response, flags=re.DOTALL)
     clean_response = re.sub(r'PLAIN_TEXT:|HTML:|Subject:|Re:.*?\n', '', clean_response)
     clean_response = re.sub(r'^-+|^=+', '', clean_response, flags=re.MULTILINE)  # Remove separator lines
+    
+    # Enhanced signature removal to prevent duplication
+    # Remove common signature patterns that AI might generate
+    signature_patterns = [
+        r'\n\n(Best regards?|Sincerely|Kind regards?|Warm regards?|Regards?|Thank you|Thanks)[\s,]*\n*.*$',
+        r'\n\n(Best|Sincerely|Regards?)[\s,]*\n*[A-Za-z\s\n.-]*$',
+        r'\n\n---+.*$',
+        r'\n\n\*+.*$',
+        r'\n\nWith (best )?regards?.*$',
+        r'\n\nThank you.*\n.*Team.*$',
+        r'\n\nLooking forward.*$'
+    ]
+    
+    for pattern in signature_patterns:
+        clean_response = re.sub(pattern, '', clean_response, flags=re.DOTALL | re.IGNORECASE)
+    
     clean_response = clean_response.strip()
     
     # Generate enhanced HTML version from plain text with proper link formatting
