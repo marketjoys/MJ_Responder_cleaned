@@ -1679,8 +1679,47 @@ Validate the draft now:"""
     # Determine if it's a pass or fail - check the entire response
     is_pass = "PASS:" in validation_response.upper() or validation_response.upper().startswith("PASS")
     
-    # Additional automated checks
+    # Additional automated checks including placeholder detection
     automated_issues = []
+    
+    # Check for placeholders in the draft
+    placeholder_patterns = [
+        r'\[.*?\]',  # [name], [insert link], [company name]
+        r'\{.*?\}',  # {name}, {company}
+        r'{{.*?}}',  # {{name}}, {{company}}
+        r'<.*?>',    # <name>, <insert here>
+        r'XXX.*?XXX',  # XXXNAMEXXXX
+        r'TODO',     # TODO: add name
+        r'INSERT',   # INSERT LINK HERE
+        r'PLACEHOLDER', # PLACEHOLDER text
+        r'your name here',  # common placeholder text
+        r'company name',    # placeholder for company
+    ]
+    
+    found_placeholders = []
+    draft_text = draft['plain_text'].lower()
+    for pattern in placeholder_patterns:
+        import re
+        matches = re.findall(pattern, draft['plain_text'], re.IGNORECASE)
+        if matches:
+            found_placeholders.extend(matches)
+    
+    if found_placeholders:
+        automated_issues.append(f"Draft contains placeholders that need to be replaced: {', '.join(found_placeholders[:3])}")
+    
+    # Check for incomplete sentences or obvious gaps
+    incomplete_patterns = [
+        r'\.\.\.+',  # Multiple dots indicating incomplete
+        r'\s+_+\s+', # Underscores as placeholders
+        r'TBD',      # To be determined
+        r'TBA',      # To be announced  
+    ]
+    
+    for pattern in incomplete_patterns:
+        if re.search(pattern, draft['plain_text'], re.IGNORECASE):
+            automated_issues.append("Draft contains incomplete sections or obvious gaps")
+            break
+    
     if kb_info_present and not any(word in draft['plain_text'].lower() for word in ["pricing", "feature", "product", "service", "support", "meeting", "demo", "consultation"]):
         automated_issues.append("Knowledge base information not effectively utilized")
     
