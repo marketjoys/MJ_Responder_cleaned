@@ -30,7 +30,7 @@ import {
   Pause, Activity, Inbox, Shield, Power, Calendar,
   PowerOff, WifiOff, Wifi, SendHorizontal, User,
   LogOut, LogIn, UserPlus, CalendarDays, CalendarPlus,
-  Cloud, Smartphone, Monitor, MapPin, Users2, Timer, X
+  Cloud, Smartphone, Monitor, MapPin, Users2, Timer, X, Edit3
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
