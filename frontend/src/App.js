@@ -2256,6 +2256,7 @@ const EmailAccounts = () => {
     smtp_server: '',
     smtp_port: 587,
     signature: 'Best regards,<br>[Your Name]<br>[Your Title]<br>[Company Name]',
+    persona: 'I am a professional and helpful assistant representing this organization. I respond courteously to all inquiries and provide accurate, relevant information.',
     is_active: true,
     // Follow-up settings
     enable_follow_ups: true,
