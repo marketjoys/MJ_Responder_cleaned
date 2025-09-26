@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './button';
 import { Card, CardContent } from './card';
 import { Bold, Italic, Underline, Link2, AtSign, Type } from 'lucide-react';
@@ -6,24 +6,42 @@ import { Bold, Italic, Underline, Link2, AtSign, Type } from 'lucide-react';
 const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", className = "" }) => {
   const editorRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [editorContent, setEditorContent] = useState(value);
 
-  const handleFormat = (command, value = null) => {
+  // Sync editor content with prop value
+  useEffect(() => {
+    setEditorContent(value);
+  }, [value]);
+
+  // Update editor innerHTML when content changes (only when not actively editing)
+  useEffect(() => {
+    if (editorRef.current && !isEditing && editorRef.current.innerHTML !== editorContent) {
+      editorRef.current.innerHTML = editorContent;
+    }
+  }, [editorContent, isEditing]);
+
+  const handleFormat = (command, formatValue = null) => {
     if (isEditing || !editorRef.current) return;
     
-    document.execCommand(command, false, value);
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
-    }
+    document.execCommand(command, false, formatValue);
+    const newContent = editorRef.current.innerHTML;
+    setEditorContent(newContent);
+    onChange(newContent);
   };
 
   const handleContentChange = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const newContent = editorRef.current.innerHTML;
+      setEditorContent(newContent);
+      onChange(newContent);
     }
   };
 
   const handlePlainTextChange = (e) => {
-    onChange(e.target.value);
+    const plainText = e.target.value;
+    const htmlContent = convertToHtml(plainText);
+    setEditorContent(htmlContent);
+    onChange(htmlContent);
   };
 
   const convertToPlainText = (html) => {
