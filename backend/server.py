@@ -410,7 +410,7 @@ async def groq_chat_completion(messages: List[Dict], system_prompt: str = "") ->
                         "messages": messages,
                         "model": "llama-3.3-70b-versatile",
                         "temperature": 0.6,
-                        "max_completion_tokens": 2048,  # Reduced from 4096 to save tokens
+                        "max_completion_tokens": 4096,  # Increased to ensure full responses
                         "top_p": 0.95,
                         "stream": False
                     },
