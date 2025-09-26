@@ -3352,20 +3352,20 @@ const EmailProcessing = () => {
                   </div>
                 </CardHeader>
 
-                {selectedEmail?.thread_id === thread.thread_id && (
+                {selectedEmail?.thread_id === thread.thread_id && thread.original_email && (
                   <CardContent className="border-t space-y-6">
                     {/* Original Email */}
                     <div className="bg-slate-50 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="font-semibold text-slate-800">Original Email</h4>
                         <div className="flex gap-2">
-                          {thread.original_email.status === 'ready_to_send' && (
+                          {thread.original_email?.status === 'ready_to_send' && (
                             <Button size="sm" onClick={() => handleSendEmail(thread.original_email.id)} className="bg-green-600 hover:bg-green-700">
                               <Send className="h-4 w-4 mr-1" />
                               Send
                             </Button>
                           )}
-                          {(thread.original_email.status === 'needs_redraft' || thread.original_email.status === 'escalate') && (
+                          {(thread.original_email?.status === 'needs_redraft' || thread.original_email?.status === 'escalate') && (
                             <Button variant="outline" size="sm" onClick={() => handleRedraft(thread.original_email.id)}>
                               <RefreshCw className="h-4 w-4 mr-1" />
                               Redraft
@@ -3374,12 +3374,12 @@ const EmailProcessing = () => {
                         </div>
                       </div>
                       <div className="text-sm text-slate-600 mb-2">
-                        From: {thread.original_email.sender} | To: {thread.original_email.recipient}
+                        From: {thread.original_email?.sender || 'Unknown'} | To: {thread.original_email?.recipient || 'Unknown'}
                       </div>
                       <div className="bg-white p-3 rounded border text-sm">
-                        {thread.original_email.body}
+                        {thread.original_email?.body || 'No content'}
                       </div>
-                      {thread.original_email.draft && (
+                      {thread.original_email?.draft && (
                         <div className="mt-3">
                           <h5 className="font-medium text-slate-700 mb-2">Generated Response:</h5>
                           <div className="bg-green-50 p-3 rounded border text-sm">
