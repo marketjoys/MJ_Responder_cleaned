@@ -123,13 +123,7 @@ metadata:
 test_plan:
   current_focus:
     - "Signature Typing Functionality"
-    - "Signature Attachment Bug Fix"
-    - "Automatic Response Mechanism"
-    - "Email Test Endpoint"
-  stuck_tasks:
-    - "Signature Attachment Bug Fix"
-    - "Automatic Response Mechanism"
-    - "Email Test Endpoint"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
