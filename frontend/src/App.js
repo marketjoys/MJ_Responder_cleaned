@@ -2515,27 +2515,16 @@ const EmailAccounts = () => {
             
             <div className="space-y-6">
               <form onSubmit={handleCreateAccount} className="space-y-6">
-                {/* Common Fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Account Name</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="My Gmail Account"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signature">Email Signature</Label>
-                    <RichTextEditor
-                      value={formData.signature}
-                      onChange={(value) => setFormData(prev => ({ ...prev, signature: value }))}
-                      placeholder="Best regards, Your Name"
-                      className="mt-2"
-                    />
-                  </div>
+                {/* Account Name Field */}
+                <div>
+                  <Label htmlFor="name">Account Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="My Gmail Account"
+                    required
+                  />
                 </div>
 
                 {/* Account Type Selection */}
