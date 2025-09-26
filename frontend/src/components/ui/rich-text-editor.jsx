@@ -35,7 +35,17 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
   };
 
   const insertTemplate = (template) => {
-    const currentContent = editorRef.current.innerHTML;
+    if (!editorRef.current) {
+      // If editor ref is not available, update the value directly
+      const currentContent = value || '';
+      const plainCurrentContent = convertToPlainText(currentContent);
+      const plainTemplate = convertToPlainText(template);
+      const newContent = convertToHtml(plainCurrentContent + (plainCurrentContent ? '\n\n' : '') + plainTemplate);
+      onChange(newContent);
+      return;
+    }
+    
+    const currentContent = editorRef.current.innerHTML || '';
     const newContent = currentContent + (currentContent ? '<br><br>' : '') + template;
     editorRef.current.innerHTML = newContent;
     onChange(newContent);
