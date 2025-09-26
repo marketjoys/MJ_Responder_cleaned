@@ -3172,7 +3172,7 @@ async def cancel_follow_ups_for_thread(thread_id: str, reason: str = "Response r
                 "$set": {
                     "status": "cancelled",
                     "error_message": reason,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": get_current_utc_time()
                 }
             }
         )
