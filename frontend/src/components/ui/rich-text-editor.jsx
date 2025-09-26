@@ -44,6 +44,23 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
     onChange(htmlContent);
   };
 
+  const handleModeToggle = (isTextMode) => {
+    setIsEditing(isTextMode);
+    // Small delay to ensure DOM update before focusing
+    setTimeout(() => {
+      if (isTextMode) {
+        // Focus textarea in text mode
+        const textarea = document.querySelector('textarea');
+        if (textarea) textarea.focus();
+      } else {
+        // Focus contenteditable in visual mode
+        if (editorRef.current) {
+          editorRef.current.focus();
+        }
+      }
+    }, 10);
+  };
+
   const convertToPlainText = (html) => {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
