@@ -3618,7 +3618,7 @@ async def initialize_intents():
                         "Product documentation request"
                     ],
                     "system_prompt": "Provide clear, informative responses about products. Use knowledge base information and direct to additional resources like documentation or product pages.",
-                    "confidence_threshold": 0.7,
+                    "confidence_threshold": 0.65,
                     "follow_up_hours": 12,
                     "is_meeting_related": False
                 },
