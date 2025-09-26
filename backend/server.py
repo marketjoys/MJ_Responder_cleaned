@@ -3203,34 +3203,41 @@ async def detect_and_handle_responses():
         pending_threads = await db.follow_up_emails.distinct("thread_id", {"status": "pending"})
         
         for thread_id in pending_threads:
-            # Get all emails in this thread, sorted by received time
+            # Get all pending follow-ups for this thread
+            pending_follow_ups = await db.follow_up_emails.find({
+                "thread_id": thread_id,
+                "status": "pending"
+            }).to_list(100)
+            
+            if not pending_follow_ups:
+                continue
+                
+            # Get all emails in this thread
             thread_emails = await db.emails.find({
                 "thread_id": thread_id
             }).sort("received_at", 1).to_list(100)
             
-            if len(thread_emails) < 2:
-                continue  # Need at least 2 emails to detect response
-            
-            # Find the original email (earliest one)
-            original_email = thread_emails[0]
-            original_sender = original_email.get("sender", "")
-            original_received_at = original_email.get("received_at", datetime.min)
-            
-            # Check for responses (emails from different senders after original)
-            responses = [
-                email for email in thread_emails[1:]
-                if (email.get("sender", "") != original_sender and 
-                    email.get("received_at", datetime.min) > original_received_at)
-            ]
-            
-            if responses:
-                # Response detected - cancel pending follow-ups
-                cancelled_count = await cancel_follow_ups_for_thread(
-                    thread_id, 
-                    f"Response received from {responses[0].get('sender', 'unknown')}"
-                )
-                if cancelled_count > 0:
-                    logger.info(f"Thread {thread_id}: Detected response, cancelled {cancelled_count} follow-ups")
+            # For each pending follow-up, check if the recipient has replied
+            for follow_up in pending_follow_ups:
+                recipient_email = follow_up.get("recipient_email", "").lower()
+                follow_up_created = follow_up.get("created_at", datetime.min)
+                
+                # Check if recipient has sent any emails in this thread after follow-up was created
+                recipient_replies = [
+                    email for email in thread_emails
+                    if (email.get("sender", "").lower() == recipient_email and
+                        email.get("received_at", datetime.min) > follow_up_created)
+                ]
+                
+                if recipient_replies:
+                    # Recipient has replied - cancel this specific follow-up
+                    cancelled_count = await cancel_follow_ups_for_recipient(
+                        thread_id,
+                        recipient_email,
+                        f"Background detection: Reply received from {recipient_email}"
+                    )
+                    if cancelled_count > 0:
+                        logger.info(f"Thread {thread_id}: Background service detected reply from {recipient_email}, cancelled {cancelled_count} follow-ups")
         
     except Exception as e:
         logger.error(f"Error in response detection: {str(e)}")
