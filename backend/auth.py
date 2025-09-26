@@ -108,7 +108,10 @@ def get_password_hash(password: str) -> str:
     print(f"DEBUG: Truncated password length: {len(truncated_password)}")
     print(f"DEBUG: Truncated password bytes length: {len(truncated_password.encode('utf-8'))}")
     
-    return pwd_context.hash(truncated_password)
+    # Use bcrypt directly with 12 rounds
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(truncated_password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
