@@ -1553,15 +1553,12 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
     logger.info(f"📝 After basic cleaning: {len(clean_response)}")
     
     # Enhanced signature removal to prevent duplication
-    # Remove common signature patterns that AI might generate
+    # Remove common signature patterns that AI might generate - FIXED to be less aggressive
     signature_patterns = [
-        r'\n\n(Best regards?|Sincerely|Kind regards?|Warm regards?|Regards?|Thank you|Thanks)[\s,]*\n*.*$',
-        r'\n\n(Best|Sincerely|Regards?)[\s,]*\n*[A-Za-z\s\n.-]*$',
-        r'\n\n---+.*$',
-        r'\n\n\*+.*$',
-        r'\n\nWith (best )?regards?.*$',
-        r'\n\nThank you.*\n.*Team.*$',
-        r'\n\nLooking forward.*$'
+        r'\n\n(Best regards|Sincerely|Kind regards|Warm regards|Regards)\s*,?\s*\n+.*$',  # More specific signature patterns
+        r'\n\n---+.*$',  # Separator lines
+        r'\n\n\*+.*$',   # Asterisk lines
+        r'\n\nWith (best )?regards,?\s*\n+.*$',  # "With regards" patterns
     ]
     
     for i, pattern in enumerate(signature_patterns):
