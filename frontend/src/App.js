@@ -2680,6 +2680,31 @@ const EmailAccounts = () => {
                   </Tabs>
                 </div>
 
+                {/* Email Signature Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Edit3 className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-slate-800">Email Signature</h3>
+                  </div>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div>
+                      <Label htmlFor="signature" className="text-sm font-medium mb-2">
+                        Signature Content
+                      </Label>
+                      <RichTextEditor
+                        value={formData.signature}
+                        onChange={(value) => setFormData(prev => ({ ...prev, signature: value }))}
+                        placeholder="Best regards,<br>Your Name<br>Your Title<br>Company Name"
+                        className="mt-2"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">
+                        This signature will be automatically added to all outgoing emails from this account.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Follow-up Settings Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
