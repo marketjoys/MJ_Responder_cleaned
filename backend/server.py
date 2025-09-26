@@ -1251,14 +1251,16 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
     if not subject.lower().startswith('re:'):
         subject = f"Re: {subject}"
     
-    # Send email
+    # Send email - signature already included if email was processed through validation
+    signature_already_included = email_doc.get('validation_result') is not None
     success = connection.send_email(
         to_email=sender_email,
         subject=subject,
         body=email_doc['draft'],
         body_html=email_doc['draft_html'],
         message_id_to_reply=email_doc['message_id'],
-        references=email_doc.get('references', '')
+        references=email_doc.get('references', ''),
+        signature_already_included=signature_already_included
     )
     
     if success:
