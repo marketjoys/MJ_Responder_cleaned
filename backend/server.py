@@ -65,8 +65,11 @@ def format_current_date() -> str:
     return now.strftime("%B %d, %Y at %H:%M UTC")  # e.g., "July 26, 2025 at 14:30 UTC"
 
 # Log current system date awareness
-current_date_info = format_current_date()
-print(f"🕒 Email Assistant System initialized for current date: {current_date_info}")
+try:
+    current_date_info = format_current_date()
+    print(f"🕒 Email Assistant System initialized for current date: {current_date_info}")
+except Exception as e:
+    print(f"⚠️ Date initialization warning: {e}")
 
 # Create the main app without a prefix
 app = FastAPI(title="Automated Email Assistant API")
