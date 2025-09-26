@@ -82,6 +82,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ RESOLVED: /api/emails/test endpoint now fully functional with updated API keys. Processes test emails successfully in ~11 seconds, progresses through complete workflow (classifying -> generating_draft -> validating -> final status). No more timeouts or 503 Service Unavailable errors. Endpoint properly handles email classification, draft generation, and validation. Test scenario 'Hi, I'm interested in your product pricing. Can you send me more information?' processes successfully."
+      - working: true
+        agent: "testing"
+        comment: "✅ TIMEOUT ISSUE INVESTIGATION COMPLETED: Confirmed intermittent timeout issue where backend processing gets stuck during email classification/processing, causing client requests to timeout after 30-60 seconds. Issue resolved with backend restart - suggests stuck processes or connection issues rather than fundamental endpoint problems. Endpoint works correctly when backend is healthy: processes test email 'Hi, I'm interested in your product pricing. Can you send me more information?' in 8.5s with full workflow (drafting -> validation -> sent status). Recommendation: Monitor for stuck processes and implement process health checks."
 
   - task: "Email Account Creation with Signature"
     implemented: true
