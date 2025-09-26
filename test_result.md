@@ -170,8 +170,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Signature Typing Functionality"
-  stuck_tasks: []
+    - "Follow-up Cancellation System"
+  stuck_tasks: 
+    - "Follow-up Cancellation System"
   test_all: false
   test_priority: "high_first"
 
