@@ -95,6 +95,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('bold')}
+              disabled={isEditing}
               className="p-2"
             >
               <Bold className="h-4 w-4" />
@@ -103,6 +104,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('italic')}
+              disabled={isEditing}
               className="p-2"
             >
               <Italic className="h-4 w-4" />
@@ -111,6 +113,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('underline')}
+              disabled={isEditing}
               className="p-2"
             >
               <Underline className="h-4 w-4" />
@@ -122,6 +125,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
                 const url = prompt('Enter URL:');
                 if (url) handleFormat('createLink', url);
               }}
+              disabled={isEditing}
               className="p-2"
             >
               <Link2 className="h-4 w-4" />
