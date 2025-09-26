@@ -2313,6 +2313,7 @@ const EmailAccounts = () => {
         auth_type: 'oauth',
         use_oauth: true,
         signature: formData.signature,
+        persona: formData.persona,
         is_active: formData.is_active
       };
 
