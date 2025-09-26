@@ -8,6 +8,8 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
   const [isEditing, setIsEditing] = useState(false);
 
   const handleFormat = (command, value = null) => {
+    if (isEditing || !editorRef.current) return;
+    
     document.execCommand(command, false, value);
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML);
