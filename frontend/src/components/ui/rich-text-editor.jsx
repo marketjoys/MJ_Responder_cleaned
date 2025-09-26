@@ -174,7 +174,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
             <Button
               variant={!isEditing ? "default" : "ghost"}
               size="sm"
-              onClick={() => setIsEditing(false)}
+              onClick={() => handleModeToggle(false)}
             >
               <Type className="h-4 w-4 mr-1" />
               Visual
@@ -182,7 +182,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
             <Button
               variant={isEditing ? "default" : "ghost"}
               size="sm"
-              onClick={() => setIsEditing(true)}
+              onClick={() => handleModeToggle(true)}
             >
               Text
             </Button>
