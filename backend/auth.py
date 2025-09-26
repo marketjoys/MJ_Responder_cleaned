@@ -20,14 +20,6 @@ JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-pro
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Password hashing with proper bcrypt configuration
-pwd_context = CryptContext(
-    schemes=["bcrypt"], 
-    deprecated="auto",
-    # Configure bcrypt to handle longer passwords
-    bcrypt__rounds=12,  # Set rounds explicitly 
-)
-
 # Security scheme
 security = HTTPBearer()
 
