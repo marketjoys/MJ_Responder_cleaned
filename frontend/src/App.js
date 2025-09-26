@@ -3336,7 +3336,7 @@ const EmailProcessing = () => {
                         )}
                       </CardTitle>
                       <CardDescription>
-                        Original: {thread.original_email.sender} • {new Date(thread.original_email.received_at).toLocaleString()}
+                        Original: {thread.original_email?.sender || 'Unknown'} • {thread.original_email?.received_at ? new Date(thread.original_email.received_at).toLocaleString() : 'Unknown time'}
                         {thread.participants.length > 2 && (
                           <span className="ml-2">• {thread.participants.length} participants</span>
                         )}
