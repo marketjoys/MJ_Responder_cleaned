@@ -1539,15 +1539,18 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
     ]
     
     response = await groq_chat_completion(messages, system_prompt)
+    logger.info(f"📝 Raw Groq response length: {len(response)}")
     
     # Clean the response to remove any unwanted content
     clean_response = response.strip()
+    logger.info(f"📝 After strip: {len(clean_response)}")
     
     # Remove any <think> tags or reasoning content
     import re
     clean_response = re.sub(r'<think>.*?</think>', '', clean_response, flags=re.DOTALL)
     clean_response = re.sub(r'PLAIN_TEXT:|HTML:|Subject:|Re:.*?\n', '', clean_response)
     clean_response = re.sub(r'^-+|^=+', '', clean_response, flags=re.MULTILINE)  # Remove separator lines
+    logger.info(f"📝 After basic cleaning: {len(clean_response)}")
     
     # Enhanced signature removal to prevent duplication
     # Remove common signature patterns that AI might generate
@@ -1561,10 +1564,18 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
         r'\n\nLooking forward.*$'
     ]
     
-    for pattern in signature_patterns:
+    for i, pattern in enumerate(signature_patterns):
+        before_len = len(clean_response)
         clean_response = re.sub(pattern, '', clean_response, flags=re.DOTALL | re.IGNORECASE)
+        after_len = len(clean_response)
+        if before_len != after_len:
+            logger.warning(f"📝 Pattern {i+1} removed {before_len - after_len} characters")
     
     clean_response = clean_response.strip()
+    logger.info(f"📝 Final cleaned response length: {len(clean_response)}")
+    if len(clean_response) < 50:
+        logger.error(f"📝 CRITICAL: Response too short! Content: '{clean_response}'")
+    
     
     # Generate enhanced HTML version from plain text with proper link formatting
     html_version = clean_response.replace('\n\n', '</p><p>').replace('\n', '<br>')
