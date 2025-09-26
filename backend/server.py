@@ -1561,6 +1561,8 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
         r'\n\n---+.*$',  # Separator lines
         r'\n\n\*+.*$',   # Asterisk lines
         r'\n\nWith (best )?regards,?\s*\n+.*$',  # "With regards" patterns
+        r'\n\n(Best regards|Sincerely|Kind regards|Warm regards|Regards)\s*,?\s*\n*.*AI Email Assistant.*$',  # Specific AI Email Assistant signature
+        r'\n\n.*AI Email Assistant.*Technology Solutions Team.*$',  # Full signature pattern
     ]
     
     for i, pattern in enumerate(signature_patterns):
