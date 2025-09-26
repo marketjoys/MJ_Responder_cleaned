@@ -1557,14 +1557,11 @@ Generate the email body content now, ensuring you start with "{salutation}" and 
     # Enhanced signature removal to prevent duplication
     # Remove common signature patterns that AI might generate
     signature_patterns = [
-        r'\n\n(Best regards|Sincerely|Kind regards|Warm regards|Regards)\s*,?\s*\n+.*$',  # More specific signature patterns
+        r'\n\n(Best regards|Sincerely|Kind regards|Warm regards|Regards)\s*,?\s*\n+.*AI Email Assistant.*$',  # Signature with AI Email Assistant
         r'\n\n---+.*$',  # Separator lines
         r'\n\n\*+.*$',   # Asterisk lines
         r'\n\nWith (best )?regards,?\s*\n+.*$',  # "With regards" patterns
-        r'.*AI Email Assistant.*Technology Solutions Team.*$',  # Full signature pattern anywhere
-        r'.*AI Email Assistant.*$',  # Any AI Email Assistant signature
-        r'\n\n.*Best regards.*AI Email Assistant.*$',  # Best regards + AI signature
-        r'Best regards,?\s*\n+.*AI Email Assistant.*$',  # Best regards followed by AI signature
+        r'Best regards,?\s*\n+AI Email Assistant\s*\n+Technology Solutions Team\s*$',  # Exact signature match
     ]
     
     for i, pattern in enumerate(signature_patterns):
