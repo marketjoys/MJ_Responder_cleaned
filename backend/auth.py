@@ -96,6 +96,9 @@ def get_password_hash(password: str) -> str:
     """Hash a password with bcrypt 72-byte limit handling"""
     # Encode the password as UTF-8 and truncate to 72 bytes
     password_bytes = password.encode('utf-8')[:72]
+    print(f"DEBUG: Original password length: {len(password)}")
+    print(f"DEBUG: Password bytes length: {len(password_bytes)}")
+    
     # Decode back to string, handling potential incomplete UTF-8 at the end
     try:
         truncated_password = password_bytes.decode('utf-8')
@@ -110,6 +113,9 @@ def get_password_hash(password: str) -> str:
         else:
             # Fallback to first 70 bytes if all else fails
             truncated_password = password_bytes[:70].decode('utf-8', errors='ignore')
+    
+    print(f"DEBUG: Truncated password length: {len(truncated_password)}")
+    print(f"DEBUG: Truncated password bytes length: {len(truncated_password.encode('utf-8'))}")
     
     return pwd_context.hash(truncated_password)
 
