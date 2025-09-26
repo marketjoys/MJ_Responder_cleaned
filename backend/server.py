@@ -3588,7 +3588,7 @@ async def initialize_intents():
                         "How do I configure this?"
                     ],
                     "system_prompt": "Provide helpful support responses. Acknowledge the issue, provide initial troubleshooting steps if known, and direct to appropriate support channels. Include links to our help center at https://example.com/help and suggest submitting a support ticket at https://example.com/support for detailed assistance.",
-                    "confidence_threshold": 0.7,
+                    "confidence_threshold": 0.65,
                     "follow_up_hours": 2,
                     "is_meeting_related": False
                 },
