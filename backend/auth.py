@@ -75,10 +75,21 @@ class TokenData(BaseModel):
 
 # Utility functions
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    # Truncate password to 72 bytes for bcrypt compatibility
+    """Verify a password against its hash with bcrypt 72-byte limit handling"""
+    # Apply the same truncation logic as in get_password_hash
     password_bytes = plain_password.encode('utf-8')[:72]
-    truncated_password = password_bytes.decode('utf-8', errors='ignore')
+    try:
+        truncated_password = password_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        for i in range(1, 5):
+            try:
+                truncated_password = password_bytes[:-i].decode('utf-8')
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            truncated_password = password_bytes[:70].decode('utf-8', errors='ignore')
+    
     return pwd_context.verify(truncated_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
