@@ -372,8 +372,12 @@ class EmailConnection:
     
     def send_email(self, to_email: str, subject: str, body: str, body_html: str = None, 
                    in_reply_to: str = None, references: str = None, 
-                   message_id_to_reply: str = None) -> bool:
-        """Send email via SMTP"""
+                   message_id_to_reply: str = None, signature_already_included: bool = False) -> bool:
+        """Send email via SMTP
+        
+        Args:
+            signature_already_included: If True, skip adding signature (prevents double signatures)
+        """
         try:
             # Create message
             msg = MIMEMultipart('alternative')
@@ -395,9 +399,9 @@ class EmailConnection:
             # Generate unique Message-ID
             msg['Message-ID'] = f"<{uuid.uuid4()}@{self.email.split('@')[1]}>"
             
-            # Add signature if configured
+            # Add signature if configured AND not already included
             signature = self.account_config.get('signature', '')
-            if signature:
+            if signature and not signature_already_included:
                 if body:
                     # Check if signature is HTML and convert to plain text for plain text email
                     import re
