@@ -90,6 +90,17 @@ backend:
         comment: "✅ VERIFIED: Email account creation with signature field working perfectly. Accounts store signature, persona, enable_follow_ups, and auto_send fields correctly. Database schema updated properly. Password masking in API responses working. Minor issue: password masking inconsistent in some responses."
 
 frontend:
+  - task: "Signature Typing Functionality"
+    implemented: true
+    working: "NA"
+    file: "src/components/ui/rich-text-editor.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Testing signature typing functionality in RichTextEditor component within EmailAccounts section - checking Visual/Text mode switching, template buttons, formatting buttons, and typing responsiveness"
 
 metadata:
   created_by: "testing_agent"
