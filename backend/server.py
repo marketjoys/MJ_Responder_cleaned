@@ -2178,14 +2178,15 @@ async def auto_send_email(email_id: str):
         if not subject.lower().startswith('re:'):
             subject = f"Re: {subject}"
         
-        # Send email
+        # Send email - signature already included in draft after validation
         success = connection.send_email(
             to_email=sender_email,
             subject=subject,
             body=email_doc['draft'],
             body_html=email_doc['draft_html'],
             message_id_to_reply=email_doc['message_id'],
-            references=email_doc.get('references', '')
+            references=email_doc.get('references', ''),
+            signature_already_included=True  # Prevent double signatures
         )
         
         if success:
