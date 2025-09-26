@@ -1819,6 +1819,8 @@ Validate the final email now:"""
     return {
         "status": status,
         "feedback": validation_response,
+        "final_plain_text": final_draft['plain_text'],  # Include final content with signature
+        "final_html": final_draft['html'],  # Include final HTML with signature
         "automated_checks": {
             "kb_info_available": kb_info_present,
             "kb_content_used": kb_content_used,
