@@ -419,7 +419,9 @@ async def groq_chat_completion(messages: List[Dict], system_prompt: str = "") ->
                 
                 if response.status_code == 200:
                     result = response.json()
-                    return result["choices"][0]["message"]["content"]
+                    content = result["choices"][0]["message"]["content"]
+                    logger.info(f"🤖 Groq response received: '{content[:100]}...' (length: {len(content)})")
+                    return content
                 elif response.status_code == 429:  # Rate limit exceeded
                     if attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)  # Exponential backoff
