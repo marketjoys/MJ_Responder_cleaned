@@ -2407,14 +2407,21 @@ async def process_email_async(email_id: str):
         else:
             final_status = "needs_redraft"
         
-        # Update email with validation
+        # Update email with validation and final content with signature
+        update_data = {
+            "validation_result": validation,
+            "status": final_status,
+            "processed_at": datetime.utcnow()
+        }
+        
+        # If validation includes final content with signature, use it
+        if "final_plain_text" in validation and "final_html" in validation:
+            update_data["draft"] = validation["final_plain_text"]
+            update_data["draft_html"] = validation["final_html"]
+        
         await db.emails.update_one(
             {"id": email_id},
-            {"$set": {
-                "validation_result": validation,
-                "status": final_status,
-                "processed_at": datetime.utcnow()
-            }}
+            {"$set": update_data}
         )
         
         # Step 7: Auto-send if validation passed and account has auto_send enabled
