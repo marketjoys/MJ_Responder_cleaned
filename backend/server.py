@@ -3166,6 +3166,36 @@ async def cancel_follow_ups_for_thread(thread_id: str, reason: str = "Response r
         logger.error(f"Error cancelling follow-ups for thread {thread_id}: {str(e)}")
         return 0
 
+async def cancel_follow_ups_for_recipient(thread_id: str, recipient_email: str, reason: str = "Reply received"):
+    """Cancel pending follow-ups for a specific recipient in a thread when they reply"""
+    try:
+        # Cancel follow-ups for this specific recipient in this thread
+        result = await db.follow_up_emails.update_many(
+            {
+                "thread_id": thread_id,
+                "status": "pending",
+                "recipient_email": {"$regex": f"^{recipient_email}$", "$options": "i"}  # Case-insensitive
+            },
+            {
+                "$set": {
+                    "status": "cancelled",
+                    "error_message": reason,
+                    "response_received": True,
+                    "last_response_time": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Cancelled {result.modified_count} pending follow-ups for {recipient_email} in thread {thread_id}: {reason}")
+        
+        return result.modified_count
+        
+    except Exception as e:
+        logger.error(f"Error cancelling follow-ups for recipient {recipient_email} in thread {thread_id}: {str(e)}")
+        return 0
+
 async def detect_and_handle_responses():
     """Background task to detect responses and cancel follow-ups"""
     try:
