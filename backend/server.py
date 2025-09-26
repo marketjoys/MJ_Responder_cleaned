@@ -2468,17 +2468,25 @@ async def redraft_email(email_id: str):
     # Validate new final email with signature
     validation = await validate_final_email(email_message, draft, intents, account_doc)
     
-    # Update email
+    # Update email with final content including signature
     final_status = "ready_to_send" if validation["status"] == "PASS" else "escalate"
+    update_data = {
+        "validation_result": validation,
+        "status": final_status,
+        "processed_at": datetime.utcnow()
+    }
+    
+    # Use final content with signature if available, otherwise use original draft
+    if "final_plain_text" in validation and "final_html" in validation:
+        update_data["draft"] = validation["final_plain_text"]
+        update_data["draft_html"] = validation["final_html"]
+    else:
+        update_data["draft"] = draft["plain_text"]
+        update_data["draft_html"] = draft["html"]
+    
     await db.emails.update_one(
         {"id": email_id},
-        {"$set": {
-            "draft": draft["plain_text"],
-            "draft_html": draft["html"],
-            "validation_result": validation,
-            "status": final_status,
-            "processed_at": datetime.utcnow()
-        }}
+        {"$set": update_data}
     )
     
     # CRITICAL FIX: Auto-send if validation passed and account has auto_send enabled
