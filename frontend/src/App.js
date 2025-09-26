@@ -3319,8 +3319,8 @@ const EmailProcessing = () => {
                       <CardTitle className="flex items-center gap-2 mb-2">
                         <MessageSquare className="h-5 w-5 text-blue-600" />
                         {thread.subject}
-                        <Badge className={getStatusColor(thread.original_email.status)}>
-                          {thread.original_email.status ? thread.original_email.status.replace('_', ' ') : 'unknown'}
+                        <Badge className={getStatusColor(thread.original_email?.status || 'unknown')}>
+                          {thread.original_email?.status ? thread.original_email.status.replace('_', ' ') : 'unknown'}
                         </Badge>
                         {thread.has_response && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
