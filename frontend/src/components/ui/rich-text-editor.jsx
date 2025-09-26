@@ -79,6 +79,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
                 variant="outline"
                 size="sm"
                 onClick={() => insertTemplate(template.content)}
+                disabled={isEditing}
                 className="text-xs"
               >
                 {template.name}
