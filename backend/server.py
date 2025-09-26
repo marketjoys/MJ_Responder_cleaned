@@ -3558,7 +3558,7 @@ async def initialize_intents():
                         "I need a quote for your solution"
                     ],
                     "system_prompt": "Respond professionally to sales inquiries. Provide helpful information, direct to appropriate resources like https://example.com/pricing for pricing details, and suggest next steps like scheduling a demo at https://example.com/demo or starting a free trial at https://example.com/trial.",
-                    "confidence_threshold": 0.75,
+                    "confidence_threshold": 0.65,
                     "follow_up_hours": 4,
                     "is_meeting_related": False
                 },
