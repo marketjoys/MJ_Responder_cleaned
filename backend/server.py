@@ -3201,8 +3201,8 @@ async def cancel_follow_ups_for_recipient(thread_id: str, recipient_email: str, 
                     "status": "cancelled",
                     "error_message": reason,
                     "response_received": True,
-                    "last_response_time": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
+                    "last_response_time": get_current_utc_time(),
+                    "updated_at": get_current_utc_time()
                 }
             }
         )
