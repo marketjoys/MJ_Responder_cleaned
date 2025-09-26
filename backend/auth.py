@@ -72,7 +72,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         else:
             truncated_password = password_bytes[:70].decode('utf-8', errors='ignore')
     
-    return bcrypt.checkpw(truncated_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    # Convert stored hash back to bytes for bcrypt verification
+    try:
+        return bcrypt.checkpw(truncated_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception as e:
+        print(f"DEBUG: Password verification error: {e}")
+        return False
 
 def get_password_hash(password: str) -> str:
     """Hash a password with bcrypt 72-byte limit handling"""
