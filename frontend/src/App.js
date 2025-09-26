@@ -2963,6 +2963,18 @@ const EmailAccounts = () => {
                   )}
                 </div>
                 
+                {account.persona && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <span className="font-medium text-slate-700 text-sm">AI Persona:</span>
+                    <div className="text-slate-600 text-sm mt-1 bg-purple-50 rounded p-2">
+                      {account.persona.length > 150 
+                        ? account.persona.substring(0, 150) + '...'
+                        : account.persona
+                      }
+                    </div>
+                  </div>
+                )}
+                
                 {account.signature && (
                   <div className="mt-4 pt-4 border-t border-slate-200">
                     <span className="font-medium text-slate-700 text-sm">Signature:</span>
