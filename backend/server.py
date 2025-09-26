@@ -3216,7 +3216,7 @@ async def generate_follow_up_content(email: Dict[str, Any], follow_up_number: in
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "llama3-70b-8192",
+                    "model": "llama-3.3-70b-versatile",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": f"Write follow-up #{follow_up_number} for the above email."}
