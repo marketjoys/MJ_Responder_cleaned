@@ -399,7 +399,18 @@ class EmailConnection:
             signature = self.account_config.get('signature', '')
             if signature:
                 if body:
-                    body += f"\n\n{signature}"
+                    # Check if signature is HTML and convert to plain text for plain text email
+                    import re
+                    import html
+                    is_html_signature = bool(re.search(r'<[^>]+>', signature))
+                    if is_html_signature:
+                        # Convert HTML signature to plain text
+                        plain_signature = re.sub(r'<br\s*/?>', '\n', signature, flags=re.IGNORECASE)
+                        plain_signature = re.sub(r'<[^>]+>', '', plain_signature)  # Remove all HTML tags
+                        plain_signature = html.unescape(plain_signature)  # Unescape HTML entities
+                        body += f"\n\n{plain_signature.strip()}"
+                    else:
+                        body += f"\n\n{signature}"
                 if body_html:
                     # Properly convert signature to HTML
                     html_signature = self._convert_signature_to_html(signature)
