@@ -3537,6 +3537,13 @@ async def startup_event():
     global polling_service
     logger.info("🚀 Starting up email assistant services...")
     
+    # Log current date awareness
+    try:
+        current_date_info = format_current_date()
+        logger.info(f"🕒 Email Assistant System initialized for current date: {current_date_info}")
+    except Exception as e:
+        logger.warning(f"⚠️ Date initialization warning: {e}")
+    
     # Initialize all seed data
     await initialize_email_accounts()
     await initialize_intents()
