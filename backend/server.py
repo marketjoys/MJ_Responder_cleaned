@@ -3402,7 +3402,7 @@ async def process_scheduled_follow_ups():
     """Process and send scheduled follow-up emails"""
     try:
         # Get all pending follow-ups that are due
-        current_time = datetime.utcnow()
+        current_time = get_current_utc_time()
         due_follow_ups = await db.follow_up_emails.find({
             "status": "pending",
             "scheduled_time": {"$lte": current_time}
