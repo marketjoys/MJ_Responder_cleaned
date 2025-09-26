@@ -1655,7 +1655,41 @@ async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str
                     avoids_duplicates = False
                     break
     
-    system_prompt = f"""You are Agent B - an enhanced email validator. Check if the FINAL EMAIL (including signature) correctly addresses the email, uses knowledge base information, includes relevant links, and avoids duplicating previous responses.
+    # Adjust validation criteria based on whether intents were identified
+    has_specific_intents = len(intents) > 0
+    
+    if has_specific_intents:
+        # Strict validation when specific intents are identified
+        validation_mode = "STRICT"
+        criteria_text = """VALIDATION CRITERIA (STRICT MODE - Specific intents identified):
+1. Does the final email address each identified intent appropriately?
+2. Is relevant knowledge base information incorporated into the response?
+3. Are required links included naturally in the response?
+4. Does the response avoid duplicating previous thread responses?
+5. Is the tone appropriate and professional?
+6. Are actionable next steps provided where needed?
+7. Is the response length appropriate for the inquiry complexity?
+8. CRITICAL: Does the final email contain any placeholders like [name], [insert link], {{company}}, <add here>, TODO, INSERT, etc.?
+9. CRITICAL: Are all sentences complete without obvious gaps, underscores, or ellipses indicating missing content?
+10. Is the signature properly formatted and professional?
+
+For PASS: The final email must address intents, use available KB information, include relevant links, provide unique content, have proper signature, AND contain NO placeholders or incomplete sections."""
+    else:
+        # Lenient validation when no specific intents are identified
+        validation_mode = "LENIENT"
+        criteria_text = """VALIDATION CRITERIA (LENIENT MODE - No specific intents identified):
+1. Is the response courteous, professional, and acknowledges the sender's message?
+2. Does the email provide a helpful response based on the email context and account persona?
+3. If knowledge base information is available and relevant, is it incorporated appropriately?
+4. Does the response avoid duplicating previous thread responses?
+5. Is the tone appropriate and matches the account persona?
+6. CRITICAL: Does the final email contain any placeholders like [name], [insert link], {{company}}, <add here>, TODO, INSERT, etc.?
+7. CRITICAL: Are all sentences complete without obvious gaps, underscores, or ellipses indicating missing content?
+8. Is the signature properly formatted and professional?
+
+For PASS: The final email should be courteous, professional, acknowledge the sender appropriately, have proper signature, and contain NO placeholders or incomplete sections. Knowledge base integration and specific links are recommended but not required when no specific intents are identified."""
+
+    system_prompt = f"""You are Agent B - an enhanced email validator. You are operating in {validation_mode} MODE.
 
 ORIGINAL EMAIL:
 Subject: {email_message.subject}
@@ -1663,7 +1697,7 @@ From: {email_message.sender}
 Body: {email_message.body}
 
 IDENTIFIED INTENTS TO ADDRESS:
-{chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents"}
+{chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents identified - using lenient validation"}
 
 AVAILABLE KNOWLEDGE BASE INFORMATION:
 {kb_data.get("context", "No knowledge base information available")}
@@ -1680,17 +1714,7 @@ ACCOUNT SIGNATURE:
 FINAL EMAIL TO VALIDATE (INCLUDING SIGNATURE):
 {final_draft['plain_text']}
 
-VALIDATION CRITERIA:
-1. Does the final email address each identified intent appropriately?
-2. Is relevant knowledge base information incorporated into the response?
-3. Are required links included naturally in the response?
-4. Does the response avoid duplicating previous thread responses?
-5. Is the tone appropriate and professional?
-6. Are actionable next steps provided where needed?
-7. Is the response length appropriate for the inquiry complexity?
-8. CRITICAL: Does the final email contain any placeholders like [name], [insert link], {{company}}, <add here>, TODO, INSERT, etc.?
-9. CRITICAL: Are all sentences complete without obvious gaps, underscores, or ellipses indicating missing content?
-10. Is the signature properly formatted and professional?
+{criteria_text}
 
 AUTOMATED CHECK RESULTS:
 - KB Information Available: {kb_info_present}
@@ -1700,8 +1724,7 @@ AUTOMATED CHECK RESULTS:
 
 IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by detailed explanation.
 
-For PASS: The final email must address intents, use available KB information, include relevant links, provide unique content, have proper signature, AND contain NO placeholders or incomplete sections.
-For FAIL: Clearly state what's missing - KB usage, links, intent coverage, duplicate content issues, signature formatting issues, OR any placeholders/incomplete content that must be completed before sending.
+For FAIL: Clearly state what's missing - intent coverage (if in strict mode), KB usage (if available and relevant), links (if required), duplicate content issues, signature formatting issues, OR any placeholders/incomplete content that must be completed before sending.
 
 CRITICAL: This final email (including signature) will be sent to the customer. Ensure it's complete, professional, and ready for delivery without any placeholders or missing information.
 
