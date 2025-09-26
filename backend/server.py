@@ -1523,7 +1523,7 @@ CRITICAL INSTRUCTIONS:
 3. Do not include any reasoning, thinking, or meta-content
 4. MUST use information from the knowledge base when relevant - this is critical
 5. Include relevant links naturally in the response when provided above
-6. Keep response comprehensive but professional (200-400 words when detailed info is needed)
+6. Keep response concise and professional (150-200 words maximum - this is strictly enforced)
 7. Address all identified intents directly using knowledge base information
 8. Maintain a {account.get('persona', 'professional')} tone
 9. Include actionable next steps where appropriate
