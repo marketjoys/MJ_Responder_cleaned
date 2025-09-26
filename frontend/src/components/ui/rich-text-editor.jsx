@@ -179,14 +179,15 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               className="min-h-32 p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               style={{ minHeight: '120px' }}
               onInput={handleContentChange}
-              dangerouslySetInnerHTML={{ __html: value }}
-              placeholder={placeholder}
+              onBlur={handleContentChange}
+              suppressContentEditableWarning={true}
+              data-placeholder={editorContent === '' ? placeholder : ''}
             />
           ) : (
             <textarea
               className="min-h-32 p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full resize-y"
               style={{ minHeight: '120px' }}
-              value={convertToPlainText(value)}
+              value={convertToPlainText(editorContent)}
               onChange={handlePlainTextChange}
               placeholder={placeholder}
             />
