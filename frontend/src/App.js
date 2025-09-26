@@ -2399,6 +2399,7 @@ const EmailAccounts = () => {
       smtp_server: '',
       smtp_port: 587,
       signature: '',
+      persona: '',
       is_active: true
     });
     setAccountType('manual');
