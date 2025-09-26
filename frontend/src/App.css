@@ -256,3 +256,38 @@ body {
   outline: 2px solid #8b5cf6;
   outline-offset: 2px;
 }
+
+/* Signature display styles */
+.signature-display {
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.signature-display p {
+  margin: 0.25rem 0;
+}
+
+.signature-display br {
+  display: block;
+  margin: 0.125rem 0;
+  content: "";
+}
+
+.signature-display a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.signature-display a:hover {
+  text-decoration: underline;
+}
+
+.signature-display strong,
+.signature-display b {
+  font-weight: 600;
+}
+
+.signature-display em,
+.signature-display i {
+  font-style: italic;
+}
