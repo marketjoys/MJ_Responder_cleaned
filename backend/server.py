@@ -1606,18 +1606,41 @@ async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str
     
     signature = account_config.get('signature', '')
     if signature:
-        final_plain_text += f"\n\n{signature}"
-        # Convert signature to HTML properly
+        # Clean signature processing to avoid double HTML encoding
         import html
-        html_signature = html.escape(signature).replace('\n', '<br>')
-        # Convert email addresses to mailto links
         import re
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
-        # Convert URLs to clickable links
-        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
-        html_signature = re.sub(url_pattern, r'<a href="\g<0>">\g<0></a>', html_signature)
-        final_html += f"<br><br>{html_signature}"
+        
+        # Check if signature is already HTML (contains <br> or other HTML tags)
+        is_html_signature = bool(re.search(r'<[^>]+>', signature))
+        
+        if is_html_signature:
+            # Signature is already HTML, extract plain text version for plain_text email
+            plain_signature = re.sub(r'<br\s*/?>', '\n', signature, flags=re.IGNORECASE)
+            plain_signature = re.sub(r'<[^>]+>', '', plain_signature)  # Remove all HTML tags
+            plain_signature = html.unescape(plain_signature)  # Unescape HTML entities
+            final_plain_text += f"\n\n{plain_signature.strip()}"
+            
+            # Use signature as-is for HTML version, but add link enhancements
+            html_signature = signature
+            # Convert email addresses to mailto links (only if not already linked)
+            email_pattern = r'\b(?<!href="mailto:)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b'
+            html_signature = re.sub(email_pattern, r'<a href="mailto:\1">\1</a>', html_signature)
+            # Convert URLs to clickable links (only if not already linked)
+            url_pattern = r'(?<!href=")(https?://[^\s<>"{}|\\^`\[\]]+)(?!")'
+            html_signature = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', html_signature)
+            final_html += f"<br><br>{html_signature}"
+        else:
+            # Signature is plain text, process normally
+            final_plain_text += f"\n\n{signature}"
+            # Convert to HTML properly
+            html_signature = html.escape(signature).replace('\n', '<br>')
+            # Convert email addresses to mailto links
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
+            # Convert URLs to clickable links
+            url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+            html_signature = re.sub(url_pattern, r'<a href="\g<0>" target="_blank">\g<0></a>', html_signature)
+            final_html += f"<br><br>{html_signature}"
     
     # Create final draft object for validation
     final_draft = {
