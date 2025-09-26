@@ -111,7 +111,7 @@ class IntentCreate(BaseModel):
     description: str
     examples: List[str] = []
     system_prompt: str = ""
-    confidence_threshold: float = 0.7
+    confidence_threshold: float = 0.65
     follow_up_hours: int = 24
     is_meeting_related: bool = False
 
