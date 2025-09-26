@@ -3633,7 +3633,7 @@ async def initialize_intents():
                         "This is unacceptable"
                     ],
                     "system_prompt": "Handle complaints with empathy and professionalism. Acknowledge concerns, apologize if appropriate, and provide clear next steps for resolution.",
-                    "confidence_threshold": 0.75,
+                    "confidence_threshold": 0.65,
                     "follow_up_hours": 1,
                     "is_meeting_related": False
                 },
