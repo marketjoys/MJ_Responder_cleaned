@@ -81,7 +81,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         else:
             truncated_password = password_bytes[:70].decode('utf-8', errors='ignore')
     
-    return pwd_context.verify(truncated_password, hashed_password)
+    return bcrypt.checkpw(truncated_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
     """Hash a password with bcrypt 72-byte limit handling"""
