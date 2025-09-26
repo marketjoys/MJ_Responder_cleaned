@@ -2978,7 +2978,10 @@ const EmailAccounts = () => {
                 {account.signature && (
                   <div className="mt-4 pt-4 border-t border-slate-200">
                     <span className="font-medium text-slate-700 text-sm">Signature:</span>
-                    <div className="text-slate-600 text-sm mt-1">{account.signature}</div>
+                    <div 
+                      className="text-slate-600 text-sm mt-1 signature-display" 
+                      dangerouslySetInnerHTML={{ __html: account.signature }}
+                    />
                   </div>
                 )}
               </CardContent>
