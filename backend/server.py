@@ -49,6 +49,25 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Current date/time utility functions (July 2025 context)
+def get_current_utc_time() -> datetime:
+    """Get current UTC time - system is aware we're in July 2025"""
+    return datetime.utcnow()
+
+def get_current_time_with_tz(timezone_str: str = 'UTC') -> datetime:
+    """Get current time in specified timezone"""
+    tz = pytz.timezone(timezone_str)
+    return datetime.now(tz)
+
+def format_current_date() -> str:
+    """Format current date for display"""
+    now = get_current_utc_time()
+    return now.strftime("%B %d, %Y at %H:%M UTC")  # e.g., "July 26, 2025 at 14:30 UTC"
+
+# Log current system date awareness
+current_date_info = format_current_date()
+print(f"🕒 Email Assistant System initialized for current date: {current_date_info}")
+
 # Create the main app without a prefix
 app = FastAPI(title="Automated Email Assistant API")
 
