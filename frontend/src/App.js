@@ -2681,6 +2681,34 @@ const EmailAccounts = () => {
                   </Tabs>
                 </div>
 
+                {/* Email Persona Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <User className="h-5 w-5 text-purple-600" />
+                    <h3 className="text-lg font-semibold text-slate-800">AI Persona</h3>
+                  </div>
+                  
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div>
+                      <Label htmlFor="persona" className="text-sm font-medium mb-2">
+                        Persona Description
+                      </Label>
+                      <textarea
+                        id="persona"
+                        name="persona"
+                        value={formData.persona}
+                        onChange={(e) => setFormData(prev => ({ ...prev, persona: e.target.value }))}
+                        placeholder="I am a professional and helpful assistant representing this organization. I respond courteously to all inquiries and provide accurate, relevant information with a friendly and knowledgeable tone."
+                        className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
+                        rows={4}
+                      />
+                      <p className="text-xs text-slate-500 mt-2">
+                        This persona defines how the AI will respond to emails - the tone, style, and approach it will use.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Email Signature Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
