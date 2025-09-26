@@ -57,10 +57,11 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
   const insertTemplate = (template) => {
     if (!editorRef.current) {
       // If editor ref is not available, update the value directly
-      const currentContent = value || '';
+      const currentContent = editorContent || '';
       const plainCurrentContent = convertToPlainText(currentContent);
       const plainTemplate = convertToPlainText(template);
       const newContent = convertToHtml(plainCurrentContent + (plainCurrentContent ? '\n\n' : '') + plainTemplate);
+      setEditorContent(newContent);
       onChange(newContent);
       return;
     }
@@ -68,6 +69,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
     const currentContent = editorRef.current.innerHTML || '';
     const newContent = currentContent + (currentContent ? '<br><br>' : '') + template;
     editorRef.current.innerHTML = newContent;
+    setEditorContent(newContent);
     onChange(newContent);
   };
 
