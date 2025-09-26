@@ -3680,7 +3680,7 @@ async def initialize_intents():
                         "Let's have a discussion about"
                     ],
                     "system_prompt": "Respond professionally to meeting requests. Acknowledge the request, suggest available time slots, and ask for any specific requirements or agenda items. Be helpful in coordinating schedules.",
-                    "confidence_threshold": 0.7,
+                    "confidence_threshold": 0.65,
                     "follow_up_hours": 24,
                     "is_meeting_related": True
                 },
