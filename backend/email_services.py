@@ -42,27 +42,43 @@ class EmailConnection:
         self.uidvalidity = account_config.get('uidvalidity', None)
         
     def _convert_signature_to_html(self, signature: str) -> str:
-        """Convert plain text signature to proper HTML format"""
+        """Convert signature to proper HTML format, handling both plain text and HTML signatures"""
         if not signature:
             return ""
         
-        # Escape HTML characters first
         import html
-        html_signature = html.escape(signature)
-        
-        # Convert newlines to <br> tags
-        html_signature = html_signature.replace('\n', '<br>')
-        
-        # Convert email addresses to mailto links
         import re
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
         
-        # Convert URLs to clickable links
-        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
-        html_signature = re.sub(url_pattern, r'<a href="\g<0>">\g<0></a>', html_signature)
+        # Check if signature is already HTML (contains <br> or other HTML tags)
+        is_html_signature = bool(re.search(r'<[^>]+>', signature))
         
-        return html_signature
+        if is_html_signature:
+            # Signature is already HTML, just enhance with links if needed
+            html_signature = signature
+            # Convert email addresses to mailto links (only if not already linked)
+            email_pattern = r'\b(?<!href="mailto:)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b'
+            html_signature = re.sub(email_pattern, r'<a href="mailto:\1">\1</a>', html_signature)
+            # Convert URLs to clickable links (only if not already linked)
+            url_pattern = r'(?<!href=")(https?://[^\s<>"{}|\\^`\[\]]+)(?!")'
+            html_signature = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', html_signature)
+            return html_signature
+        else:
+            # Signature is plain text, process normally
+            # Escape HTML characters first
+            html_signature = html.escape(signature)
+            
+            # Convert newlines to <br> tags
+            html_signature = html_signature.replace('\n', '<br>')
+            
+            # Convert email addresses to mailto links
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            html_signature = re.sub(email_pattern, r'<a href="mailto:\g<0>">\g<0></a>', html_signature)
+            
+            # Convert URLs to clickable links
+            url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+            html_signature = re.sub(url_pattern, r'<a href="\g<0>" target="_blank">\g<0></a>', html_signature)
+            
+            return html_signature
 
     def _is_connection_healthy(self) -> bool:
         """Check if IMAP connection is healthy and ready to use"""
