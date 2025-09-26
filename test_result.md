@@ -134,6 +134,18 @@ backend:
         agent: "testing"
         comment: "✅ VERIFIED: Email account creation with signature field working perfectly. Accounts store signature, persona, enable_follow_ups, and auto_send fields correctly. Database schema updated properly. Password masking in API responses working. Minor issue: password masking inconsistent in some responses."
 
+  - task: "Follow-up Cancellation System"
+    implemented: true
+    working: false
+    file: "server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL ISSUE IDENTIFIED: Follow-up cancellation system has a fundamental logic flaw. Current implementation in process_email_async() and detect_and_handle_responses() incorrectly checks if email sender != original thread sender, but this fails in customer inquiry scenarios. When customer sends inquiry -> business responds -> customer replies, the customer reply has SAME sender as original, so no cancellation occurs. Root cause: Logic should check if email sender matches pending follow-up RECIPIENTS, not compare with original thread sender. Background services are running (follow-up processing and response detection every 5 minutes), but 100% of follow-ups remain stuck in 'pending' status due to this logic error. Thread detection working correctly (3 threads found, proper thread_id assignment). Database queries functional but show 0 cancelled follow-ups and 1 orphaned thread. SOLUTION NEEDED: Fix response detection logic in lines 2245-2268 of server.py to check against follow-up recipients instead of original senders."
+
 frontend:
   - task: "Signature Typing Functionality"
     implemented: true
