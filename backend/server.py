@@ -2871,8 +2871,8 @@ async def redraft_email(email_id: str):
     return EmailMessage(**updated_email)
 
 @api_router.get("/emails", response_model=List[EmailMessage])
-async def get_emails():
-    emails = await db.emails.find().sort("received_at", -1).to_list(100)
+async def get_emails(current_user: User = Depends(get_current_active_user)):
+    emails = await db.emails.find({"user_id": current_user.id}).sort("received_at", -1).to_list(100)
     return [EmailMessage(**email) for email in emails]
 
 @api_router.get("/emails/threads")
