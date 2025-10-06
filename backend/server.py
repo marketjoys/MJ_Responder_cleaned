@@ -379,6 +379,77 @@ class EmailMessage(BaseModel):
 # Import email services and model
 from email_services import get_polling_service, EmailConnection
 
+# Data Migration Functions
+async def migrate_existing_data_to_users():
+    """Migrate existing data to assign user ownership"""
+    logger.info("🔄 Starting data migration to assign user ownership...")
+    
+    try:
+        # Get the first user to assign existing data to
+        first_user = await db.users.find_one({}, sort=[("created_at", 1)])
+        if not first_user:
+            logger.warning("⚠️  No users found. Creating default admin user for migration...")
+            # Create a default admin user
+            from auth import hash_password
+            default_user = {
+                "id": str(uuid.uuid4()),
+                "email": "admin@example.com", 
+                "full_name": "Admin User",
+                "hashed_password": hash_password("admin123"),
+                "timezone": "UTC",
+                "email_quota": 10000,
+                "emails_used": 0,
+                "is_active": True,
+                "created_at": datetime.utcnow()
+            }
+            await db.users.insert_one(default_user)
+            first_user = default_user
+            logger.info(f"✅ Created default admin user: {default_user['email']}")
+        
+        admin_user_id = first_user["id"]
+        logger.info(f"🎯 Migrating data to user: {first_user['email']} ({admin_user_id})")
+        
+        # Migrate Intents
+        intents_without_user = await db.intents.count_documents({"user_id": {"$exists": False}})
+        if intents_without_user > 0:
+            result = await db.intents.update_many(
+                {"user_id": {"$exists": False}},
+                {"$set": {"user_id": admin_user_id}}
+            )
+            logger.info(f"✅ Migrated {result.modified_count} intents to user {admin_user_id}")
+        
+        # Migrate Knowledge Base
+        kb_without_user = await db.knowledge_base.count_documents({"user_id": {"$exists": False}})
+        if kb_without_user > 0:
+            result = await db.knowledge_base.update_many(
+                {"user_id": {"$exists": False}},
+                {"$set": {"user_id": admin_user_id}}
+            )
+            logger.info(f"✅ Migrated {result.modified_count} knowledge base items to user {admin_user_id}")
+        
+        # Migrate Email Accounts
+        accounts_without_user = await db.email_accounts.count_documents({"user_id": {"$exists": False}})
+        if accounts_without_user > 0:
+            result = await db.email_accounts.update_many(
+                {"user_id": {"$exists": False}},
+                {"$set": {"user_id": admin_user_id}}
+            )
+            logger.info(f"✅ Migrated {result.modified_count} email accounts to user {admin_user_id}")
+        
+        # Migrate Email Messages  
+        emails_without_user = await db.emails.count_documents({"user_id": {"$exists": False}})
+        if emails_without_user > 0:
+            result = await db.emails.update_many(
+                {"user_id": {"$exists": False}},
+                {"$set": {"user_id": admin_user_id}}
+            )
+            logger.info(f"✅ Migrated {result.modified_count} emails to user {admin_user_id}")
+        
+        logger.info("🎉 Data migration completed successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Error during data migration: {str(e)}")
+        raise
 # Rate limiter for Groq API
 class TokenBucketRateLimiter:
     def __init__(self, max_tokens=5000, refill_rate=100):  # 5000 tokens with 100/minute refill
