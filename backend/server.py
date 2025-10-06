@@ -1260,11 +1260,17 @@ async def delete_knowledge_base(kb_id: str, current_user: User = Depends(get_cur
 
 # Email Processing Routes
 @api_router.post("/emails/test")
-async def test_email_processing(request: EmailTestRequest, background_tasks: BackgroundTasks):
+async def test_email_processing(request: EmailTestRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_active_user)):
     """Test email processing with manual input - non-blocking for production readiness"""
+    # Verify account belongs to user
+    account_doc = await db.email_accounts.find_one({"id": request.account_id, "user_id": current_user.id})
+    if not account_doc:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
     # Create a test email message
     email_obj = EmailMessage(
         account_id=request.account_id,
+        user_id=current_user.id,  # Set user_id from authenticated user
         message_id=f"test-{uuid.uuid4()}",
         thread_id=f"thread-{uuid.uuid4()}",
         subject=request.subject,
