@@ -1215,8 +1215,8 @@ async def create_knowledge_base(kb: KnowledgeBaseCreate, current_user: User = De
     return kb_obj
 
 @api_router.get("/knowledge-base", response_model=List[KnowledgeBase])
-async def get_knowledge_base():
-    kb_items = await db.knowledge_base.find().to_list(1000)
+async def get_knowledge_base(current_user: User = Depends(get_current_active_user)):
+    kb_items = await db.knowledge_base.find({"user_id": current_user.id}).to_list(1000)
     return [KnowledgeBase(**kb) for kb in kb_items]
 
 @api_router.get("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
