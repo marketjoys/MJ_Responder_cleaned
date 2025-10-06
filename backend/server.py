@@ -3001,16 +3001,51 @@ async def send_follow_up_email(
         if not account:
             raise HTTPException(status_code=404, detail="Email account not found")
         
+        # Validate follow-up email if not already validated
+        if follow_up.get("validation_status") != "validated":
+            logger.info(f"Validating follow-up {follow_up_id} before manual send")
+            
+            validation_result = await validate_follow_up_email(follow_up, account)
+            
+            # Update follow-up with validation results
+            await db.follow_up_emails.update_one(
+                {"id": follow_up_id},
+                {"$set": {
+                    "validation_result": validation_result,
+                    "validation_status": "validated" if validation_result["status"] == "PASS" else "failed",
+                    "final_content": validation_result["final_plain_text"],
+                    "final_html": validation_result["final_html"],
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            
+            if validation_result["status"] != "PASS":
+                await db.follow_up_emails.update_one(
+                    {"id": follow_up_id},
+                    {"$set": {
+                        "status": "failed",
+                        "error_message": f"Validation failed: {validation_result.get('feedback', 'Unknown validation error')}",
+                        "updated_at": datetime.utcnow()
+                    }}
+                )
+                raise HTTPException(status_code=400, detail=f"Follow-up validation failed: {validation_result.get('feedback')}")
+            
+            # Update follow_up with validated content
+            follow_up["final_content"] = validation_result["final_plain_text"]
+            follow_up["final_html"] = validation_result["final_html"]
+        
         # Import EmailConnection here to avoid circular imports
         from email_services import EmailConnection
         
-        # Send the follow-up email
+        # Send the validated follow-up email
         connection = EmailConnection(account)
         success = connection.send_email(
             to_email=follow_up["recipient_email"],
             subject=follow_up["subject"],
-            body=follow_up["draft_content"],
-            body_html=follow_up["draft_html"]
+            body=follow_up.get("final_content", follow_up["draft_content"]),
+            body_html=follow_up.get("final_html", follow_up["draft_html"]),
+            references=follow_up.get("thread_id", ""),
+            signature_already_included=True  # Validation process already added signature
         )
         
         if success:
@@ -3023,18 +3058,18 @@ async def send_follow_up_email(
                     "updated_at": datetime.utcnow()
                 }}
             )
-            return {"message": "Follow-up email sent successfully"}
+            return {"message": "Follow-up email sent successfully with validation"}
         else:
             # Update with error status
             await db.follow_up_emails.update_one(
                 {"id": follow_up_id},
                 {"$set": {
                     "status": "failed",
-                    "error_message": "Failed to send email",
+                    "error_message": "Failed to send email after validation",
                     "updated_at": datetime.utcnow()
                 }}
             )
-            raise HTTPException(status_code=500, detail="Failed to send follow-up email")
+            raise HTTPException(status_code=500, detail="Failed to send follow-up email after validation")
             
     except Exception as e:
         logger.error(f"Error sending follow-up email {follow_up_id}: {str(e)}")
