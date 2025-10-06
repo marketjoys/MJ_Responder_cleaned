@@ -883,10 +883,10 @@ async def main():
         print("="*80)
         
         # Test 1: Message Broker Verification
-        tester.test_message_broker_verification()
+        await tester.test_message_broker_verification()
         
         # Test 2: Email Processing with RQ
-        tester.test_email_processing_with_rq()
+        await tester.test_email_processing_with_rq()
         
         # Test 3: Follow-up Creation on Auto-Send
         await tester.test_follow_up_creation_auto_send()
@@ -898,7 +898,7 @@ async def main():
         await tester.test_follow_up_cancellation_on_reply()
         
         # Test 6: Queue Stats and Monitoring
-        tester.test_queue_stats_and_monitoring()
+        await tester.test_queue_stats_and_monitoring()
         
         # Print summary
         tester.print_summary()
