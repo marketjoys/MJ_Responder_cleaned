@@ -3437,7 +3437,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
         account = await db.email_accounts.find_one({"id": account_id})
         if not account.get("enable_follow_ups", True):
             logger.info(f"Follow-ups disabled for account {account_id}")
-            return
+            return {"status": "skipped", "email_id": email_id, "reason": "Follow-ups disabled for account"}
         
         # Calculate follow-up schedules
         max_follow_ups = account.get("max_follow_ups_override") or follow_up_config.get("max_follow_ups", 3)
