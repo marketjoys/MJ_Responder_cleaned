@@ -942,8 +942,9 @@ async def confirm_meeting_intent(
             detail=f"Failed to confirm meeting: {str(e)}"
         )
 @api_router.post("/intents", response_model=Intent)
-async def create_intent(intent: IntentCreate):
+async def create_intent(intent: IntentCreate, current_user: User = Depends(get_current_active_user)):
     intent_dict = intent.dict()
+    intent_dict["user_id"] = current_user.id  # Assign to current user
     intent_obj = Intent(**intent_dict)
     
     # Create embedding for intent description + examples
