@@ -3409,7 +3409,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
             
             if response_emails:
                 logger.info(f"Thread {thread_id} already has {len(response_emails)} responses - skipping follow-up creation")
-                return
+                return {"status": "skipped", "email_id": email_id, "reason": "Thread already has responses"}
         
         # Get user from account if not provided
         if not user_id:
