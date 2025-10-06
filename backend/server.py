@@ -1110,15 +1110,15 @@ async def delete_email_account(account_id: str, current_user: User = Depends(get
     return {"message": "Email account deleted successfully"}
 
 @api_router.put("/email-accounts/{account_id}/toggle")
-async def toggle_email_account(account_id: str):
+async def toggle_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
     """Toggle email account active status"""
-    account = await db.email_accounts.find_one({"id": account_id})
+    account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
     new_status = not account.get("is_active", True)
     await db.email_accounts.update_one(
-        {"id": account_id},
+        {"id": account_id, "user_id": current_user.id},
         {"$set": {"is_active": new_status}}
     )
     
