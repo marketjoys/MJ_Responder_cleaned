@@ -1248,8 +1248,8 @@ async def delete_knowledge_base(kb_id: str):
 
 # Email Processing Routes
 @api_router.post("/emails/test")
-async def test_email_processing(request: EmailTestRequest):
-    """Test email processing with manual input"""
+async def test_email_processing(request: EmailTestRequest, background_tasks: BackgroundTasks):
+    """Test email processing with manual input - non-blocking for production readiness"""
     # Create a test email message
     email_obj = EmailMessage(
         account_id=request.account_id,
@@ -1260,24 +1260,30 @@ async def test_email_processing(request: EmailTestRequest):
         recipient="test@example.com",
         body=request.body,
         received_at=datetime.utcnow(),
-        status="processing"
+        status="queued"
     )
     
     # Store in database
     await db.emails.insert_one(email_obj.dict())
     
-    # Process the email using RQ if available
+    # Process the email using RQ if available, otherwise use background tasks
+    job_id = None
     if RQ_ENABLED:
         job = enqueue_email_processing(email_obj.id)
+        job_id = job.id
         logger.info(f"📋 Enqueued test email processing: {email_obj.id} (Job ID: {job.id})")
-        # For test endpoint, we still process synchronously to return results
-        await process_email_async(email_obj.id)
     else:
-        await process_email_async(email_obj.id)
+        # Use FastAPI background tasks for non-blocking processing
+        background_tasks.add_task(process_email_async, email_obj.id)
+        logger.info(f"📋 Added test email to background tasks: {email_obj.id}")
     
-    # Return processed email
-    processed_email = await db.emails.find_one({"id": email_obj.id})
-    return EmailMessage(**processed_email)
+    # Return immediately with email ID and status for polling
+    return {
+        "email_id": email_obj.id,
+        "status": "queued",
+        "job_id": job_id,
+        "message": "Email processing started. Use GET /api/emails/{email_id} to check status."
+    }
 
 @api_router.post("/emails/{email_id}/send")
 async def send_email_reply(email_id: str, request: SendEmailRequest):
