@@ -355,6 +355,7 @@ class ThreadSummary(BaseModel):
 class EmailMessage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     account_id: str
+    user_id: str  # User who owns this email (derived from account)
     message_id: str
     thread_id: str
     subject: str
