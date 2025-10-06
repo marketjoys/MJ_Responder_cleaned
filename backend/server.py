@@ -4661,10 +4661,14 @@ async def initialize_test_emails():
                 logger.warning("⚠️  No email accounts found, skipping test email initialization")
                 return
             
+            # Get user_id from account for test emails
+            user_id = account.get("user_id", "default_user")
+            
             test_emails = [
                 {
                     "id": str(uuid.uuid4()),
                     "account_id": account["id"],
+                    "user_id": user_id,
                     "message_id": f"test-msg-{uuid.uuid4()}",
                     "thread_id": f"test-thread-{uuid.uuid4()}",
                     "subject": "Inquiry about your AI Email Assistant",
