@@ -3497,9 +3497,13 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
             
             await db.follow_up_emails.insert_one(follow_up_email.dict())
             logger.info(f"Created follow-up #{follow_up_num} for email {email_id}, scheduled for {scheduled_time}")
+        
+        logger.info(f"✅ Successfully created {max_follow_ups} follow-ups for email {email_id}")
+        return {"status": "success", "follow_ups_created": max_follow_ups, "email_id": email_id}
     
     except Exception as e:
         logger.error(f"Error creating follow-up for email {email_id}: {str(e)}")
+        return {"status": "error", "email_id": email_id, "error": str(e)}
 
 async def cancel_follow_ups_for_thread(thread_id: str, reason: str = "Response received"):
     """Cancel all pending follow-ups for a thread when a response is received"""
