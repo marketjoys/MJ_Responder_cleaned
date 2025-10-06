@@ -1027,8 +1027,8 @@ async def create_email_account(account: EmailAccountCreate, current_user: User =
     return account_obj
 
 @api_router.get("/email-accounts", response_model=List[EmailAccount])
-async def get_email_accounts():
-    accounts = await db.email_accounts.find().to_list(1000)
+async def get_email_accounts(current_user: User = Depends(get_current_active_user)):
+    accounts = await db.email_accounts.find({"user_id": current_user.id}).to_list(1000)
     # Don't return passwords in response
     for account in accounts:
         account["password"] = "***"
