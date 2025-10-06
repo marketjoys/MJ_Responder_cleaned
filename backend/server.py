@@ -3645,16 +3645,17 @@ async def cancel_follow_ups_for_recipient(thread_id: str, recipient_email: str, 
         logger.error(f"❌ Error cancelling follow-ups for recipient {recipient_email} in thread {thread_id}: {str(e)}")
         logger.exception(e)  # Log full traceback
         return 0
-        
-    except Exception as e:
-        logger.error(f"Error cancelling follow-ups for recipient {recipient_email} in thread {thread_id}: {str(e)}")
-        return 0
 
 async def detect_and_handle_responses():
-    """Background task to detect responses and cancel follow-ups"""
+    """
+    Background task to detect responses and cancel follow-ups.
+    Enhanced with email normalization for better matching.
+    """
     try:
         # Find threads with pending follow-ups
         pending_threads = await db.follow_up_emails.distinct("thread_id", {"status": "pending"})
+        
+        logger.info(f"🔍 Response detection: Checking {len(pending_threads)} threads with pending follow-ups")
         
         for thread_id in pending_threads:
             # Get all pending follow-ups for this thread
@@ -3671,30 +3672,42 @@ async def detect_and_handle_responses():
                 "thread_id": thread_id
             }).sort("received_at", 1).to_list(100)
             
+            logger.info(f"📧 Thread {thread_id}: {len(pending_follow_ups)} pending follow-ups, {len(thread_emails)} total emails")
+            
             # For each pending follow-up, check if the recipient has replied
             for follow_up in pending_follow_ups:
-                recipient_email = follow_up.get("recipient_email", "").lower()
+                recipient_email = follow_up.get("recipient_email", "").lower().strip()
+                normalized_recipient = normalize_email_for_matching(recipient_email)
                 follow_up_created = follow_up.get("created_at", datetime.min)
                 
                 # Check if recipient has sent any emails in this thread after follow-up was created
-                recipient_replies = [
-                    email for email in thread_emails
-                    if (email.get("sender", "").lower() == recipient_email and
-                        email.get("received_at", datetime.min) > follow_up_created)
-                ]
+                # Use normalized email comparison
+                recipient_replies = []
+                for email in thread_emails:
+                    email_sender = email.get("sender", "").lower().strip()
+                    normalized_sender = normalize_email_for_matching(email_sender)
+                    email_received = email.get("received_at", datetime.min)
+                    
+                    if normalized_sender == normalized_recipient and email_received > follow_up_created:
+                        recipient_replies.append(email)
+                        logger.info(f"✅ Reply detected: {email_sender} (normalized: {normalized_sender}) matches follow-up recipient {recipient_email}")
                 
                 if recipient_replies:
                     # Recipient has replied - cancel this specific follow-up
+                    logger.info(f"🎯 Triggering cancellation for {recipient_email} based on {len(recipient_replies)} replies")
                     cancelled_count = await cancel_follow_ups_for_recipient(
                         thread_id,
                         recipient_email,
                         f"Background detection: Reply received from {recipient_email}"
                     )
                     if cancelled_count > 0:
-                        logger.info(f"Thread {thread_id}: Background service detected reply from {recipient_email}, cancelled {cancelled_count} follow-ups")
+                        logger.info(f"✅ Thread {thread_id}: Background service detected reply from {recipient_email}, cancelled {cancelled_count} follow-ups")
+                    else:
+                        logger.warning(f"⚠️ Thread {thread_id}: Expected to cancel follow-ups for {recipient_email} but cancelled_count is 0")
         
     except Exception as e:
-        logger.error(f"Error in response detection: {str(e)}")
+        logger.error(f"❌ Error in response detection: {str(e)}")
+        logger.exception(e)
 
 def adjust_to_business_hours(target_time: datetime, start_hour: int, end_hour: int, 
                            business_days: List[int], exclude_weekends: bool) -> datetime:
