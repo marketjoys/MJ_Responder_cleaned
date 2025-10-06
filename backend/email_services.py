@@ -688,12 +688,24 @@ class EmailPollingService:
             if existing:
                 return  # Skip duplicate
             
+            # Get user_id from the account
+            account_doc = await self.db.email_accounts.find_one({"id": email_data['account_id']})
+            if not account_doc:
+                logger.error(f"Account {email_data['account_id']} not found for email processing")
+                return
+            
+            user_id = account_doc.get("user_id")
+            if not user_id:
+                logger.error(f"No user_id found for account {email_data['account_id']}")
+                return
+            
             # Import EmailMessage dynamically to avoid circular imports
             from server import EmailMessage
             
             # Create email record
             email_obj = EmailMessage(
                 account_id=email_data['account_id'],
+                user_id=user_id,  # Set user_id from account
                 message_id=email_data['message_id'],
                 thread_id=email_data['thread_id'],
                 subject=email_data['subject'],
