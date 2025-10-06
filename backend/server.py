@@ -1044,9 +1044,9 @@ async def get_email_account(account_id: str, current_user: User = Depends(get_cu
     return EmailAccount(**account_doc)
 
 @api_router.put("/email-accounts/{account_id}", response_model=EmailAccount)
-async def update_email_account(account_id: str, account: EmailAccountCreate):
-    # Check if account exists
-    existing_account = await db.email_accounts.find_one({"id": account_id})
+async def update_email_account(account_id: str, account: EmailAccountCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if account exists and belongs to user
+    existing_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     if not existing_account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
@@ -1078,12 +1078,12 @@ async def update_email_account(account_id: str, account: EmailAccountCreate):
     
     # Update in database
     await db.email_accounts.update_one(
-        {"id": account_id},
+        {"id": account_id, "user_id": current_user.id},
         {"$set": update_data}
     )
     
     # Return updated account (without password)
-    updated_account = await db.email_accounts.find_one({"id": account_id})
+    updated_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     updated_account["password"] = "***"
     return EmailAccount(**updated_account)
 
