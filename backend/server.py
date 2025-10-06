@@ -3416,7 +3416,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
             account = await db.email_accounts.find_one({"id": account_id})
             if not account:
                 logger.error(f"Account {account_id} not found for follow-up creation")
-                return
+                return {"status": "error", "email_id": email_id, "error": "Account not found"}
             # For now, we'll use a default user_id or get it from account if available
             user_id = account.get("user_id", "default_user")
         
