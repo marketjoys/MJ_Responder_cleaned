@@ -3142,12 +3142,12 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
                     follow_up_config.get("exclude_weekends", True)
                 )
             
-            # Generate follow-up content based on number
-            follow_up_content = await generate_follow_up_content(
-                email, follow_up_num, account.get("custom_follow_up_template")
-            )
+            # Generate follow-up draft using the same AI pipeline as regular emails
+            follow_up_draft_result = await generate_follow_up_draft(email, follow_up_num, account)
+            draft = follow_up_draft_result["draft"]
+            intents = follow_up_draft_result["intents"]
             
-            # Create follow-up email record
+            # Create follow-up email record with draft content (validation will be done at send time)
             follow_up_email = FollowUpEmail(
                 original_email_id=email_id,
                 account_id=account_id,
@@ -3157,8 +3157,10 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
                 subject=f"{subject} - Follow-up #{follow_up_num}",
                 follow_up_number=follow_up_num,
                 scheduled_time=scheduled_time,
-                draft_content=follow_up_content["text"],
-                draft_html=follow_up_content["html"]
+                draft_content=draft["content"],
+                draft_html=draft.get("html", ""),
+                intents=intents,
+                validation_status="pending"
             )
             
             await db.follow_up_emails.insert_one(follow_up_email.dict())
