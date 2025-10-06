@@ -226,10 +226,8 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Production Readiness Fixes - API Timeout & Follow-up Cancellation"
-  stuck_tasks:
-    - "Production Readiness Fixes - API Timeout & Follow-up Cancellation"
+  current_focus: []
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
