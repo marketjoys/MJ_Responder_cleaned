@@ -3390,7 +3390,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
         email = await db.emails.find_one({"id": email_id})
         if not email:
             logger.error(f"Email {email_id} not found for follow-up creation")
-            return
+            return {"status": "error", "email_id": email_id, "error": "Email not found"}
         
         # CRITICAL: Check if thread already has responses - if so, don't create follow-ups
         thread_id = email.get("thread_id", "")
