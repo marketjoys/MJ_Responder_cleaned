@@ -1461,7 +1461,7 @@ async def classify_email_intents(email_message: EmailMessage) -> List[Dict[str, 
     return intent_scores[:3]
 
 async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, Any]]) -> Dict[str, str]:
-    """Generate email draft using Agent A (Groq API) with enhanced KB usage and link insertion"""
+    """Generate email draft using Parlant-enhanced Agent with improved control and reliability"""
     
     # Skip generating draft for delivery errors
     if is_bounce_or_delivery_error(email_message):
@@ -1471,6 +1471,18 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
             "html": "",
             "reasoning": "Skipped - delivery error/bounce email detected"
         }
+    
+    # Parlant Framework Integration - Enhanced context preparation
+    email_context = {
+        "body": email_message.body,
+        "subject": email_message.subject,
+        "sender": email_message.sender,
+        "account_id": email_message.account_id
+    }
+    
+    # Get Parlant guidelines and enhanced context
+    parlant_enhancement = await parlant_framework.enhance_draft_generation(email_context, intents)
+    enhanced_guidelines = parlant_enhancement.get("guidelines_to_follow", [])
     
     # Get account info
     account = await db.email_accounts.find_one({"id": email_message.account_id})
