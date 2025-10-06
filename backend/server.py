@@ -4040,19 +4040,39 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Failed to start calendar reminder service: {str(e)}")
     
-    # Start follow-up processing service
-    try:
-        asyncio.create_task(follow_up_service())
-        logger.info("✅ Follow-up processing service started")
-    except Exception as e:
-        logger.error(f"❌ Failed to start follow-up processing service: {str(e)}")
-    
-    # Start response detection service
-    try:
-        asyncio.create_task(response_detection_service())
-        logger.info("✅ Response detection service started")
-    except Exception as e:
-        logger.error(f"❌ Failed to start response detection service: {str(e)}")
+    # Initialize RQ scheduler and background tasks
+    if RQ_ENABLED:
+        try:
+            schedule_periodic_tasks()
+            logger.info("✅ RQ periodic tasks scheduled (follow-ups, response detection)")
+        except Exception as e:
+            logger.error(f"❌ Failed to schedule RQ tasks: {str(e)}")
+            # Fallback to asyncio tasks
+            try:
+                asyncio.create_task(follow_up_service())
+                logger.info("✅ Follow-up processing service started (fallback)")
+            except Exception as fallback_e:
+                logger.error(f"❌ Failed to start follow-up service fallback: {str(fallback_e)}")
+            
+            try:
+                asyncio.create_task(response_detection_service())
+                logger.info("✅ Response detection service started (fallback)")
+            except Exception as fallback_e:
+                logger.error(f"❌ Failed to start response detection fallback: {str(fallback_e)}")
+    else:
+        # Fallback to asyncio background tasks if RQ not available
+        logger.info("⚠️ RQ not available, using asyncio background tasks")
+        try:
+            asyncio.create_task(follow_up_service())
+            logger.info("✅ Follow-up processing service started")
+        except Exception as e:
+            logger.error(f"❌ Failed to start follow-up processing service: {str(e)}")
+        
+        try:
+            asyncio.create_task(response_detection_service())
+            logger.info("✅ Response detection service started")
+        except Exception as e:
+            logger.error(f"❌ Failed to start response detection service: {str(e)}")
     
     logger.info("🎉 Email assistant system fully initialized and ready!")
 
