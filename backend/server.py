@@ -1136,9 +1136,9 @@ async def toggle_email_account(account_id: str, current_user: User = Depends(get
     return {"message": f"Account {'activated' if new_status else 'deactivated'} successfully"}
 
 @api_router.post("/email-accounts/{account_id}/polling")
-async def control_account_polling(account_id: str, request: PollingControlRequest):
+async def control_account_polling(account_id: str, request: PollingControlRequest, current_user: User = Depends(get_current_active_user)):
     """Control polling for individual email account"""
-    account = await db.email_accounts.find_one({"id": account_id})
+    account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     if not account:
         raise HTTPException(status_code=404, detail="Email account not found")
     
