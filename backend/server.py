@@ -4716,6 +4716,7 @@ async def initialize_test_emails():
                 {
                     "id": str(uuid.uuid4()),
                     "account_id": account["id"],
+                    "user_id": user_id,
                     "message_id": f"test-msg-{uuid.uuid4()}",
                     "thread_id": f"test-thread-{uuid.uuid4()}",
                     "subject": "Technical Support Needed",
