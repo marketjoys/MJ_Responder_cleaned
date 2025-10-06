@@ -2419,12 +2419,22 @@ async def auto_send_email(email_id: str):
                     # Get user ID (assuming we can derive it from account)
                     user_doc = await db.users.find_one({"email": account_doc.get("email")})
                     if user_doc:
-                        await create_follow_up_for_email(
-                            email_id, 
-                            account_doc['id'], 
-                            user_doc['id']
-                        )
-                        logger.info(f"📅 Created follow-up schedule for email: {email_doc['subject']}")
+                        # Use RQ if available, otherwise direct call
+                        if RQ_ENABLED:
+                            enqueue_create_follow_up(
+                                email_id,
+                                account_doc['id'],
+                                user_doc['id'],
+                                delay=2  # Small delay to ensure email is sent
+                            )
+                            logger.info(f"📋 Enqueued follow-up creation for email: {email_doc['subject']}")
+                        else:
+                            await create_follow_up_for_email(
+                                email_id, 
+                                account_doc['id'], 
+                                user_doc['id']
+                            )
+                            logger.info(f"📅 Created follow-up schedule for email: {email_doc['subject']}")
                 except Exception as e:
                     logger.error(f"Error creating follow-up for email {email_id}: {str(e)}")
             
