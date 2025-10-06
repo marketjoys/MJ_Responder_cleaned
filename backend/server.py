@@ -1200,8 +1200,9 @@ async def control_account_polling(account_id: str, request: PollingControlReques
 
 # Knowledge Base Routes
 @api_router.post("/knowledge-base", response_model=KnowledgeBase)
-async def create_knowledge_base(kb: KnowledgeBaseCreate):
+async def create_knowledge_base(kb: KnowledgeBaseCreate, current_user: User = Depends(get_current_active_user)):
     kb_dict = kb.dict()
+    kb_dict["user_id"] = current_user.id  # Assign to current user
     kb_obj = KnowledgeBase(**kb_dict)
     
     # Create embedding for content
