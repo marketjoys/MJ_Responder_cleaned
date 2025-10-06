@@ -3353,6 +3353,7 @@ async def generate_follow_up_draft(original_email: Dict[str, Any], follow_up_num
             id=str(uuid.uuid4()),
             account_id=original_email["account_id"],
             sender=original_email["sender"],
+            recipient=original_email.get("recipient", ""),
             subject=f"Follow-up #{follow_up_number}: {original_email['subject']}",
             body=f"This is follow-up #{follow_up_number} for the email: {original_email['body'][:200]}...",
             body_html=original_email.get("body_html", ""),
