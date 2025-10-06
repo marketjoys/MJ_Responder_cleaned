@@ -1647,7 +1647,7 @@ Generate the email body content now, following ALL Parlant guidelines and requir
     }
 
 async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]], account_config: Dict[str, Any]) -> Dict[str, Any]:
-    """Enhanced validation that checks the final email including signature"""
+    """Parlant-enhanced validation that ensures comprehensive email quality and compliance"""
     
     # Skip validation for delivery errors
     if is_bounce_or_delivery_error(email_message):
@@ -1656,6 +1656,19 @@ async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str
             "feedback": "Delivery error email - no response needed",
             "coverage_report": "Email identified as delivery error/bounce notification"
         }
+    
+    # Parlant Framework Integration - Enhanced validation context
+    email_context = {
+        "body": email_message.body,
+        "subject": email_message.subject,
+        "sender": email_message.sender,
+        "persona": account_config.get('persona', 'Professional')
+    }
+    
+    # Get Parlant-enhanced validation analysis
+    parlant_validation = await parlant_framework.enhance_validation(draft, email_context, intents)
+    validation_guidelines = parlant_validation.get("validation_results", {})
+    recommendations = parlant_validation.get("recommendations", [])
     
     # Prepare final email content with signature
     final_plain_text = draft['plain_text']
