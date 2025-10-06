@@ -152,7 +152,6 @@ class Intent(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class IntentCreate(BaseModel):
-    user_id: str
     name: str
     description: str
     examples: List[str] = []
