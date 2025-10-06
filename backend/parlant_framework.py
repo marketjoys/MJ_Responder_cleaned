@@ -305,10 +305,10 @@ class ParlantFramework:
         
         return AgentResponse(
             content="",  # Will be filled by specific agent implementation
-            confidence=0.0,
+            confidence=min(1.0, len(guidelines_applied) * 0.3),  # Confidence based on guidelines matched
             guidelines_applied=guidelines_applied,
             tools_used=tools_used,
-            reasoning=" | ".join(reasoning_parts)
+            reasoning=" | ".join(reasoning_parts) if reasoning_parts else "No guidelines matched"
         )
     
     async def enhance_draft_generation(self, email_context: Dict[str, Any], intents: List[Dict[str, Any]]) -> Dict[str, Any]:
