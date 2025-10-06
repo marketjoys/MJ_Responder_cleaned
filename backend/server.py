@@ -3718,9 +3718,14 @@ I wanted to follow up on our previous conversation. Please let me know if you ne
 Best regards"""
         
         return {
-            "plain_text": fallback_content,
-            "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>",
-            "reasoning": "Fallback content due to error in AI generation"
+            "draft": {
+                "content": fallback_content,
+                "plain_text": fallback_content,
+                "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>",
+                "reasoning": "Fallback content due to error in AI generation"
+            },
+            "intents": [],
+            "email_message": None
         }
 
 async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Dict[str, Any]) -> Dict[str, Any]:
