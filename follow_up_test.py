@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Follow-up System Testing for Email Assistant
-Tests all follow-up related endpoints and functionality
+Follow-up Email System Testing - Focus on Draft Agent & Validation Integration
+Tests the updated follow-up email system with comprehensive validation integration
 """
 import asyncio
 import sys
@@ -33,21 +33,17 @@ class FollowUpSystemTester:
         self.client = None
         self.db = None
         self.test_results = []
-        self.auth_token = None
-        self.test_user_id = None
-        self.test_email_account_id = None
-        self.test_intent_id = None
-        self.test_email_id = None
-        self.test_follow_up_id = None
         
     async def setup(self):
-        """Setup database connection and authentication"""
+        """Setup database connection"""
         try:
             self.client = AsyncIOMotorClient(MONGO_URL)
             self.db = self.client[DB_NAME]
             print("✅ Database connection established")
-            
-            # Setup authentication
+            return True
+        except Exception as e:
+            print(f"❌ Database connection failed: {str(e)}")
+            return False
             await self.setup_authentication()
             return True
         except Exception as e:
