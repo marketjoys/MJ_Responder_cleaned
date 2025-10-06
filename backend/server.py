@@ -1679,8 +1679,8 @@ async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str
     
     # Get Parlant-enhanced validation analysis
     parlant_validation = await parlant_framework.enhance_validation(draft, email_context, intents)
-    validation_guidelines = parlant_validation.get("validation_results", {})
-    recommendations = parlant_validation.get("recommendations", [])
+    validation_guidelines = parlant_validation.get("validation_results", {}) if parlant_validation else {}
+    recommendations = parlant_validation.get("recommendations", []) if parlant_validation else []
     
     # Prepare final email content with signature
     final_plain_text = draft['plain_text']
