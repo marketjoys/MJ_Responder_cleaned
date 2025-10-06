@@ -66,7 +66,7 @@ class MessageBrokerTester:
         if details:
             print(f"   Details: {details}")
     
-    def test_message_broker_verification(self):
+    async def test_message_broker_verification(self):
         """Test 1: Message Broker Verification - RQ enabled and working"""
         print("\n🔍 Testing Message Broker Verification...")
         
