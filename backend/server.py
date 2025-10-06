@@ -1220,8 +1220,8 @@ async def get_knowledge_base(current_user: User = Depends(get_current_active_use
     return [KnowledgeBase(**kb) for kb in kb_items]
 
 @api_router.get("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
-async def get_knowledge_base_item(kb_id: str):
-    kb_doc = await db.knowledge_base.find_one({"id": kb_id})
+async def get_knowledge_base_item(kb_id: str, current_user: User = Depends(get_current_active_user)):
+    kb_doc = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})
     if not kb_doc:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     return KnowledgeBase(**kb_doc)
