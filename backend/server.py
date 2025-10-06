@@ -970,9 +970,9 @@ async def get_intent(intent_id: str, current_user: User = Depends(get_current_ac
     return Intent(**intent_doc)
 
 @api_router.put("/intents/{intent_id}", response_model=Intent)
-async def update_intent(intent_id: str, intent: IntentCreate):
-    # Check if intent exists
-    existing_intent = await db.intents.find_one({"id": intent_id})
+async def update_intent(intent_id: str, intent: IntentCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if intent exists and belongs to user
+    existing_intent = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})
     if not existing_intent:
         raise HTTPException(status_code=404, detail="Intent not found")
     
@@ -989,12 +989,12 @@ async def update_intent(intent_id: str, intent: IntentCreate):
     
     # Update in database
     await db.intents.update_one(
-        {"id": intent_id},
+        {"id": intent_id, "user_id": current_user.id},
         {"$set": update_data}
     )
     
     # Return updated intent
-    updated_intent = await db.intents.find_one({"id": intent_id})
+    updated_intent = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})
     return Intent(**updated_intent)
 
 @api_router.delete("/intents/{intent_id}")
