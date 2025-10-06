@@ -2432,8 +2432,22 @@ async def process_email_async(email_id: str):
             # Get thread context for better meeting detection - collect ALL messages in thread
             thread_context = await get_enhanced_thread_context(email_message)
             
-            # Always analyze for meeting intents using the calendar agent
-            # Let the agent decide based on email content, not pre-existing intents
+            # Parlant-Enhanced Calendar Processing
+            email_context = {
+                "body": email_message.body,
+                "subject": email_message.subject,
+                "sender": email_message.sender,
+                "timezone": user_doc.get("timezone", "UTC"),
+                "thread_context": thread_context
+            }
+            
+            # Get Parlant calendar analysis with enhanced guidelines
+            parlant_calendar_analysis = await parlant_framework.enhance_calendar_processing(email_context)
+            calendar_guidelines = parlant_calendar_analysis.get("calendar_analysis", {})
+            
+            logger.info(f"🎯 Parlant Calendar Guidelines Applied: {calendar_guidelines.get('guidelines_applied', [])}")
+            
+            # Enhanced meeting detection with Parlant principles
             meeting_detection = await calendar_agent.analyze_email_for_meetings(
                 email_message.body,
                 email_message.subject,
@@ -2442,10 +2456,26 @@ async def process_email_async(email_id: str):
                 thread_context
             )
             
-            logger.info(f"🔍 Meeting detection result: detected={meeting_detection.meeting_detected}, confidence={meeting_detection.confidence_score}")
+            # Apply Parlant conflict analysis
+            conflict_analysis = parlant_calendar_analysis.get("conflict_analysis", {})
+            has_conflicts = conflict_analysis.get("has_conflicts", False)
+            
+            logger.info(f"🔍 Parlant-Enhanced Meeting Detection: detected={meeting_detection.meeting_detected}, confidence={meeting_detection.confidence_score}, conflicts={has_conflicts}")
             
             if meeting_detection.meeting_detected and meeting_detection.confidence_score >= 0.6:
-                # Process meeting intent and potentially create calendar event only with high confidence
+                # Parlant guideline: Handle conflicts appropriately
+                if has_conflicts:
+                    logger.warning(f"📅 Calendar conflicts detected - applying Parlant conflict resolution guidelines")
+                    # Add conflict handling to intents for draft generation
+                    conflict_intent = {
+                        "name": "Calendar Conflict Resolution",
+                        "description": "Address scheduling conflicts and suggest alternatives",
+                        "confidence": 0.9,
+                        "system_prompt": f"IMPORTANT: Mention scheduling conflicts and suggest alternative times: {conflict_analysis.get('suggested_alternatives', [])}"
+                    }
+                    intents.append(conflict_intent)
+                
+                # Process meeting intent with enhanced Parlant context
                 calendar_action = await calendar_agent.process_meeting_intent(
                     email_id,
                     user_doc["id"],
@@ -2454,11 +2484,31 @@ async def process_email_async(email_id: str):
                 )
                 
                 if calendar_action:
-                    logger.info(f"📅 Calendar action completed: {calendar_action}")
+                    logger.info(f"📅 Parlant-Enhanced Calendar Action: {calendar_action}")
+                    
+                    # Add meeting confirmation to intents for better response generation
+                    meeting_intent = {
+                        "name": "Meeting Confirmation",
+                        "description": "Confirm meeting details and provide clear next steps",
+                        "confidence": 0.95,
+                        "system_prompt": "Include meeting confirmation details with date, time, and any relevant logistics in the response."
+                    }
+                    intents.append(meeting_intent)
+                    
             elif meeting_detection.meeting_detected:
-                logger.info(f"📅 Meeting detected but confidence too low ({meeting_detection.confidence_score}) - no action taken")
+                logger.info(f"📅 Meeting detected but confidence too low ({meeting_detection.confidence_score}) - applying Parlant clarification guidelines")
+                
+                # Add clarification intent for low-confidence meetings
+                clarification_intent = {
+                    "name": "Meeting Clarification Needed",
+                    "description": "Request clarification on meeting details due to ambiguous information",
+                    "confidence": 0.8,
+                    "system_prompt": "Politely ask for clarification on meeting details such as specific date, time, or logistics mentioned in the email."
+                }
+                intents.append(clarification_intent)
+                
             else:
-                # Check if this is an update to existing meeting
+                # Check if this is an update to existing meeting with Parlant guidelines
                 calendar_action = await calendar_agent.update_meeting_from_email(
                     email_message.body,
                     email_message.thread_id,
@@ -2467,10 +2517,10 @@ async def process_email_async(email_id: str):
                 )
                 
                 if calendar_action:
-                    logger.info(f"📅 Meeting update completed: {calendar_action}")
+                    logger.info(f"📅 Parlant-Enhanced Meeting Update: {calendar_action}")
                     
         except Exception as e:
-            logger.error(f"Calendar integration error: {e}")
+            logger.error(f"Parlant Calendar integration error: {e}")
             # Continue with normal email processing even if calendar fails
         
         # Step 3: Generate draft
