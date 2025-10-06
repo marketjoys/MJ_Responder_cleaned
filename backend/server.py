@@ -2987,14 +2987,15 @@ async def get_email(email_id: str, current_user: User = Depends(get_current_acti
 
 # Dashboard/Stats Routes
 @api_router.get("/dashboard/stats")
-async def get_dashboard_stats():
-    total_emails = await db.emails.count_documents({})
-    processed_emails = await db.emails.count_documents({"status": {"$in": ["ready_to_send", "sent"]}})
-    escalated_emails = await db.emails.count_documents({"status": "escalate"})
-    sent_emails = await db.emails.count_documents({"status": "sent"})
-    total_intents = await db.intents.count_documents({})
-    total_accounts = await db.email_accounts.count_documents({})
-    active_accounts = await db.email_accounts.count_documents({"is_active": True})
+async def get_dashboard_stats(current_user: User = Depends(get_current_active_user)):
+    # Filter all stats by user_id for privacy
+    total_emails = await db.emails.count_documents({"user_id": current_user.id})
+    processed_emails = await db.emails.count_documents({"user_id": current_user.id, "status": {"$in": ["ready_to_send", "sent"]}})
+    escalated_emails = await db.emails.count_documents({"user_id": current_user.id, "status": "escalate"})
+    sent_emails = await db.emails.count_documents({"user_id": current_user.id, "status": "sent"})
+    total_intents = await db.intents.count_documents({"user_id": current_user.id})
+    total_accounts = await db.email_accounts.count_documents({"user_id": current_user.id})
+    active_accounts = await db.email_accounts.count_documents({"user_id": current_user.id, "is_active": True})
     
     # Polling status
     global polling_service
