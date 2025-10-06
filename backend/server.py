@@ -3455,10 +3455,6 @@ async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Di
             "feedback": f"Validation error: {str(e)}",
             "agent_confidence": 0.0
         }
-            },
-            "intents": follow_up_intents if 'follow_up_intents' in locals() else [],
-            "email_message": follow_up_context if 'follow_up_context' in locals() else None
-        }
 
 async def generate_follow_up_content(email: Dict[str, Any], follow_up_number: int, 
                                    custom_template: Optional[str] = None) -> Dict[str, str]:
