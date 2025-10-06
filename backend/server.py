@@ -162,6 +162,7 @@ class IntentCreate(BaseModel):
 
 class EmailAccount(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # User who owns this email account
     name: str
     email: str
     provider: str
