@@ -958,8 +958,8 @@ async def create_intent(intent: IntentCreate, current_user: User = Depends(get_c
     return intent_obj
 
 @api_router.get("/intents", response_model=List[Intent])
-async def get_intents():
-    intents = await db.intents.find().to_list(1000)
+async def get_intents(current_user: User = Depends(get_current_active_user)):
+    intents = await db.intents.find({"user_id": current_user.id}).to_list(1000)
     return [Intent(**intent) for intent in intents]
 
 @api_router.get("/intents/{intent_id}", response_model=Intent)
