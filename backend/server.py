@@ -3569,16 +3569,52 @@ async def process_scheduled_follow_ups():
                     )
                     continue
                 
+                # Validate follow-up email if not already validated
+                if follow_up.get("validation_status") != "validated":
+                    logger.info(f"Validating follow-up {follow_up['id']} before sending")
+                    
+                    validation_result = await validate_follow_up_email(follow_up, account)
+                    
+                    # Update follow-up with validation results
+                    await db.follow_up_emails.update_one(
+                        {"id": follow_up["id"]},
+                        {"$set": {
+                            "validation_result": validation_result,
+                            "validation_status": "validated" if validation_result["status"] == "PASS" else "failed",
+                            "final_content": validation_result["final_plain_text"],
+                            "final_html": validation_result["final_html"],
+                            "updated_at": current_time
+                        }}
+                    )
+                    
+                    if validation_result["status"] != "PASS":
+                        await db.follow_up_emails.update_one(
+                            {"id": follow_up["id"]},
+                            {"$set": {
+                                "status": "failed",
+                                "error_message": f"Validation failed: {validation_result.get('feedback', 'Unknown validation error')}",
+                                "updated_at": current_time
+                            }}
+                        )
+                        logger.error(f"Follow-up {follow_up['id']} failed validation: {validation_result.get('feedback')}")
+                        continue
+                    
+                    # Update follow_up with validated content
+                    follow_up["final_content"] = validation_result["final_plain_text"]
+                    follow_up["final_html"] = validation_result["final_html"]
+                
                 # Import EmailConnection here to avoid circular imports
                 from email_services import EmailConnection
                 
-                # Send the follow-up email
+                # Send the validated follow-up email
                 connection = EmailConnection(account)
                 success = connection.send_email(
                     to_email=follow_up["recipient_email"],
                     subject=follow_up["subject"],
-                    body=follow_up["draft_content"],
-                    body_html=follow_up["draft_html"]
+                    body=follow_up.get("final_content", follow_up["draft_content"]),
+                    body_html=follow_up.get("final_html", follow_up["draft_html"]),
+                    references=follow_up.get("thread_id", ""),
+                    signature_already_included=True  # Validation process already added signature
                 )
                 
                 if success:
@@ -3590,17 +3626,17 @@ async def process_scheduled_follow_ups():
                             "updated_at": current_time
                         }}
                     )
-                    logger.info(f"Successfully sent follow-up {follow_up['id']}")
+                    logger.info(f"Successfully sent validated follow-up {follow_up['id']}")
                 else:
                     await db.follow_up_emails.update_one(
                         {"id": follow_up["id"]},
                         {"$set": {
                             "status": "failed",
-                            "error_message": "Failed to send email",
+                            "error_message": "Failed to send email after validation",
                             "updated_at": current_time
                         }}
                     )
-                    logger.error(f"Failed to send follow-up {follow_up['id']}")
+                    logger.error(f"Failed to send follow-up {follow_up['id']} after validation")
                 
             except Exception as e:
                 logger.error(f"Error processing follow-up {follow_up['id']}: {str(e)}")
