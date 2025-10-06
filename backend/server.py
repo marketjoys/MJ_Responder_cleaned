@@ -1088,7 +1088,12 @@ async def update_email_account(account_id: str, account: EmailAccountCreate, cur
     return EmailAccount(**updated_account)
 
 @api_router.delete("/email-accounts/{account_id}")
-async def delete_email_account(account_id: str):
+async def delete_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
+    # Check if account belongs to user first
+    account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
+    if not account:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
     # Remove connection if exists
     global polling_service
     if polling_service and account_id in polling_service.connections:
@@ -1099,7 +1104,7 @@ async def delete_email_account(account_id: str):
         except Exception as e:
             logger.warning(f"⚠️  Error removing connection during delete: {str(e)}")
     
-    result = await db.email_accounts.delete_one({"id": account_id})
+    result = await db.email_accounts.delete_one({"id": account_id, "user_id": current_user.id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Email account not found")
     return {"message": "Email account deleted successfully"}
