@@ -141,6 +141,7 @@ EMAIL_PROVIDERS = {
 # Models
 class Intent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # User who owns this intent
     name: str
     description: str
     examples: List[str] = []
