@@ -390,7 +390,7 @@ async def migrate_existing_data_to_users():
         if not first_user:
             logger.warning("⚠️  No users found. Creating default admin user for migration...")
             # Create a default admin user
-            from auth import hash_password
+            from auth import get_password_hash
             default_user = {
                 "id": str(uuid.uuid4()),
                 "email": "admin@example.com", 
