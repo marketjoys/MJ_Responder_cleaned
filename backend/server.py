@@ -1914,6 +1914,9 @@ Perform comprehensive Parlant validation now:"""
     # Create comprehensive validation report
     status = "PASS" if is_pass else "FAIL"
     
+    # Parlant Framework Enhanced Response
+    parlant_agent_response = parlant_validation.get("agent_response", {})
+    
     return {
         "status": status,
         "feedback": validation_response,
@@ -1928,7 +1931,15 @@ Perform comprehensive Parlant validation now:"""
             "placeholders_found": found_placeholders,
             "signature_included": bool(signature)
         },
-        "coverage_report": f"KB: {'✓' if kb_content_used else '✗'}, Links: {'✓' if links_included else '✗'}, Unique: {'✓' if avoids_duplicates else '✗'}, Signature: {'✓' if signature else '✗'}"
+        "parlant_validation": {
+            "guidelines_applied": parlant_agent_response.get("guidelines_applied", []),
+            "validation_score": parlant_agent_response.get("confidence", 0.0),
+            "recommendations": recommendations,
+            "hallucination_risk": validation_guidelines.get('hallucination_check', {}),
+            "intent_coverage": validation_guidelines.get('intent_coverage', {}),
+            "persona_alignment": validation_guidelines.get('persona_alignment', {})
+        },
+        "coverage_report": f"Parlant: {'✓' if status == 'PASS' else '✗'} | KB: {'✓' if kb_content_used else '✗'} | Links: {'✓' if links_included else '✗'} | Unique: {'✓' if avoids_duplicates else '✗'} | Signature: {'✓' if signature else '✗'}"
     }
 
 async def validate_draft(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]]) -> Dict[str, Any]:
