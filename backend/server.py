@@ -2504,24 +2504,44 @@ async def process_email_async(email_id: str):
         thread_id = email_message.thread_id
         if thread_id:
             # Check if the sender of this email is a recipient of any pending follow-ups in this thread
-            current_sender = email_message.sender.lower()
+            current_sender = email_message.sender.lower().strip()
+            normalized_sender = normalize_email_for_matching(current_sender)
             
-            # Find pending follow-ups in this thread where sender matches the recipient
+            logger.info(f"🔍 Checking if email from {current_sender} (normalized: {normalized_sender}) is a reply to follow-ups in thread {thread_id}")
+            
+            # Get all pending follow-ups in this thread
             pending_follow_ups = await db.follow_up_emails.find({
                 "thread_id": thread_id,
-                "status": "pending",
-                "recipient_email": {"$regex": f"^{current_sender}$", "$options": "i"}  # Case-insensitive match
+                "status": "pending"
             }).to_list(100)
             
-            if pending_follow_ups:
+            logger.info(f"📋 Found {len(pending_follow_ups)} pending follow-ups in thread {thread_id}")
+            
+            # Check if sender matches any follow-up recipient using normalized comparison
+            is_follow_up_recipient = False
+            for follow_up in pending_follow_ups:
+                follow_up_recipient = follow_up.get('recipient_email', '')
+                normalized_recipient = normalize_email_for_matching(follow_up_recipient)
+                
+                if normalized_recipient == normalized_sender:
+                    is_follow_up_recipient = True
+                    logger.info(f"✅ Match detected: Email sender {current_sender} matches follow-up recipient {follow_up_recipient}")
+                    break
+            
+            if is_follow_up_recipient:
                 # This email is from a follow-up recipient - cancel their follow-ups
+                logger.info(f"🎯 Triggering follow-up cancellation for {current_sender} in thread {thread_id}")
                 cancelled_count = await cancel_follow_ups_for_recipient(
                     thread_id, 
                     current_sender,
                     f"Reply received from follow-up recipient {current_sender}"
                 )
                 if cancelled_count > 0:
-                    logger.info(f"📧 Reply detected from follow-up recipient in thread {thread_id}: Cancelled {cancelled_count} pending follow-ups for {current_sender}")
+                    logger.info(f"✅ Reply detected from follow-up recipient in thread {thread_id}: Cancelled {cancelled_count} pending follow-ups for {current_sender}")
+                else:
+                    logger.warning(f"⚠️ Expected to cancel follow-ups but cancelled_count is 0 for {current_sender} in thread {thread_id}")
+            else:
+                logger.info(f"ℹ️ Email from {current_sender} is NOT from a follow-up recipient in thread {thread_id}")
         
         # Get account info to find user
         account_doc = await db.email_accounts.find_one({"id": email_message.account_id})
