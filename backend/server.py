@@ -2730,7 +2730,12 @@ async def process_email_async(email_id: str):
         # Step 7: Auto-send if validation passed and account has auto_send enabled
         if validation["status"] == "PASS":
             if account_doc and account_doc.get('auto_send', True) and account_doc.get('is_active', True):
-                await auto_send_email(email_id)
+                # Use RQ if available, otherwise direct call
+                if RQ_ENABLED:
+                    enqueue_auto_send_email(email_id, delay=1)
+                    logger.info(f"📋 Enqueued auto-send for email: {email_id}")
+                else:
+                    await auto_send_email(email_id)
                 # Increment email usage after successful send
                 await increment_email_usage(user_doc["id"])
         
