@@ -716,8 +716,19 @@ class EmailPollingService:
                     connection = self.connections[account_doc['id']]
                     connection.mark_email_as_read(email_data['uid'])
             
-            # Process through AI workflow (async)
-            asyncio.create_task(self._process_email_ai_workflow(email_obj.id))
+            # Process through AI workflow (async) using RQ if available
+            try:
+                # Try to use RQ message broker
+                from tasks import enqueue_email_processing, RQ_ENABLED
+                if RQ_ENABLED:
+                    job = enqueue_email_processing(email_obj.id)
+                    logger.info(f"📋 Enqueued email processing via RQ: {email_obj.id}")
+                else:
+                    # Fallback to direct async processing
+                    asyncio.create_task(self._process_email_ai_workflow(email_obj.id))
+            except ImportError:
+                # RQ not available, use direct async processing
+                asyncio.create_task(self._process_email_ai_workflow(email_obj.id))
             
             logger.info(f"📥 New email processed: {email_data['subject']} from {email_data['sender']}")
             
