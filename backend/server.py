@@ -1921,7 +1921,16 @@ Perform comprehensive Parlant validation now:"""
     status = "PASS" if is_pass else "FAIL"
     
     # Parlant Framework Enhanced Response
-    parlant_agent_response = parlant_validation.get("agent_response", {})
+    parlant_agent_response = parlant_validation.get("agent_response") if parlant_validation else None
+    
+    # Safe attribute access for Pydantic model
+    guidelines_applied = []
+    validation_score = 0.0
+    
+    if parlant_agent_response and hasattr(parlant_agent_response, 'guidelines_applied'):
+        guidelines_applied = parlant_agent_response.guidelines_applied or []
+    if parlant_agent_response and hasattr(parlant_agent_response, 'confidence'):
+        validation_score = parlant_agent_response.confidence or 0.0
     
     return {
         "status": status,
@@ -1938,8 +1947,8 @@ Perform comprehensive Parlant validation now:"""
             "signature_included": bool(signature)
         },
         "parlant_validation": {
-            "guidelines_applied": parlant_agent_response.get("guidelines_applied", []),
-            "validation_score": parlant_agent_response.get("confidence", 0.0),
+            "guidelines_applied": guidelines_applied,
+            "validation_score": validation_score,
             "recommendations": recommendations,
             "hallucination_risk": validation_guidelines.get('hallucination_check', {}),
             "intent_coverage": validation_guidelines.get('intent_coverage', {}),
