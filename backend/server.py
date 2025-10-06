@@ -2475,9 +2475,14 @@ async def process_email_async(email_id: str):
             
             # Get Parlant calendar analysis with enhanced guidelines
             parlant_calendar_analysis = await parlant_framework.enhance_calendar_processing(email_context)
-            calendar_guidelines = parlant_calendar_analysis.get("calendar_analysis", {})
+            calendar_guidelines = parlant_calendar_analysis.get("calendar_analysis") if parlant_calendar_analysis else None
             
-            logger.info(f"🎯 Parlant Calendar Guidelines Applied: {calendar_guidelines.get('guidelines_applied', [])}")
+            # Safe attribute access for calendar guidelines
+            applied_guidelines = []
+            if calendar_guidelines and hasattr(calendar_guidelines, 'guidelines_applied'):
+                applied_guidelines = calendar_guidelines.guidelines_applied or []
+            
+            logger.info(f"🎯 Parlant Calendar Guidelines Applied: {applied_guidelines}")
             
             # Enhanced meeting detection with Parlant principles
             meeting_detection = await calendar_agent.analyze_email_for_meetings(
