@@ -3431,7 +3431,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
         # Check if follow-ups are enabled
         if not follow_up_config.get("auto_follow_up", True):
             logger.info(f"Auto follow-up disabled for user {user_id}")
-            return
+            return {"status": "skipped", "email_id": email_id, "reason": "Auto follow-up disabled for user"}
         
         # Get account follow-up settings
         account = await db.email_accounts.find_one({"id": account_id})
