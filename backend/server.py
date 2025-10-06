@@ -2944,6 +2944,15 @@ async def get_dashboard_stats():
     global polling_service
     polling_status = "running" if polling_service and polling_service.is_running else "stopped"
     
+    # RQ queue stats if available
+    queue_stats = {}
+    if RQ_ENABLED:
+        try:
+            queue_stats = get_queue_stats()
+        except Exception as e:
+            logger.error(f"Error getting queue stats: {str(e)}")
+            queue_stats = {"error": str(e)}
+    
     return {
         "total_emails": total_emails,
         "processed_emails": processed_emails,
@@ -2953,7 +2962,11 @@ async def get_dashboard_stats():
         "total_accounts": total_accounts,
         "active_accounts": active_accounts,
         "polling_status": polling_status,
-        "processing_rate": processed_emails / total_emails * 100 if total_emails > 0 else 0
+        "processing_rate": processed_emails / total_emails * 100 if total_emails > 0 else 0,
+        "message_broker": {
+            "enabled": RQ_ENABLED,
+            "queues": queue_stats
+        }
     }
 
 # Google OAuth endpoints
