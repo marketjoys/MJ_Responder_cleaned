@@ -2297,6 +2297,74 @@ async def get_knowledge_context(email_body: str) -> str:
     result = await get_enhanced_knowledge_context(email_body, [])
     return result["context"]
 
+# ============================================================================
+# WORKFLOW FUNCTIONS FOR RQ TASKS
+# These are wrappers that can be called from background tasks
+# ============================================================================
+
+async def process_email_workflow(email_id: str) -> Dict[str, Any]:
+    """
+    Workflow function for processing email (called from RQ task)
+    This wraps the main process_email_async logic
+    """
+    try:
+        await process_email_async(email_id)
+        return {"status": "success", "email_id": email_id}
+    except Exception as e:
+        logger.error(f"Error in process_email_workflow: {str(e)}")
+        return {"status": "error", "email_id": email_id, "error": str(e)}
+
+
+async def auto_send_email_workflow(email_id: str) -> Dict[str, Any]:
+    """
+    Workflow function for auto-sending email (called from RQ task)
+    This wraps the auto_send_email logic
+    """
+    try:
+        await auto_send_email(email_id)
+        return {"status": "success", "email_id": email_id}
+    except Exception as e:
+        logger.error(f"Error in auto_send_email_workflow: {str(e)}")
+        return {"status": "error", "email_id": email_id, "error": str(e)}
+
+
+async def create_follow_up_for_email_workflow(email_id: str, account_id: str, user_id: str) -> Dict[str, Any]:
+    """
+    Workflow function for creating follow-ups (called from RQ task)
+    """
+    try:
+        await create_follow_up_for_email(email_id, account_id, user_id)
+        return {"status": "success", "email_id": email_id, "follow_ups_created": True}
+    except Exception as e:
+        logger.error(f"Error in create_follow_up_workflow: {str(e)}")
+        return {"status": "error", "email_id": email_id, "error": str(e)}
+
+
+async def process_scheduled_follow_ups_workflow() -> Dict[str, Any]:
+    """
+    Workflow function for processing scheduled follow-ups (called from RQ task)
+    """
+    try:
+        await process_scheduled_follow_ups()
+        return {"status": "success", "message": "Scheduled follow-ups processed"}
+    except Exception as e:
+        logger.error(f"Error in process_scheduled_follow_ups_workflow: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
+async def detect_and_cancel_follow_ups_workflow() -> Dict[str, Any]:
+    """
+    Workflow function for detecting responses and cancelling follow-ups (called from RQ task)
+    """
+    try:
+        await detect_and_handle_responses()
+        return {"status": "success", "message": "Response detection completed"}
+    except Exception as e:
+        logger.error(f"Error in detect_and_cancel_follow_ups_workflow: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+# ============================================================================
+
 async def auto_send_email(email_id: str):
     """Auto-send approved email if account has auto_send enabled"""
     try:
