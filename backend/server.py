@@ -270,8 +270,13 @@ class FollowUpEmail(BaseModel):
     follow_up_number: int = 1  # 1st, 2nd, 3rd follow-up etc.
     scheduled_time: datetime  # When to send this follow-up
     sent_time: Optional[datetime] = None
-    draft_content: str = ""  # Generated follow-up content
-    draft_html: str = ""
+    draft_content: str = ""  # Generated follow-up content (before validation)
+    draft_html: str = ""  # Generated follow-up HTML (before validation)
+    final_content: str = ""  # Validated content with signature (ready to send)
+    final_html: str = ""  # Validated HTML with signature (ready to send)
+    validation_result: Optional[Dict[str, Any]] = None  # Validation agent results
+    validation_status: str = "pending"  # pending, validated, failed
+    intents: Optional[List[Dict[str, Any]]] = None  # Classified intents for follow-up context
     error_message: Optional[str] = None
     response_received: bool = False  # Did we get a response after sending?
     last_response_time: Optional[datetime] = None
