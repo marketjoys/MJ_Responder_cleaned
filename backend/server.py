@@ -2876,11 +2876,12 @@ async def get_emails(current_user: User = Depends(get_current_active_user)):
     return [EmailMessage(**email) for email in emails]
 
 @api_router.get("/emails/threads")
-async def get_email_threads():
+async def get_email_threads(current_user: User = Depends(get_current_active_user)):
     """Get all email threads with their follow-ups and responses"""
     try:
-        # Get all emails grouped by thread_id
+        # Get all emails grouped by thread_id for current user only
         pipeline = [
+            {"$match": {"user_id": current_user.id}},  # Filter by user
             {"$sort": {"received_at": -1}},
             {"$group": {
                 "_id": "$thread_id",
