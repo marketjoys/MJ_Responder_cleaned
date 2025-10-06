@@ -42,6 +42,26 @@ from oauth_google import google_oauth_service
 from google_services import get_google_gmail_service, get_google_calendar_service
 from parlant_framework import parlant_framework, ParlantAgent, AgentResponse
 
+# Import Redis Queue (RQ) for message broker
+try:
+    from redis import Redis
+    from rq import Queue
+    from tasks import (
+        enqueue_email_processing, 
+        enqueue_auto_send_email, 
+        enqueue_create_follow_up,
+        schedule_periodic_tasks,
+        get_queue_stats,
+        redis_conn
+    )
+    RQ_ENABLED = True
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.info("✅ Redis Queue (RQ) enabled for message broker")
+except ImportError as e:
+    RQ_ENABLED = False
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.warning(f"⚠️ Redis Queue (RQ) not available - falling back to direct async: {e}")
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
