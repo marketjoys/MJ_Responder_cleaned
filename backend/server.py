@@ -1252,8 +1252,8 @@ async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate, current_use
     return KnowledgeBase(**updated_kb)
 
 @api_router.delete("/knowledge-base/{kb_id}")
-async def delete_knowledge_base(kb_id: str):
-    result = await db.knowledge_base.delete_one({"id": kb_id})
+async def delete_knowledge_base(kb_id: str, current_user: User = Depends(get_current_active_user)):
+    result = await db.knowledge_base.delete_one({"id": kb_id, "user_id": current_user.id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     return {"message": "Knowledge base item deleted successfully"}
