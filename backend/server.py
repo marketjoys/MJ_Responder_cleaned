@@ -4243,6 +4243,9 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Date initialization warning: {e}")
     
+    # Run data migration first to assign user ownership
+    await migrate_existing_data_to_users()
+    
     # Initialize all seed data
     await initialize_email_accounts()
     await initialize_intents()
