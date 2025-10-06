@@ -2979,8 +2979,8 @@ async def get_email_threads(current_user: User = Depends(get_current_active_user
         raise HTTPException(status_code=500, detail=f"Failed to fetch email threads: {str(e)}")
 
 @api_router.get("/emails/{email_id}", response_model=EmailMessage)
-async def get_email(email_id: str):
-    email_doc = await db.emails.find_one({"id": email_id})
+async def get_email(email_id: str, current_user: User = Depends(get_current_active_user)):
+    email_doc = await db.emails.find_one({"id": email_id, "user_id": current_user.id})
     if not email_doc:
         raise HTTPException(status_code=404, detail="Email not found")
     return EmailMessage(**email_doc)
