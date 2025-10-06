@@ -925,9 +925,8 @@ async def delete_calendar_event(
 # Meeting Detection and Calendar Agent Routes
 @api_router.post("/calendar/detect-meeting", response_model=MeetingDetectionResponse)
 async def detect_meeting_intent(
-    request: MeetingDetectionRequest
-    # Temporarily removing authentication for testing
-    # current_user: User = Depends(get_current_active_user)
+    request: MeetingDetectionRequest,
+    current_user: User = Depends(get_current_active_user)
 ):
     """Analyze email content for meeting intents"""
     
