@@ -3450,24 +3450,11 @@ async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Di
         logger.error(f"Error validating follow-up email {follow_up['id']}: {str(e)}")
         return {
             "status": "FAIL",
-            "final_plain_text": follow_up["draft_content"],
+            "final_content": follow_up["draft_content"],
             "final_html": follow_up["draft_html"],
             "feedback": f"Validation error: {str(e)}",
             "agent_confidence": 0.0
         }
-I wanted to follow up on my previous email regarding "{original_email.get('subject', 'our conversation')}".
-
-Could you please provide an update when you have a moment?
-
-Thank you for your time.
-
-Best regards"""
-        
-        return {
-            "draft": {
-                "content": fallback_content,
-                "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>",
-                "reasoning": "Fallback content due to draft generation error"
             },
             "intents": follow_up_intents if 'follow_up_intents' in locals() else [],
             "email_message": follow_up_context if 'follow_up_context' in locals() else None
