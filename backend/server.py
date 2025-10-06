@@ -2494,7 +2494,7 @@ async def process_email_async(email_id: str):
             )
             
             # Apply Parlant conflict analysis
-            conflict_analysis = parlant_calendar_analysis.get("conflict_analysis", {})
+            conflict_analysis = parlant_calendar_analysis.get("conflict_analysis", {}) if parlant_calendar_analysis else {}
             has_conflicts = conflict_analysis.get("has_conflicts", False)
             
             logger.info(f"🔍 Parlant-Enhanced Meeting Detection: detected={meeting_detection.meeting_detected}, confidence={meeting_detection.confidence_score}, conflicts={has_conflicts}")
