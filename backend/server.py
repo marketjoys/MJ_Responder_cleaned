@@ -998,8 +998,8 @@ async def update_intent(intent_id: str, intent: IntentCreate, current_user: User
     return Intent(**updated_intent)
 
 @api_router.delete("/intents/{intent_id}")
-async def delete_intent(intent_id: str):
-    result = await db.intents.delete_one({"id": intent_id})
+async def delete_intent(intent_id: str, current_user: User = Depends(get_current_active_user)):
+    result = await db.intents.delete_one({"id": intent_id, "user_id": current_user.id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Intent not found")
     return {"message": "Intent deleted successfully"}
