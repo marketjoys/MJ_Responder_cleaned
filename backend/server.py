@@ -1322,6 +1322,32 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
                 "sent_at": datetime.utcnow()
             }}
         )
+        
+        # CREATE FOLLOW-UP EMAILS if enabled for this account
+        if account_doc.get('enable_follow_ups', True):
+            try:
+                # Get user ID from account
+                user_doc = await db.users.find_one({"email": account_doc.get("email")})
+                if user_doc:
+                    # Use RQ if available, otherwise direct call
+                    if RQ_ENABLED:
+                        enqueue_create_follow_up(
+                            email_id,
+                            account_doc['id'],
+                            user_doc['id'],
+                            delay=2  # Small delay to ensure email is sent
+                        )
+                        logger.info(f"📋 Enqueued follow-up creation for manual send: {email_doc['subject']}")
+                    else:
+                        await create_follow_up_for_email(
+                            email_id,
+                            account_doc['id'],
+                            user_doc['id']
+                        )
+                        logger.info(f"📅 Created follow-up schedule for manual send: {email_doc['subject']}")
+            except Exception as e:
+                logger.error(f"Error creating follow-up for manual send {email_id}: {str(e)}")
+        
         return {"message": "Email sent successfully"}
     else:
         # Mark as failed to send
