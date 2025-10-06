@@ -3308,6 +3308,76 @@ def adjust_to_business_hours(target_time: datetime, start_hour: int, end_hour: i
         return adjust_to_business_hours(target_time, start_hour, end_hour, business_days, exclude_weekends)
     
     return target_time
+async def generate_follow_up_draft(original_email: Dict[str, Any], follow_up_number: int, account_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate follow-up email draft using the same AI pipeline as regular emails"""
+    try:
+        # Create EmailMessage object for the follow-up context
+        follow_up_context = EmailMessage(
+            id=str(uuid.uuid4()),
+            account_id=original_email["account_id"],
+            sender=original_email["sender"],
+            subject=f"Follow-up #{follow_up_number}: {original_email['subject']}",
+            body=f"This is follow-up #{follow_up_number} for the email: {original_email['body'][:200]}...",
+            body_html=original_email.get("body_html", ""),
+            received_at=original_email["received_at"],
+            message_id=f"followup-{original_email['id']}-{follow_up_number}",
+            thread_id=original_email.get("thread_id", ""),
+            references=original_email.get("references", ""),
+            status="generating_draft"
+        )
+        
+        # Create follow-up specific intents based on follow-up number
+        follow_up_intents = []
+        if follow_up_number == 1:
+            follow_up_intents.append({
+                "name": "Follow Up Inquiry",
+                "confidence": 0.9,
+                "description": "First polite follow-up to check if recipient had chance to review"
+            })
+        elif follow_up_number == 2:
+            follow_up_intents.append({
+                "name": "Second Follow Up",
+                "confidence": 0.9,
+                "description": "More direct second follow-up emphasizing importance"
+            })
+        else:
+            follow_up_intents.append({
+                "name": "Final Follow Up",
+                "confidence": 0.9,
+                "description": "Final follow-up indicating last attempt to reach out"
+            })
+        
+        # Use the same generate_draft function with follow-up context
+        draft_result = await generate_draft(follow_up_context, follow_up_intents)
+        
+        return {
+            "draft": draft_result,
+            "intents": follow_up_intents,
+            "email_message": follow_up_context
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating follow-up draft: {str(e)}")
+        # Fallback to simple follow-up content
+        fallback_content = f"""Hi,
+
+I wanted to follow up on my previous email regarding "{original_email.get('subject', 'our conversation')}".
+
+Could you please provide an update when you have a moment?
+
+Thank you for your time.
+
+Best regards"""
+        
+        return {
+            "draft": {
+                "content": fallback_content,
+                "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>",
+                "reasoning": "Fallback content due to draft generation error"
+            },
+            "intents": follow_up_intents if 'follow_up_intents' in locals() else [],
+            "email_message": follow_up_context if 'follow_up_context' in locals() else None
+        }
 
 async def generate_follow_up_content(email: Dict[str, Any], follow_up_number: int, 
                                    custom_template: Optional[str] = None) -> Dict[str, str]:
