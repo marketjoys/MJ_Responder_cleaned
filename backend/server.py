@@ -1266,8 +1266,14 @@ async def test_email_processing(request: EmailTestRequest):
     # Store in database
     await db.emails.insert_one(email_obj.dict())
     
-    # Process the email
-    await process_email_async(email_obj.id)
+    # Process the email using RQ if available
+    if RQ_ENABLED:
+        job = enqueue_email_processing(email_obj.id)
+        logger.info(f"📋 Enqueued test email processing: {email_obj.id} (Job ID: {job.id})")
+        # For test endpoint, we still process synchronously to return results
+        await process_email_async(email_obj.id)
+    else:
+        await process_email_async(email_obj.id)
     
     # Return processed email
     processed_email = await db.emails.find_one({"id": email_obj.id})
