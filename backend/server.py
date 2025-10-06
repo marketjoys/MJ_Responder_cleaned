@@ -3363,6 +3363,53 @@ async def generate_follow_up_draft(original_email: Dict[str, Any], follow_up_num
         # Fallback to simple follow-up content
         fallback_content = f"""Hi,
 
+async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate follow-up email using the same validation process as regular emails"""
+    try:
+        # Create EmailMessage object from follow-up data
+        email_message = EmailMessage(
+            id=follow_up["id"],
+            account_id=follow_up["account_id"],
+            sender=follow_up["recipient_email"],  # Follow-up is TO this email, so they're the "sender" from validation perspective
+            subject=follow_up["subject"],
+            body=follow_up["draft_content"],
+            body_html=follow_up["draft_html"],
+            received_at=follow_up["created_at"],
+            message_id=f"followup-{follow_up['id']}",
+            thread_id=follow_up["thread_id"],
+            status="validating"
+        )
+        
+        # Create draft object for validation
+        draft = {
+            "content": follow_up["draft_content"],
+            "html": follow_up["draft_html"],
+            "reasoning": f"Follow-up #{follow_up['follow_up_number']} content generated"
+        }
+        
+        # Get intents from follow-up record or create defaults
+        intents = follow_up.get("intents", [])
+        if not intents:
+            intents = [{
+                "name": f"Follow Up #{follow_up['follow_up_number']}",
+                "confidence": 0.9,
+                "description": f"Follow-up email #{follow_up['follow_up_number']}"
+            }]
+        
+        # Use the same validation function as regular emails
+        validation_result = await validate_final_email(email_message, draft, intents, account_config)
+        
+        return validation_result
+        
+    except Exception as e:
+        logger.error(f"Error validating follow-up email {follow_up['id']}: {str(e)}")
+        return {
+            "status": "FAIL",
+            "final_plain_text": follow_up["draft_content"],
+            "final_html": follow_up["draft_html"],
+            "feedback": f"Validation error: {str(e)}",
+            "agent_confidence": 0.0
+        }
 I wanted to follow up on my previous email regarding "{original_email.get('subject', 'our conversation')}".
 
 Could you please provide an update when you have a moment?
