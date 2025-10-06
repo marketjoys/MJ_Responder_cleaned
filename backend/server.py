@@ -1279,19 +1279,6 @@ async def test_email_processing(request: EmailTestRequest):
     processed_email = await db.emails.find_one({"id": email_obj.id})
     return EmailMessage(**processed_email)
 
-@api_router.post("/test-follow-up")
-async def test_follow_up_creation(request: dict):
-    """Test follow-up creation directly"""
-    try:
-        result = await create_follow_up_for_email(
-            request["email_id"], 
-            request["account_id"], 
-            request.get("user_id", "test-user")
-        )
-        return {"status": "success", "result": result}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
 @api_router.post("/emails/{email_id}/send")
 async def send_email_reply(email_id: str, request: SendEmailRequest):
     """Send email reply"""
