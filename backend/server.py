@@ -3398,6 +3398,16 @@ async def generate_follow_up_draft(original_email: Dict[str, Any], follow_up_num
         # Fallback to simple follow-up content
         fallback_content = f"""Hi,
 
+I wanted to follow up on our previous conversation. Please let me know if you need any additional information.
+
+Best regards"""
+        
+        return {
+            "plain_text": fallback_content,
+            "html": f"<p>{fallback_content.replace(chr(10), '</p><p>')}</p>",
+            "reasoning": "Fallback content due to error in AI generation"
+        }
+
 async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Dict[str, Any]) -> Dict[str, Any]:
     """Validate follow-up email using the same validation process as regular emails"""
     try:
