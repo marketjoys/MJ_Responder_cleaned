@@ -1227,9 +1227,9 @@ async def get_knowledge_base_item(kb_id: str, current_user: User = Depends(get_c
     return KnowledgeBase(**kb_doc)
 
 @api_router.put("/knowledge-base/{kb_id}", response_model=KnowledgeBase)
-async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate):
-    # Check if KB item exists
-    existing_kb = await db.knowledge_base.find_one({"id": kb_id})
+async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate, current_user: User = Depends(get_current_active_user)):
+    # Check if KB item exists and belongs to user
+    existing_kb = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})
     if not existing_kb:
         raise HTTPException(status_code=404, detail="Knowledge base item not found")
     
@@ -1243,12 +1243,12 @@ async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseCreate):
     
     # Update in database
     await db.knowledge_base.update_one(
-        {"id": kb_id},
+        {"id": kb_id, "user_id": current_user.id},
         {"$set": update_data}
     )
     
     # Return updated KB item
-    updated_kb = await db.knowledge_base.find_one({"id": kb_id})
+    updated_kb = await db.knowledge_base.find_one({"id": kb_id, "user_id": current_user.id})
     return KnowledgeBase(**updated_kb)
 
 @api_router.delete("/knowledge-base/{kb_id}")
