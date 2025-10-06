@@ -1641,15 +1641,21 @@ Generate the email body content now, following ALL Parlant guidelines and requir
     html_version = re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', html_version)
     
     # Parlant Framework Response Enhancement
-    parlant_response = parlant_enhancement.get("agent_response", {})
-    applied_guidelines = parlant_response.get("guidelines_applied", []) if parlant_response else []
+    parlant_response = parlant_enhancement.get("agent_response") if parlant_enhancement else None
+    applied_guidelines = []
+    parlant_confidence = 0.0
+    
+    if parlant_response and hasattr(parlant_response, 'guidelines_applied'):
+        applied_guidelines = parlant_response.guidelines_applied or []
+    if parlant_response and hasattr(parlant_response, 'confidence'):
+        parlant_confidence = parlant_response.confidence or 0.0
     
     return {
         "plain_text": clean_response,
         "html": html_version,
         "reasoning": f"Parlant Guidelines Applied: {', '.join(applied_guidelines) if applied_guidelines else 'None'} | KB items: {kb_data.get('items_count', 0)} | Links: {len(all_links)} | Intents: {', '.join([i['name'] for i in intents])}",
         "parlant_guidelines": applied_guidelines,
-        "parlant_confidence": parlant_response.get("confidence", 0.0) if parlant_response else 0.0
+        "parlant_confidence": parlant_confidence
     }
 
 async def validate_final_email(email_message: EmailMessage, draft: Dict[str, str], intents: List[Dict[str, Any]], account_config: Dict[str, Any]) -> Dict[str, Any]:
