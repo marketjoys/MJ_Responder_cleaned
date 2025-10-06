@@ -727,7 +727,7 @@ class MessageBrokerTester:
         except Exception as e:
             self.log_test_result("Follow-up Cancellation on Reply", False, f"Exception: {str(e)}")
     
-    def test_queue_stats_and_monitoring(self):
+    async def test_queue_stats_and_monitoring(self):
         """Test 6: Queue Stats and Monitoring - verify queue statistics are available"""
         print("\n📊 Testing Queue Stats and Monitoring...")
         
