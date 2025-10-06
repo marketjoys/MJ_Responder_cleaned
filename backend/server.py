@@ -3502,7 +3502,7 @@ async def create_follow_up_for_email(email_id: str, account_id: str, user_id: st
                 subject=f"{subject} - Follow-up #{follow_up_num}",
                 follow_up_number=follow_up_num,
                 scheduled_time=scheduled_time,
-                draft_content=draft["content"],
+                draft_content=draft["plain_text"],
                 draft_html=draft.get("html", ""),
                 intents=intents,
                 validation_status="pending"
