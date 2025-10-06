@@ -3417,12 +3417,13 @@ async def validate_follow_up_email(follow_up: Dict[str, Any], account_config: Di
             id=follow_up["id"],
             account_id=follow_up["account_id"],
             sender=follow_up["recipient_email"],  # Follow-up is TO this email, so they're the "sender" from validation perspective
+            recipient=follow_up.get("recipient_email", ""),
             subject=follow_up["subject"],
             body=follow_up["draft_content"],
-            body_html=follow_up["draft_html"],
-            received_at=follow_up["created_at"],
+            body_html=follow_up.get("draft_html", ""),
+            received_at=follow_up.get("created_at", datetime.utcnow()),
             message_id=f"followup-{follow_up['id']}",
-            thread_id=follow_up["thread_id"],
+            thread_id=follow_up.get("thread_id", ""),
             status="validating"
         )
         
