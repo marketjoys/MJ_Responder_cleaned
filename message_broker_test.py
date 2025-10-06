@@ -130,7 +130,7 @@ class MessageBrokerTester:
         except Exception as e:
             self.log_test_result("Message Broker Verification", False, f"Exception: {str(e)}")
     
-    def test_email_processing_with_rq(self):
+    async def test_email_processing_with_rq(self):
         """Test 2: Email Processing with RQ - verify emails are processed through RQ"""
         print("\n🤖 Testing Email Processing with RQ...")
         
