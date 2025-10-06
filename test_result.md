@@ -185,6 +185,21 @@ backend:
         agent: "testing"
         comment: "✅ PARLANT FRAMEWORK COMPREHENSIVE TESTING COMPLETED: Extensive testing confirms the Parlant-inspired framework is fully operational and providing enhanced control over email processing. CORE COMPONENTS VERIFIED: All three agents properly initialized (DraftAgent: 5 guidelines, ValidationAgent: 5 guidelines, CalendarAgent: 4 guidelines). Guideline matching functionality working correctly with 100% success rate (4/4 test scenarios). AgentResponse structure validated with proper confidence scores (0.30-0.90), guidelines tracking, and reasoning capture. INTEGRATION CONFIRMED: Framework actively used in email processing pipeline with Parlant metadata present in validation results. Direct agent processing functional for draft generation, validation enhancement, and calendar processing. Guidelines properly applied based on email context and intent (sales_inquiry, support_request, meeting_request, professional_tone, persona_alignment). SUCCESS METRICS: 60% overall test pass rate (3/5 major categories) with all critical framework components operational. Minor issues: API timeout issues affecting full end-to-end testing, calendar API parameter requirements. CONCLUSION: Custom Parlant framework is fully integrated, working as intended, and providing enhanced control over email processing with improved reliability and explainability."
 
+  - task: "Production Readiness Fixes - API Timeout & Follow-up Cancellation"
+    implemented: true
+    working: false
+    file: "server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED: Production readiness fixes for API timeout and follow-up cancellation issues. 1) Modified /api/emails/test endpoint to be non-blocking using FastAPI BackgroundTasks, returns immediately with job status. 2) Added normalize_email_for_matching() function for Gmail aliases, dots, and case-insensitive matching. 3) Enhanced cancel_follow_ups_for_recipient() with detailed logging and normalized email comparison. 4) Improved detect_and_handle_responses() background service. 5) Added comprehensive logging with emoji indicators. 6) System uses FastAPI BackgroundTasks as fallback when Redis unavailable."
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL ISSUE: API timeout fix blocked by Redis connectivity issues. /api/emails/test endpoint returns quickly (0.08s) but fails with 500 Internal Server Error because code attempts to use RQ even when Redis is unavailable (Error 99 connecting to localhost:6379). Fallback to BackgroundTasks not functioning properly. ✅ FOLLOW-UP CANCELLATION WORKING: Email normalization functions working perfectly - Gmail aliases (testuser+sales@gmail.com → testuser@gmail.com), Gmail dots (test.user@gmail.com → testuser@gmail.com), case-insensitive matching (TEST@EXAMPLE.COM → test@example.com). Enhanced logging shows '✅ Match found' and '✅ Cancelled X pending follow-ups' messages. Background service successfully cancels follow-ups when replies detected. RECOMMENDATION: Fix Redis connectivity or improve RQ_ENABLED logic to properly handle Redis unavailability and enable BackgroundTasks fallback."
+
 frontend:
   - task: "Signature Typing Functionality"
     implemented: true
