@@ -1266,12 +1266,22 @@ async def test_email_processing(request: EmailTestRequest, background_tasks: Bac
     # Store in database
     await db.emails.insert_one(email_obj.dict())
     
-    # Process the email using RQ if available, otherwise use background tasks
+    # Process the email using RQ if available and connected, otherwise use background tasks
     job_id = None
+    processing_method = "background_tasks"
+    
     if RQ_ENABLED:
-        job = enqueue_email_processing(email_obj.id)
-        job_id = job.id
-        logger.info(f"📋 Enqueued test email processing: {email_obj.id} (Job ID: {job.id})")
+        try:
+            # Try to use RQ - test Redis connection first
+            job = enqueue_email_processing(email_obj.id)
+            job_id = job.id
+            processing_method = "rq"
+            logger.info(f"📋 Enqueued test email processing: {email_obj.id} (Job ID: {job.id})")
+        except Exception as e:
+            # Redis connection failed, fall back to background tasks
+            logger.warning(f"⚠️ RQ enqueue failed ({str(e)}), falling back to background tasks")
+            background_tasks.add_task(process_email_async, email_obj.id)
+            logger.info(f"📋 Added test email to background tasks: {email_obj.id}")
     else:
         # Use FastAPI background tasks for non-blocking processing
         background_tasks.add_task(process_email_async, email_obj.id)
@@ -1282,6 +1292,7 @@ async def test_email_processing(request: EmailTestRequest, background_tasks: Bac
         "email_id": email_obj.id,
         "status": "queued",
         "job_id": job_id,
+        "processing_method": processing_method,
         "message": "Email processing started. Use GET /api/emails/{email_id} to check status."
     }
 
