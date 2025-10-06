@@ -694,30 +694,6 @@ async def main():
 if __name__ == "__main__":
     success = asyncio.run(main())
     sys.exit(0 if success else 1)
-            config_create_data = {
-                "global_follow_up_hours": 48,
-                "max_follow_ups": 5,
-                "follow_up_interval_hours": 72,
-                "auto_follow_up": True,
-                "business_hours_only": True,
-                "business_start_hour": 8,
-                "business_end_hour": 18,
-                "business_days": [1, 2, 3, 4, 5],
-                "exclude_weekends": True
-            }
-            
-            response = requests.post(f"{API_BASE}/follow-up/config", json=config_create_data, headers=self.get_headers())
-            
-            if response.status_code == 200:
-                created_config = response.json()
-                print(f"✅ POST follow-up config successful: {created_config.get('global_follow_up_hours')} hours")
-                self.test_results.append(("POST /api/follow-up/config", "PASS", "Config created/updated"))
-            else:
-                print(f"❌ POST follow-up config failed: {response.status_code} - {response.text}")
-                self.test_results.append(("POST /api/follow-up/config", "FAIL", f"Status: {response.status_code}"))
-            
-            # Test PUT /api/follow-up/config (update specific fields)
-            print("Testing PUT /api/follow-up/config...")
             config_update_data = {
                 "global_follow_up_hours": 36,
                 "max_follow_ups": 4,
