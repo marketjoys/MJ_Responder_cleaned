@@ -42,3 +42,4 @@ emergentintegrations
 redis>=5.0.0
 rq>=1.15.0
 rq-scheduler>=0.13.1
+python-crontab>=3.0.0
