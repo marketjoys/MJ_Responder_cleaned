@@ -3538,15 +3538,70 @@ async def cancel_follow_ups_for_thread(thread_id: str, reason: str = "Response r
         logger.error(f"Error cancelling follow-ups for thread {thread_id}: {str(e)}")
         return 0
 
+def normalize_email_for_matching(email: str) -> str:
+    """
+    Normalize email for matching to handle Gmail aliases and edge cases.
+    - Removes dots from Gmail addresses (user.name@gmail.com == username@gmail.com)
+    - Handles +aliases (user+tag@gmail.com == user@gmail.com for Gmail)
+    - Converts to lowercase
+    """
+    if not email:
+        return ""
+    
+    email = email.lower().strip()
+    
+    # Extract local and domain parts
+    if '@' not in email:
+        return email
+    
+    local, domain = email.rsplit('@', 1)
+    
+    # Gmail-specific normalization
+    if domain in ['gmail.com', 'googlemail.com']:
+        # Remove dots from local part (Gmail ignores dots)
+        local = local.replace('.', '')
+        
+        # Remove +aliases (everything after +)
+        if '+' in local:
+            local = local.split('+')[0]
+    
+    return f"{local}@{domain}"
+
 async def cancel_follow_ups_for_recipient(thread_id: str, recipient_email: str, reason: str = "Reply received"):
-    """Cancel pending follow-ups for a specific recipient in a thread when they reply"""
+    """
+    Cancel pending follow-ups for a specific recipient in a thread when they reply.
+    Enhanced with email normalization to handle Gmail aliases and edge cases.
+    """
     try:
-        # Cancel follow-ups for this specific recipient in this thread
+        # Normalize the recipient email
+        normalized_email = normalize_email_for_matching(recipient_email)
+        
+        # Get all pending follow-ups in this thread
+        pending_follow_ups = await db.follow_up_emails.find({
+            "thread_id": thread_id,
+            "status": "pending"
+        }).to_list(100)
+        
+        logger.info(f"🔍 Checking {len(pending_follow_ups)} pending follow-ups for match with {recipient_email} (normalized: {normalized_email})")
+        
+        # Match follow-ups using normalized email comparison
+        matching_follow_up_ids = []
+        for follow_up in pending_follow_ups:
+            follow_up_recipient = follow_up.get('recipient_email', '')
+            normalized_follow_up = normalize_email_for_matching(follow_up_recipient)
+            
+            if normalized_follow_up == normalized_email:
+                matching_follow_up_ids.append(follow_up['id'])
+                logger.info(f"✅ Match found: {follow_up_recipient} (normalized: {normalized_follow_up}) matches {recipient_email}")
+        
+        if not matching_follow_up_ids:
+            logger.warning(f"⚠️ No matching follow-ups found for {recipient_email} in thread {thread_id}")
+            return 0
+        
+        # Cancel matching follow-ups
         result = await db.follow_up_emails.update_many(
             {
-                "thread_id": thread_id,
-                "status": "pending",
-                "recipient_email": {"$regex": f"^{recipient_email}$", "$options": "i"}  # Case-insensitive
+                "id": {"$in": matching_follow_up_ids}
             },
             {
                 "$set": {
@@ -3560,9 +3615,16 @@ async def cancel_follow_ups_for_recipient(thread_id: str, recipient_email: str, 
         )
         
         if result.modified_count > 0:
-            logger.info(f"Cancelled {result.modified_count} pending follow-ups for {recipient_email} in thread {thread_id}: {reason}")
+            logger.info(f"✅ Cancelled {result.modified_count} pending follow-ups for {recipient_email} in thread {thread_id}: {reason}")
+        else:
+            logger.warning(f"⚠️ Update failed for {len(matching_follow_up_ids)} matching follow-ups")
         
         return result.modified_count
+        
+    except Exception as e:
+        logger.error(f"❌ Error cancelling follow-ups for recipient {recipient_email} in thread {thread_id}: {str(e)}")
+        logger.exception(e)  # Log full traceback
+        return 0
         
     except Exception as e:
         logger.error(f"Error cancelling follow-ups for recipient {recipient_email} in thread {thread_id}: {str(e)}")
