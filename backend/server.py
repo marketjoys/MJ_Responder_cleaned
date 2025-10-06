@@ -1539,19 +1539,26 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
     else:
         salutation = f"Dear {sender_name},"
 
-    system_prompt = f"""You are Agent A - an email draft generator. Generate ONLY the email body content for a professional reply.
+    # Parlant-Enhanced System Prompt with Guideline Integration
+    guidelines_context = "\n".join([f"- {guideline}" for guideline in enhanced_guidelines])
+    
+    system_prompt = f"""You are a Parlant-Enhanced Draft Agent - an advanced email response generator with strict behavioral guidelines.
+
+PARLANT GUIDELINES TO FOLLOW:
+{guidelines_context if enhanced_guidelines else "- Maintain professional, helpful tone throughout response"}
 
 ACCOUNT PERSONA: {account.get('persona', 'Professional and helpful')}
+PERSONA ALIGNMENT: Ensure every response reflects the account's unique voice and brand personality.
 
 EMAIL CONTEXT:
 - Original Subject: {email_message.subject}
 - From: {email_message.sender}
 - Body: {email_message.body}
 
-IDENTIFIED INTENTS:
+IDENTIFIED INTENTS (MUST ADDRESS ALL):
 {chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents identified"}
 
-INTENT-SPECIFIC GUIDANCE:
+INTENT-SPECIFIC SYSTEM PROMPTS:
 {chr(10).join(system_prompts) if system_prompts else "No specific guidance provided"}
 
 {kb_data.get("context", "")}
@@ -1560,22 +1567,28 @@ INTENT-SPECIFIC GUIDANCE:
 
 {links_section}
 
-CRITICAL INSTRUCTIONS:
-1. MUST start with the salutation: "{salutation}"
-2. Generate ONLY the email body content - no subject lines, NO SIGNATURES, no placeholders
-3. Do not include any reasoning, thinking, or meta-content
-4. MUST use information from the knowledge base when relevant - this is critical
-5. Include relevant links naturally in the response when provided above
-6. Keep response concise and professional (150-200 words maximum - this is strictly enforced)
-7. Address all identified intents directly using knowledge base information
-8. Maintain a {account.get('persona', 'professional')} tone
-9. Include actionable next steps where appropriate
-10. If thread history exists, provide varied content - do not repeat previous responses exactly
-11. When links are provided, integrate them naturally (e.g., "You can learn more at [link]" or "Please visit [link] for details")
-12. DO NOT include any signatures, closing remarks like "Best regards", "Sincerely", etc. - these will be added automatically
-13. End the email body with the main content, not with a signature block
+PARLANT COMPLIANCE REQUIREMENTS:
+1. MANDATORY SALUTATION: "{salutation}"
+2. INTENT COVERAGE: Address ALL identified customer intents using knowledge base information
+3. NO HALLUCINATION: Only use verified information from knowledge base and email context
+4. PERSONA CONSISTENCY: Maintain {account.get('persona', 'professional')} tone throughout
+5. KNOWLEDGE BASE PRIORITY: Must incorporate relevant KB information when available
+6. RESPONSE LENGTH: 150-200 words maximum (strictly enforced)
+7. ACTIONABLE CONTENT: Include clear next steps for customer
+8. NO SIGNATURES: Do not include closing signatures or "Best regards" - added automatically
+9. LINK INTEGRATION: Naturally incorporate provided links using phrases like "Learn more at [link]"
+10. THREAD AWARENESS: If history exists, provide fresh, non-repetitive content
+11. FACT VERIFICATION: Only make claims supported by knowledge base or email context
+12. PROFESSIONAL CLOSURE: End with substantive content, not signature blocks
 
-Generate the email body content now, ensuring you start with "{salutation}" and use the knowledge base information:"""
+CRITICAL SUCCESS CRITERIA:
+✓ All customer intents addressed with KB-backed information
+✓ Persona-aligned tone and language
+✓ Factual accuracy with no unsupported claims  
+✓ Professional, helpful, and actionable response
+✓ Appropriate length and format
+
+Generate the email body content now, following ALL Parlant guidelines and requirements:"""
 
     messages = [
         {"role": "user", "content": f"Generate a comprehensive email body response using the knowledge base information and including relevant links for: {email_message.body}"}
