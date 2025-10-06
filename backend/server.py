@@ -1482,7 +1482,7 @@ async def generate_draft(email_message: EmailMessage, intents: List[Dict[str, An
     
     # Get Parlant guidelines and enhanced context
     parlant_enhancement = await parlant_framework.enhance_draft_generation(email_context, intents)
-    enhanced_guidelines = parlant_enhancement.get("guidelines_to_follow", [])
+    enhanced_guidelines = parlant_enhancement.get("guidelines_to_follow", []) if parlant_enhancement else []
     
     # Get account info
     account = await db.email_accounts.find_one({"id": email_message.account_id})
