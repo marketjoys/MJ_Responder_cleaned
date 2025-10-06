@@ -206,6 +206,7 @@ class EmailAccountCreate(BaseModel):
 
 class KnowledgeBase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # User who owns this knowledge base item
     title: str
     content: str
     tags: List[str] = []
