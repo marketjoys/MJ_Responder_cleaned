@@ -224,8 +224,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All critical backend systems operational"
-  stuck_tasks: []
+    - "Production Readiness Fixes - API Timeout & Follow-up Cancellation"
+  stuck_tasks:
+    - "Production Readiness Fixes - API Timeout & Follow-up Cancellation"
   test_all: false
   test_priority: "high_first"
 
