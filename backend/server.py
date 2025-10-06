@@ -963,8 +963,8 @@ async def get_intents(current_user: User = Depends(get_current_active_user)):
     return [Intent(**intent) for intent in intents]
 
 @api_router.get("/intents/{intent_id}", response_model=Intent)
-async def get_intent(intent_id: str):
-    intent_doc = await db.intents.find_one({"id": intent_id})
+async def get_intent(intent_id: str, current_user: User = Depends(get_current_active_user)):
+    intent_doc = await db.intents.find_one({"id": intent_id, "user_id": current_user.id})
     if not intent_doc:
         raise HTTPException(status_code=404, detail="Intent not found")
     return Intent(**intent_doc)
