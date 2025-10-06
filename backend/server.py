@@ -1782,46 +1782,68 @@ For PASS: The final email must address intents, use available KB information, in
 
 For PASS: The final email should be courteous, professional, acknowledge the sender appropriately, have proper signature, and contain NO placeholders or incomplete sections. Knowledge base integration and specific links are recommended but not required when no specific intents are identified."""
 
-    system_prompt = f"""You are Agent B - an enhanced email validator. You are operating in {validation_mode} MODE.
+    # Parlant-Enhanced Validation System Prompt
+    parlant_checks = "\n".join([f"✓ {rec}" for rec in recommendations]) if recommendations else "No Parlant recommendations"
+    
+    system_prompt = f"""You are a Parlant-Enhanced Validation Agent - an advanced email quality assurance system with strict compliance guidelines.
 
-ORIGINAL EMAIL:
+PARLANT VALIDATION GUIDELINES APPLIED:
+{parlant_checks}
+
+VALIDATION MODE: {validation_mode} - {'Strict compliance required' if validation_mode == 'STRICT' else 'Flexible validation with core requirements'}
+
+ORIGINAL EMAIL ANALYSIS:
 Subject: {email_message.subject}
 From: {email_message.sender}
 Body: {email_message.body}
+Customer Intent Classification: {chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents identified"}
 
-IDENTIFIED INTENTS TO ADDRESS:
-{chr(10).join(intent_descriptions) if intent_descriptions else "No specific intents identified - using lenient validation"}
+ACCOUNT CONTEXT:
+Persona: {account_config.get('persona', 'Professional')}
+Signature: {signature if signature else "No signature configured"}
 
-AVAILABLE KNOWLEDGE BASE INFORMATION:
+KNOWLEDGE BASE VERIFICATION:
 {kb_data.get("context", "No knowledge base information available")}
+Expected Links: {chr(10).join(f"- {link}" for link in expected_links) if expected_links else "No specific links required"}
 
-EXPECTED LINKS TO INCLUDE:
-{chr(10).join(f"- {link}" for link in expected_links) if expected_links else "No specific links required"}
+THREAD CONTEXT:
+{f"Previous responses exist - content must be unique and non-repetitive" if thread_history else "No previous thread history"}
 
-THREAD HISTORY:
-{f"Previous responses exist - final email should provide varied content" if thread_history else "No previous responses in thread"}
-
-ACCOUNT SIGNATURE:
-{signature if signature else "No signature configured"}
-
-FINAL EMAIL TO VALIDATE (INCLUDING SIGNATURE):
+FINAL EMAIL FOR VALIDATION (WITH SIGNATURE):
 {final_draft['plain_text']}
 
+PARLANT COMPLIANCE MATRIX:
 {criteria_text}
 
-AUTOMATED CHECK RESULTS:
-- KB Information Available: {kb_info_present}
+AUTOMATED PARLANT CHECKS:
+- Hallucination Risk: {validation_guidelines.get('hallucination_check', {}).get('has_hallucination', 'Unknown')}
+- Intent Coverage: {validation_guidelines.get('intent_coverage', {}).get('all_intents_covered', 'Unknown')}
+- Persona Alignment: {validation_guidelines.get('persona_alignment', {}).get('persona_aligned', 'Unknown')}
+- Knowledge Base Available: {kb_info_present}
 - Expected Links Count: {len(expected_links)}
 - Thread History Present: {len(thread_history) > 0}
-- Signature Included: {bool(signature)}
+- Signature Status: {bool(signature)}
 
-IMPORTANT: Start your response with either "PASS:" or "FAIL:" followed by detailed explanation.
+CRITICAL SUCCESS CRITERIA:
+✓ NO HALLUCINATION: All claims must be verifiable from knowledge base or email context
+✓ COMPLETE INTENT COVERAGE: Every customer intent must be addressed appropriately  
+✓ PERSONA CONSISTENCY: Response must align with account persona throughout
+✓ KNOWLEDGE BASE INTEGRATION: Must use available KB information when relevant
+✓ NO PLACEHOLDERS: Email must be complete with no [brackets], {{variables}}, or TODO items
+✓ PROFESSIONAL QUALITY: Appropriate tone, complete sentences, proper formatting
+✓ SIGNATURE COMPLIANCE: Proper signature formatting and inclusion
 
-For FAIL: Clearly state what's missing - intent coverage (if in strict mode), KB usage (if available and relevant), links (if required), duplicate content issues, signature formatting issues, OR any placeholders/incomplete content that must be completed before sending.
+RESPONSE FORMAT: Start with "PASS:" or "FAIL:" followed by detailed compliance analysis.
 
-CRITICAL: This final email (including signature) will be sent to the customer. Ensure it's complete, professional, and ready for delivery without any placeholders or missing information.
+FAIL CONDITIONS:
+- Any hallucinated information not supported by KB or email context
+- Unaddressed customer intents (in strict mode)  
+- Persona misalignment or inconsistent tone
+- Placeholders, incomplete sentences, or TODO items
+- Missing required knowledge base information
+- Signature formatting issues
 
-Validate the final email now:"""
+Perform comprehensive Parlant validation now:"""
 
     messages = [
         {"role": "user", "content": "Please validate this final email response (including signature) focusing on knowledge base usage, link inclusion, signature formatting, and thread uniqueness. Start with PASS: or FAIL:"}
