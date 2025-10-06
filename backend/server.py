@@ -1010,8 +1010,9 @@ async def get_email_providers():
     return EMAIL_PROVIDERS
 
 @api_router.post("/email-accounts", response_model=EmailAccount)
-async def create_email_account(account: EmailAccountCreate):
+async def create_email_account(account: EmailAccountCreate, current_user: User = Depends(get_current_active_user)):
     account_dict = account.dict()
+    account_dict["user_id"] = current_user.id  # Assign to current user
     
     # Auto-fill provider settings if not custom
     if account.provider != "custom" and account.provider in EMAIL_PROVIDERS:
