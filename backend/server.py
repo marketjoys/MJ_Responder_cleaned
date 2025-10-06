@@ -1035,8 +1035,8 @@ async def get_email_accounts(current_user: User = Depends(get_current_active_use
     return [EmailAccount(**account) for account in accounts]
 
 @api_router.get("/email-accounts/{account_id}", response_model=EmailAccount)
-async def get_email_account(account_id: str):
-    account_doc = await db.email_accounts.find_one({"id": account_id})
+async def get_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
+    account_doc = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
     if not account_doc:
         raise HTTPException(status_code=404, detail="Email account not found")
     # Don't return password
