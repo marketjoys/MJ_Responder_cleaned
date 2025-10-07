@@ -282,11 +282,12 @@ class MicrosoftOAuthTester:
                 methods_passed = False
                 methods_details = f"Exception: {str(e)}"
             
-            all_passed = unauth_passed and structure_passed and methods_passed
+            all_passed = auth_passed and unauth_passed and structure_passed and methods_passed
             
-            details = f"Unauth handling: {unauth_passed}, Structure: {structure_passed}, Methods: {methods_passed}"
+            details = f"Auth: {auth_passed}, Unauth handling: {unauth_passed}, Structure: {structure_passed}, Methods: {methods_passed}"
             
             self.log_test_result("Microsoft OAuth Status Check", all_passed, details)
+            self.log_test_result("OAuth Status - Authenticated", auth_passed, auth_details)
             self.log_test_result("OAuth Status - Unauth Handling", unauth_passed, unauth_details)
             self.log_test_result("OAuth Status - Response Structure", structure_passed, structure_details)
             self.log_test_result("OAuth Status - HTTP Methods", methods_passed, methods_details)
