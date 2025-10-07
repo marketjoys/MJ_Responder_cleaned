@@ -4989,7 +4989,7 @@ async def create_oauth_calendar_provider(
     provider_data: CalendarProviderCreateOAuth,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create calendar provider using OAuth credentials"""
+    """Create calendar provider using OAuth credentials (Google or Microsoft)"""
     
     if not provider_data.use_oauth:
         raise HTTPException(
@@ -4997,24 +4997,64 @@ async def create_oauth_calendar_provider(
             detail="This endpoint is for OAuth-based providers only"
         )
     
-    # Check if user has OAuth authorization for calendar
-    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
-    if not oauth_status["is_authorized"] or "calendar" not in oauth_status["authorized_services"]:
+    # Determine provider type
+    provider_type = provider_data.provider_type.lower()
+    
+    if provider_type == 'google':
+        # Google OAuth flow
+        oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
+        if not oauth_status["is_authorized"] or "calendar" not in oauth_status["authorized_services"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google calendar access not authorized. Please complete OAuth flow first."
+            )
+        
+        try:
+            # Verify OAuth access by testing Calendar API
+            calendar_service = await get_google_calendar_service(current_user.id)
+            calendars = await calendar_service.list_calendars()
+            calendar_count = len(calendars)
+            
+        except Exception as e:
+            logger.error(f"Error verifying Google calendar OAuth: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to verify Google calendar OAuth access: {str(e)}"
+            )
+    
+    elif provider_type == 'microsoft':
+        # Microsoft OAuth flow
+        oauth_status = await microsoft_oauth_service.get_oauth_status(current_user.id)
+        if not oauth_status["is_authorized"] or "calendar" not in oauth_status["authorized_services"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Microsoft calendar access not authorized. Please complete OAuth flow first."
+            )
+        
+        try:
+            # Verify OAuth access by testing Calendar API
+            calendar_service = MicrosoftCalendarService(current_user.id)
+            events = await calendar_service.list_events(max_results=1)
+            calendar_count = 1  # Microsoft uses single default calendar
+            
+        except Exception as e:
+            logger.error(f"Error verifying Microsoft calendar OAuth: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to verify Microsoft calendar OAuth access: {str(e)}"
+            )
+    else:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google calendar access not authorized. Please complete OAuth flow first."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported OAuth provider: {provider_type}. Use 'google' or 'microsoft'"
         )
     
     try:
-        # Verify OAuth access by testing Calendar API
-        calendar_service = await get_google_calendar_service(current_user.id)
-        calendars = await calendar_service.list_calendars()
-        
         # Create provider record
         provider = {
             "id": str(uuid.uuid4()),
             "user_id": current_user.id,
-            "provider_type": "google",
+            "provider_type": provider_type,
             "provider_name": provider_data.provider_name,
             "use_oauth": True,
             "encrypted_credentials": "",  # No manual credentials needed
@@ -5036,7 +5076,7 @@ async def create_oauth_calendar_provider(
             provider_name=provider["provider_name"],
             is_active=provider["is_active"],
             timezone=provider["timezone"],
-            calendar_count=len(calendars),
+            calendar_count=calendar_count,
             created_at=provider["created_at"],
             updated_at=provider["updated_at"]
         )
