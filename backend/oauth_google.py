@@ -370,18 +370,28 @@ class GoogleOAuthService:
             logger.error(f"Error refreshing token: {str(e)}")
             return None
     
-    async def get_valid_token(self, user_id: str, service: str = None) -> Optional[str]:
+    async def get_valid_token(self, user_id: str, service: str = None, oauth_email: Optional[str] = None) -> Optional[str]:
         """
         Get valid access token for user, refreshing if necessary
         
         Args:
             user_id: User ID
             service: Optional service filter ('email' or 'calendar')
+            oauth_email: Optional specific email to get token for
             
         Returns:
             Valid access token or None
         """
-        oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
+        # Try to find token for specific email first
+        if oauth_email:
+            oauth_tokens = await db.oauth_tokens.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+        else:
+            # Fallback to any token for this user (backward compatibility)
+            oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
+            
         if not oauth_tokens:
             return None
         
@@ -390,7 +400,7 @@ class GoogleOAuthService:
             return None
         
         # Try to refresh token if needed
-        return await self.refresh_access_token(user_id)
+        return await self.refresh_access_token(user_id, oauth_email or oauth_tokens.get('user_email'))
     
     async def revoke_tokens(self, user_id: str) -> bool:
         """Revoke OAuth tokens and remove from database"""
