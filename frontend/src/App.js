@@ -2942,7 +2942,7 @@ const EmailAccounts = () => {
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={loading || (accountType === 'oauth' && oauthProvider === 'google' && (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email'))) || (accountType === 'oauth' && oauthProvider === 'microsoft' && (!microsoftOauthStatus?.is_authorized || !microsoftOauthStatus?.authorized_services?.includes('email')))}
+                    disabled={loading}
                     className="bg-gradient-to-r from-purple-600 to-pink-600"
                   >
                     {loading ? (
