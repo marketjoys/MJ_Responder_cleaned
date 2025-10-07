@@ -902,11 +902,23 @@ const CalendarProviders = () => {
     }
   };
 
+  const initiateMicrosoftOAuth = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/oauth/microsoft/authorize`, ['calendar']);
+      // Redirect to Microsoft OAuth
+      window.location.href = response.data.auth_url;
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Microsoft OAuth initiation failed');
+      setLoading(false);
+    }
+  };
+
   const createOAuthProvider = async () => {
     setLoading(true);
     try {
       const providerData = {
-        provider_type: 'google',
+        provider_type: oauthProvider,
         provider_name: formData.provider_name,
         use_oauth: true,
         timezone: formData.timezone
@@ -918,6 +930,7 @@ const CalendarProviders = () => {
       resetForm();
       fetchProviders();
       fetchOAuthStatus();
+      fetchMicrosoftOAuthStatus();
     } catch (error) {
       setMessage(error.response?.data?.detail || 'Error creating OAuth provider');
     }
