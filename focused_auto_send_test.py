@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://user-privacy-guard.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://oauth-outlook-sync.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_auto_send():

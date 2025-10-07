@@ -7,7 +7,7 @@ import time
 import json
 
 # Configuration
-BACKEND_URL = "https://user-privacy-guard.preview.emergentagent.com"
+BACKEND_URL = "https://oauth-outlook-sync.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_api_timeout_fix():
