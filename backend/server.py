@@ -168,18 +168,25 @@ class EmailAccount(BaseModel):
     name: str
     email: str
     provider: str
-    imap_server: str
-    imap_port: int
-    smtp_server: str
-    smtp_port: int
-    username: str
-    password: str  # In production, this should be encrypted
+    # OAuth integration fields
+    auth_type: str = "manual"  # "oauth" or "manual"
+    use_oauth: bool = False
+    oauth_token_id: Optional[str] = None  # Links to specific OAuth token in oauth_tokens collection
+    oauth_email: Optional[str] = None  # The OAuth email address (for multi-account support)
+    # Manual configuration fields
+    imap_server: str = ""
+    imap_port: int = 993
+    smtp_server: str = ""
+    smtp_port: int = 587
+    username: str = ""
+    password: str = ""  # In production, this should be encrypted
     is_active: bool = True
     persona: str = ""
     signature: str = ""
     last_uid: int = 0
     uidvalidity: Optional[str] = None
     last_polled: Optional[datetime] = None
+    last_oauth_sync: Optional[datetime] = None  # For OAuth accounts
     auto_send: bool = True  # Auto-send approved replies
     # Follow-up configuration
     enable_follow_ups: bool = True
