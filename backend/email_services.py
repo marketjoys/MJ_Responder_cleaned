@@ -672,6 +672,10 @@ class EmailPollingService:
             # Get last processed message timestamp from database
             last_processed = account.get('last_oauth_sync', None)
             
+            # Ensure last_processed is timezone-naive for comparison
+            if last_processed and hasattr(last_processed, 'tzinfo') and last_processed.tzinfo is not None:
+                last_processed = last_processed.replace(tzinfo=None)
+            
             # Get messages from inbox (Microsoft Graph API automatically returns newest first)
             messages = await mail_service.list_messages(folder='inbox', max_results=50)
             
@@ -688,7 +692,8 @@ class EmailPollingService:
                         received_at = received_at.replace(tzinfo=None)  # Remove timezone for comparison
                         
                         # Only process messages newer than last processed
-                        if received_at > (last_processed or datetime.min):
+                        comparison_time = last_processed if last_processed else datetime.min
+                        if received_at > comparison_time:
                             # Get full message details
                             full_message = await mail_service.get_message(message['id'])
                             
