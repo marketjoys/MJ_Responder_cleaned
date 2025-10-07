@@ -3644,7 +3644,7 @@ const EmailProcessing = () => {
             ))
           ) : (
             // Individual Email View - Fixed to handle thread structure properly with null checks
-            emailThreads.map((thread, index) => {
+            (emailThreads && Array.isArray(emailThreads) ? emailThreads : []).map((thread, index) => {
               // Defensive programming: ensure we have valid data
               if (!thread) return null;
               
