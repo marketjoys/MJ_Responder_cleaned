@@ -200,6 +200,8 @@ class GoogleOAuthService:
                 authorized_services.append('calendar')
             
             # Store tokens in database
+            oauth_email = user_info.get('email', '')
+            
             oauth_tokens = GoogleOAuthTokens(
                 id=str(uuid.uuid4()),
                 user_id=oauth_state['user_id'],
@@ -208,17 +210,42 @@ class GoogleOAuthService:
                 expires_at=datetime.now(timezone.utc) + timedelta(seconds=token_data.get('expires_in', 3600)),
                 scope=token_data.get('scope', ''),
                 authorized_services=authorized_services,
-                user_email=user_info.get('email', ''),
+                user_email=oauth_email,
                 user_name=user_info.get('name', ''),
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )
             
-            # Remove any existing tokens for this user
-            await db.oauth_tokens.delete_many({'user_id': oauth_state['user_id']})
+            # Check if token already exists for this user + email combination
+            existing_token = await db.oauth_tokens.find_one({
+                'user_id': oauth_state['user_id'],
+                'user_email': oauth_email
+            })
             
-            # Insert new tokens
-            await db.oauth_tokens.insert_one(oauth_tokens.dict())
+            if existing_token:
+                # Update existing token
+                await db.oauth_tokens.update_one(
+                    {
+                        'user_id': oauth_state['user_id'],
+                        'user_email': oauth_email
+                    },
+                    {
+                        '$set': {
+                            'access_token': token_data['access_token'],
+                            'refresh_token': token_data.get('refresh_token') or existing_token.get('refresh_token'),
+                            'expires_at': datetime.now(timezone.utc) + timedelta(seconds=token_data.get('expires_in', 3600)),
+                            'scope': token_data.get('scope', ''),
+                            'authorized_services': authorized_services,
+                            'user_name': user_info.get('name', ''),
+                            'updated_at': datetime.now(timezone.utc)
+                        }
+                    }
+                )
+                logger.info(f"✅ Updated Google OAuth token for {oauth_email}")
+            else:
+                # Insert new token (allows multiple accounts)
+                await db.oauth_tokens.insert_one(oauth_tokens.dict())
+                logger.info(f"✅ Created new Google OAuth token for {oauth_email}")
             
             return {
                 'user_id': oauth_state['user_id'],
