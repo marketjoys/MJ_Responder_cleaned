@@ -3295,7 +3295,7 @@ async def get_google_oauth_status(current_user: User = Depends(get_current_activ
 
 @api_router.post("/oauth/google/revoke")
 async def revoke_google_oauth(current_user: User = Depends(get_current_active_user)):
-    """Revoke Google OAuth tokens"""
+    """Revoke ALL Google OAuth tokens for this user"""
     try:
         success = await google_oauth_service.revoke_tokens(current_user.id)
         return {
@@ -3307,6 +3307,59 @@ async def revoke_google_oauth(current_user: User = Depends(get_current_active_us
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to revoke OAuth: {str(e)}"
+        )
+
+@api_router.post("/oauth/google/revoke/{oauth_email}")
+async def revoke_specific_google_oauth(
+    oauth_email: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Revoke Google OAuth tokens for a specific email account"""
+    try:
+        # Find the specific OAuth token
+        oauth_token = await db.oauth_tokens.find_one({
+            'user_id': current_user.id,
+            'user_email': oauth_email
+        })
+        
+        if not oauth_token:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"OAuth token not found for {oauth_email}"
+            )
+        
+        # Revoke with Google
+        success = await google_oauth_service.revoke_tokens(current_user.id, oauth_email)
+        
+        if success:
+            # Also deactivate any email accounts using this OAuth token
+            result = await db.email_accounts.update_many(
+                {
+                    'user_id': current_user.id,
+                    'oauth_email': oauth_email,
+                    'auth_type': 'oauth'
+                },
+                {
+                    '$set': {
+                        'is_active': False,
+                        'oauth_token_id': None
+                    }
+                }
+            )
+            
+            logger.info(f"✅ Revoked OAuth for {oauth_email} and deactivated {result.modified_count} email accounts")
+        
+        return {
+            "success": success,
+            "oauth_email": oauth_email,
+            "message": f"OAuth token for {oauth_email} revoked successfully" if success else f"Failed to revoke OAuth token for {oauth_email}"
+        }
+        
+    except Exception as e:
+        logger.error(f"OAuth revoke error for {oauth_email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke OAuth for {oauth_email}: {str(e)}"
         )
 
 
