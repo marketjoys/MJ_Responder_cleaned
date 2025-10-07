@@ -2419,12 +2419,14 @@ const EmailAccounts = () => {
       // Check OAuth status based on selected provider
       if (oauthProvider === 'google') {
         if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')) {
-          setMessage('Please authorize Google email access first');
+          // Initiate OAuth flow if not authorized
+          await initiateGoogleOAuth();
           return;
         }
       } else if (oauthProvider === 'microsoft') {
         if (!microsoftOauthStatus?.is_authorized || !microsoftOauthStatus?.authorized_services?.includes('email')) {
-          setMessage('Please authorize Microsoft email access first');
+          // Initiate OAuth flow if not authorized
+          await initiateMicrosoftOAuth();
           return;
         }
       }
