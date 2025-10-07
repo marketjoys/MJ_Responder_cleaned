@@ -176,7 +176,7 @@ class MicrosoftOAuthTester:
             # Test 1c: Test with empty payload
             try:
                 print("   Testing with empty payload...")
-                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json={}, timeout=10)
+                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json={}, headers=self.auth_headers, timeout=10)
                 
                 empty_handled = response.status_code in [200, 400, 422]
                 empty_details = f"Empty payload status: {response.status_code}"
