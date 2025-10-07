@@ -3470,7 +3470,7 @@ const EmailProcessing = () => {
         <div className="grid gap-6">
           {viewMode === 'threads' ? (
             // Threaded Conversation View
-            emailThreads.map(thread => (
+            (emailThreads && Array.isArray(emailThreads) ? emailThreads : []).map(thread => (
               <Card key={thread.thread_id} className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
