@@ -397,7 +397,7 @@ async def migrate_existing_data_to_users():
                 "id": str(uuid.uuid4()),
                 "email": "admin@example.com", 
                 "full_name": "Admin User",
-                "hashed_password": hash_password("admin123"),
+                "hashed_password": get_password_hash("admin123"),
                 "timezone": "UTC",
                 "email_quota": 10000,
                 "emails_used": 0,
