@@ -941,9 +941,17 @@ const CalendarProviders = () => {
     e.preventDefault();
     
     if (accountType === 'oauth') {
-      if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('calendar')) {
-        setMessage('Please authorize Google calendar access first');
-        return;
+      // Check OAuth status based on selected provider
+      if (oauthProvider === 'google') {
+        if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('calendar')) {
+          setMessage('Please authorize Google calendar access first');
+          return;
+        }
+      } else if (oauthProvider === 'microsoft') {
+        if (!microsoftOauthStatus?.is_authorized || !microsoftOauthStatus?.authorized_services?.includes('calendar')) {
+          setMessage('Please authorize Microsoft calendar access first');
+          return;
+        }
       }
       await createOAuthProvider();
     } else {
