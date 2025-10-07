@@ -211,19 +211,32 @@ class MicrosoftOAuthTester:
         print("\n📊 Testing Microsoft OAuth Status Check...")
         
         try:
-            # Test 2a: Test status endpoint without authentication
+            # Test 2a: Test status endpoint with authentication
+            try:
+                print("   Testing /api/oauth/microsoft/status endpoint (authenticated)...")
+                response = self.make_request('get', f"{API_BASE}/oauth/microsoft/status", timeout=10)
+                
+                # Should return 200 for authenticated requests
+                auth_passed = response.status_code == 200
+                
+                if response.status_code == 200:
+                    status_response = response.json()
+                    auth_details = f"Status: {response.status_code}, Response: {status_response}"
+                else:
+                    auth_details = f"Status: {response.status_code}, Error: {response.text[:100]}"
+                    
+            except Exception as e:
+                auth_passed = False
+                auth_details = f"Exception: {str(e)}"
+            
+            # Test 2a2: Test status endpoint without authentication
             try:
                 print("   Testing /api/oauth/microsoft/status endpoint (unauthenticated)...")
                 response = requests.get(f"{API_BASE}/oauth/microsoft/status", timeout=10)
                 
-                # Should return 401/403 for unauthenticated requests or 200 with empty status
-                unauth_passed = response.status_code in [200, 401, 403]
-                
-                if response.status_code == 200:
-                    status_response = response.json()
-                    unauth_details = f"Status: {response.status_code}, Response: {status_response}"
-                else:
-                    unauth_details = f"Status: {response.status_code}"
+                # Should return 401/403 for unauthenticated requests
+                unauth_passed = response.status_code in [401, 403]
+                unauth_details = f"Unauth status: {response.status_code}"
                     
             except Exception as e:
                 unauth_passed = False
