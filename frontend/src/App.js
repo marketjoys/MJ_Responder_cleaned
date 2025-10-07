@@ -1224,9 +1224,9 @@ const CalendarProviders = () => {
         </Card>
 
         {message && (
-          <Alert className={(typeof message === 'string' && message.includes('success')) ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-            <AlertCircle className={`h-4 w-4 ${(typeof message === 'string' && message.includes('success')) ? 'text-green-600' : 'text-red-600'}`} />
-            <AlertDescription className={(typeof message === 'string' && message.includes('success')) ? 'text-green-700' : 'text-red-700'}>
+          <Alert className={(typeof message === 'string' && message.includes('✅')) ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <AlertCircle className={`h-4 w-4 ${(typeof message === 'string' && message.includes('✅')) ? 'text-green-600' : 'text-red-600'}`} />
+            <AlertDescription className={(typeof message === 'string' && message.includes('✅')) ? 'text-green-700' : 'text-red-700'}>
               {typeof message === 'object' ? JSON.stringify(message, null, 2) : message}
             </AlertDescription>
           </Alert>
@@ -2571,9 +2571,9 @@ const EmailAccounts = () => {
         </div>
 
         {message && (
-          <Alert className={(typeof message === 'string' && message.includes('success')) ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-            <AlertCircle className={`h-4 w-4 ${(typeof message === 'string' && message.includes('success')) ? 'text-green-600' : 'text-red-600'}`} />
-            <AlertDescription className={(typeof message === 'string' && message.includes('success')) ? 'text-green-700' : 'text-red-700'}>
+          <Alert className={(typeof message === 'string' && message.includes('✅')) ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+            <AlertCircle className={`h-4 w-4 ${(typeof message === 'string' && message.includes('✅')) ? 'text-green-600' : 'text-red-600'}`} />
+            <AlertDescription className={(typeof message === 'string' && message.includes('✅')) ? 'text-green-700' : 'text-red-700'}>
               {typeof message === 'object' ? JSON.stringify(message, null, 2) : message}
             </AlertDescription>
           </Alert>
