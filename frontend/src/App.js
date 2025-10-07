@@ -2530,7 +2530,7 @@ const EmailAccounts = () => {
 
   const toggleAccount = async (accountId, isActive) => {
     try {
-      await axios.patch(`${API}/email-accounts/${accountId}/toggle`, {
+      await axios.put(`${API}/email-accounts/${accountId}/toggle`, {
         is_active: !isActive
       });
       fetchAccounts();
