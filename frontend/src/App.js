@@ -3549,7 +3549,7 @@ const EmailProcessing = () => {
                     </div>
 
                     {/* Responses */}
-                    {thread.responses.length > 0 && (
+                    {thread.responses && Array.isArray(thread.responses) && thread.responses.length > 0 && (
                       <div>
                         <h4 className="font-semibold text-slate-800 mb-3">Responses ({thread.responses.length})</h4>
                         <div className="space-y-3">
