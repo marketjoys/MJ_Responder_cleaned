@@ -346,9 +346,15 @@ class GoogleOAuthService:
                 
                 token_data = response.json()
                 
-                # Update stored tokens
+                # Update stored tokens - use email if available
+                update_filter = {'user_id': user_id}
+                if oauth_email:
+                    update_filter['user_email'] = oauth_email
+                elif oauth_tokens.get('user_email'):
+                    update_filter['user_email'] = oauth_tokens['user_email']
+                    
                 await db.oauth_tokens.update_one(
-                    {'user_id': user_id},
+                    update_filter,
                     {
                         '$set': {
                             'access_token': token_data['access_token'],
