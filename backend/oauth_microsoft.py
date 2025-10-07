@@ -404,26 +404,67 @@ class MicrosoftOAuthService:
             
             return response.json()
     
-    async def get_oauth_status(self, user_id: str) -> Dict[str, Any]:
-        """Get current OAuth authorization status for a user"""
-        tokens = await db.oauth_tokens_microsoft.find_one({'user_id': user_id})
+    async def get_oauth_status(self, user_id: str, oauth_email: Optional[str] = None) -> Dict[str, Any]:
+        """Get current OAuth authorization status for a user (supports multiple accounts)"""
         
-        if not tokens:
+        if oauth_email:
+            # Get status for specific email
+            tokens = await db.oauth_tokens_microsoft.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+            
+            if not tokens:
+                return {
+                    'is_authorized': False,
+                    'authorized_services': [],
+                    'user_email': None,
+                    'user_name': None,
+                    'expires_at': None
+                }
+            
             return {
-                'is_authorized': False,
-                'authorized_services': [],
-                'user_email': None,
-                'user_name': None,
-                'expires_at': None
+                'is_authorized': True,
+                'authorized_services': tokens.get('authorized_services', []),
+                'user_email': tokens.get('user_email'),
+                'user_name': tokens.get('user_name'),
+                'expires_at': tokens.get('expires_at')
             }
-        
-        return {
-            'is_authorized': True,
-            'authorized_services': tokens.get('authorized_services', []),
-            'user_email': tokens.get('user_email'),
-            'user_name': tokens.get('user_name'),
-            'expires_at': tokens.get('expires_at')
-        }
+        else:
+            # Get all authorized accounts for this user
+            all_tokens = await db.oauth_tokens_microsoft.find({'user_id': user_id}).to_list(length=100)
+            
+            if not all_tokens:
+                return {
+                    'is_authorized': False,
+                    'authorized_services': [],
+                    'authorized_accounts': [],
+                    'user_email': None,
+                    'user_name': None,
+                    'expires_at': None
+                }
+            
+            # Return info about all accounts
+            authorized_accounts = []
+            for token in all_tokens:
+                authorized_accounts.append({
+                    'user_email': token.get('user_email'),
+                    'user_name': token.get('user_name'),
+                    'authorized_services': token.get('authorized_services', []),
+                    'expires_at': token.get('expires_at')
+                })
+            
+            # For backward compatibility, return first account as primary
+            primary = all_tokens[0]
+            return {
+                'is_authorized': True,
+                'authorized_services': primary.get('authorized_services', []),
+                'user_email': primary.get('user_email'),
+                'user_name': primary.get('user_name'),
+                'expires_at': primary.get('expires_at'),
+                'authorized_accounts': authorized_accounts,
+                'total_accounts': len(all_tokens)
+            }
     
     async def revoke_access(self, user_id: str) -> bool:
         """Revoke OAuth access for a user"""
