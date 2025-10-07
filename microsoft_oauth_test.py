@@ -35,6 +35,7 @@ class MicrosoftOAuthTester:
         self.test_results = []
         self.auth_token = None
         self.test_user_id = None
+        self.auth_headers = {}
         
     async def setup(self):
         """Setup database connection"""
