@@ -3359,7 +3359,12 @@ async def get_google_oauth_status(current_user: User = Depends(get_current_activ
                 'is_authorized': False,
                 'authorized_services': [],
                 'authorized_accounts': [],
-                'total_accounts': 0
+                'total_accounts': 0,
+                # Backward compatibility fields
+                'user_email': None,
+                'user_name': None,
+                'expires_at': None,
+                'needs_refresh': False
             }
         
         # Process each token to get account info
