@@ -323,19 +323,26 @@ class MicrosoftOAuthService:
         """
         # Try to find token for specific email first
         if oauth_email:
+            logger.info(f"🔍 Looking for Microsoft token - user_id: {user_id}, oauth_email: {oauth_email}")
             tokens = await db.oauth_tokens_microsoft.find_one({
                 'user_id': user_id,
                 'user_email': oauth_email
             })
         else:
+            logger.info(f"🔍 Looking for Microsoft token - user_id: {user_id} (any email)")
             # Fallback to any token for this user (backward compatibility)
             tokens = await db.oauth_tokens_microsoft.find_one({'user_id': user_id})
         
         if not tokens:
+            logger.error(f"❌ No Microsoft OAuth token found for user_id: {user_id}, oauth_email: {oauth_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Microsoft OAuth not authorized"
             )
+        else:
+            logger.info(f"✅ Found Microsoft token for {tokens.get('user_email', 'unknown email')}")
+            logger.info(f"🔐 Token expires at: {tokens.get('expires_at')}")
+            logger.info(f"🔧 Authorized services: {tokens.get('authorized_services')}")
         
         # Check if service is authorized
         if service not in tokens.get('authorized_services', []):
