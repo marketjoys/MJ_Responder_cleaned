@@ -5619,9 +5619,9 @@ async def startup_event():
         logger.info("🚀 Email polling service started")
         
         # Initialize default data if needed
-        await initialize_default_intents()
-        await initialize_default_accounts()
-        await initialize_test_emails()
+        # await initialize_default_intents()
+        # await initialize_default_accounts()
+        # await initialize_test_emails()
         
         logger.info("🎉 Application startup completed successfully!")
         
