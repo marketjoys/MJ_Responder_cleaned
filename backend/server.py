@@ -40,6 +40,8 @@ from calendar_services import calendar_service, credential_manager
 from calendar_agent import calendar_agent
 from oauth_google import google_oauth_service
 from google_services import get_google_gmail_service, get_google_calendar_service
+from oauth_microsoft import microsoft_oauth_service
+from microsoft_services import MicrosoftMailService, MicrosoftCalendarService
 from parlant_framework import parlant_framework, ParlantAgent, AgentResponse
 
 # Import Redis Queue (RQ) for message broker
