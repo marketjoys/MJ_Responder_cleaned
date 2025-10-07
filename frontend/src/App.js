@@ -210,7 +210,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/oauth/google/callback" element={<OAuthCallback />} />
+            <Route path="/oauth/google/callback" element={<OAuthCallback provider="google" />} />
+            <Route path="/oauth/microsoft/callback" element={<OAuthCallback provider="microsoft" />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
