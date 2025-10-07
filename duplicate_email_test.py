@@ -536,7 +536,7 @@ async def main():
         # Run tests
         await tester.test_email_endpoints_for_duplicates()
         await tester.test_database_consistency()
-        tester.test_oauth_modal_functionality()
+        await tester.test_oauth_modal_functionality()
         await tester.test_email_processing_view_duplicates()
         
         # Print summary
