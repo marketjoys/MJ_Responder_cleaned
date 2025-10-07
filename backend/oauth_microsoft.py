@@ -309,18 +309,27 @@ class MicrosoftOAuthService:
             
             return response.json()
     
-    async def get_valid_token(self, user_id: str, service: str = 'email') -> str:
+    async def get_valid_token(self, user_id: str, service: str = 'email', oauth_email: Optional[str] = None) -> str:
         """
-        Get a valid access token for the user, refreshing if necessary
+        Get a valid access token for the user, refreshing if necessary (supports multiple accounts)
         
         Args:
             user_id: User ID
             service: Service type ('email' or 'calendar')
+            oauth_email: Optional specific email to get token for
             
         Returns:
             Valid access token
         """
-        tokens = await db.oauth_tokens_microsoft.find_one({'user_id': user_id})
+        # Try to find token for specific email first
+        if oauth_email:
+            tokens = await db.oauth_tokens_microsoft.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+        else:
+            # Fallback to any token for this user (backward compatibility)
+            tokens = await db.oauth_tokens_microsoft.find_one({'user_id': user_id})
         
         if not tokens:
             raise HTTPException(
@@ -347,12 +356,18 @@ class MicrosoftOAuthService:
             
             new_tokens = await self._refresh_access_token(tokens['refresh_token'])
             
-            # Update tokens in database
+            # Update tokens in database - use email to identify which token
             expires_in = new_tokens.get('expires_in', 3600)
             new_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
             
+            update_filter = {'user_id': user_id}
+            if oauth_email:
+                update_filter['user_email'] = oauth_email
+            elif tokens.get('user_email'):
+                update_filter['user_email'] = tokens['user_email']
+            
             await db.oauth_tokens_microsoft.update_one(
-                {'user_id': user_id},
+                update_filter,
                 {
                     '$set': {
                         'access_token': new_tokens['access_token'],
