@@ -311,6 +311,6 @@ async def get_google_gmail_service(user_id: str, oauth_email: Optional[str] = No
     """Get Gmail service instance for user (supports multiple accounts)"""
     return GoogleGmailService(user_id, oauth_email)
 
-async def get_google_calendar_service(user_id: str) -> GoogleCalendarService:
-    """Get Calendar service instance for user"""
-    return GoogleCalendarService(user_id)
+async def get_google_calendar_service(user_id: str, oauth_email: Optional[str] = None) -> GoogleCalendarService:
+    """Get Calendar service instance for user (supports multiple accounts)"""
+    return GoogleCalendarService(user_id, oauth_email)
