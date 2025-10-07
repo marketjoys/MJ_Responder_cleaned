@@ -188,9 +188,7 @@ class OAuthTester:
         
         # Test 1: POST /api/oauth/google/authorize
         try:
-            auth_data = {
-                "scopes": ["email", "calendar"]
-            }
+            auth_data = ["email", "calendar"]
             response = requests.post(f"{API_BASE}/oauth/google/authorize", 
                                    json=auth_data, headers=headers, timeout=10)
             
