@@ -3193,6 +3193,103 @@ async def revoke_google_oauth(current_user: User = Depends(get_current_active_us
             detail=f"Failed to revoke OAuth: {str(e)}"
         )
 
+
+# Microsoft OAuth endpoints
+@api_router.post("/oauth/microsoft/authorize")
+async def initiate_microsoft_oauth(
+    requested_services: List[str],
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Initiate Microsoft OAuth flow for email and/or calendar access
+    
+    Body: ["email", "calendar"] - services to authorize
+    """
+    valid_services = ["email", "calendar"]
+    if not requested_services or not all(service in valid_services for service in requested_services):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid services. Must be one or both of: email, calendar"
+        )
+    
+    try:
+        auth_data = await microsoft_oauth_service.generate_auth_url(
+            user_id=current_user.id,
+            requested_services=requested_services
+        )
+        
+        return {
+            "auth_url": auth_data["auth_url"],
+            "state": auth_data["state"],
+            "requested_services": requested_services,
+            "message": "Redirect user to auth_url to complete OAuth flow"
+        }
+        
+    except Exception as e:
+        logger.error(f"Microsoft OAuth initiation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to initiate Microsoft OAuth: {str(e)}"
+        )
+
+@api_router.get("/oauth/microsoft/callback")
+async def handle_microsoft_oauth_callback(code: str, state: str):
+    """
+    Handle Microsoft OAuth callback
+    
+    Query params: code, state
+    """
+    try:
+        result = await microsoft_oauth_service.handle_callback(code, state)
+        
+        return {
+            "success": True,
+            "user_id": result["user_id"],
+            "authorized_services": result["authorized_services"],
+            "requested_services": result["requested_services"],
+            "user_email": result["user_email"],
+            "user_name": result["user_name"],
+            "message": f"Successfully authorized {', '.join(result['authorized_services'])} services"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Microsoft OAuth callback error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Microsoft OAuth callback failed: {str(e)}"
+        )
+
+@api_router.get("/oauth/microsoft/status")
+async def get_microsoft_oauth_status(current_user: User = Depends(get_current_active_user)):
+    """Get current Microsoft OAuth authorization status"""
+    try:
+        status = await microsoft_oauth_service.get_oauth_status(current_user.id)
+        return status
+    except Exception as e:
+        logger.error(f"Microsoft OAuth status error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get Microsoft OAuth status: {str(e)}"
+        )
+
+@api_router.post("/oauth/microsoft/revoke")
+async def revoke_microsoft_oauth(current_user: User = Depends(get_current_active_user)):
+    """Revoke Microsoft OAuth tokens"""
+    try:
+        success = await microsoft_oauth_service.revoke_access(current_user.id)
+        return {
+            "success": success,
+            "message": "Microsoft OAuth tokens revoked successfully" if success else "No tokens found to revoke"
+        }
+    except Exception as e:
+        logger.error(f"Microsoft OAuth revoke error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke Microsoft OAuth: {str(e)}"
+        )
+
 # Follow-up Configuration Routes
 @api_router.get("/follow-up/config", response_model=FollowUpConfig)
 async def get_follow_up_config(current_user: User = Depends(get_current_active_user)):
