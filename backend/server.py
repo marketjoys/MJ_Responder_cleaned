@@ -1095,6 +1095,20 @@ async def get_email_providers():
 async def create_email_account(account: EmailAccountCreate, current_user: User = Depends(get_current_active_user)):
     account_dict = account.dict()
     account_dict["user_id"] = current_user.id  # Assign to current user
+    account_dict["id"] = str(uuid.uuid4())
+    
+    # Handle OAuth vs Manual authentication
+    if account.auth_type == "oauth":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth accounts should be created using /email-accounts/oauth endpoint"
+        )
+    
+    # Set manual authentication fields
+    account_dict["auth_type"] = "manual"
+    account_dict["use_oauth"] = False
+    account_dict["oauth_token_id"] = None
+    account_dict["oauth_email"] = None
     
     # Auto-fill provider settings if not custom
     if account.provider != "custom" and account.provider in EMAIL_PROVIDERS:
@@ -1104,8 +1118,29 @@ async def create_email_account(account: EmailAccountCreate, current_user: User =
         account_dict["smtp_server"] = provider_config["smtp_server"]
         account_dict["smtp_port"] = provider_config["smtp_port"]
     
+    # Validate required fields for manual accounts
+    if not account_dict.get("username") or not account_dict.get("password"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password are required for manual email accounts"
+        )
+    
+    # Check if email account already exists
+    existing_account = await db.email_accounts.find_one({
+        'user_id': current_user.id,
+        'email': account.email
+    })
+    
+    if existing_account:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Email account already exists for {account.email}"
+        )
+    
     account_obj = EmailAccount(**account_dict)
-    await db.email_accounts.insert_one(account_obj.dict())
+    result = await db.email_accounts.insert_one(account_obj.dict())
+    
+    logger.info(f"✅ Created manual email account for {account.email} (User: {current_user.id})")
     return account_obj
 
 @api_router.get("/email-accounts", response_model=List[EmailAccount])
