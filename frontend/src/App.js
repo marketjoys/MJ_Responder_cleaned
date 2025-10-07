@@ -842,8 +842,10 @@ const UserProfile = () => {
 const CalendarProviders = () => {
   const [providers, setProviders] = useState([]);
   const [oauthStatus, setOauthStatus] = useState(null);
+  const [microsoftOauthStatus, setMicrosoftOauthStatus] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
+  const [oauthProvider, setOauthProvider] = useState('google'); // 'google' or 'microsoft'
   const [formData, setFormData] = useState({
     provider_type: '',
     provider_name: '',
@@ -856,6 +858,7 @@ const CalendarProviders = () => {
   useEffect(() => {
     fetchProviders();
     fetchOAuthStatus();
+    fetchMicrosoftOAuthStatus();
   }, []);
 
   const fetchProviders = async () => {
@@ -874,6 +877,16 @@ const CalendarProviders = () => {
     } catch (error) {
       console.error('Error fetching OAuth status:', error);
       setOauthStatus({ is_authorized: false, authorized_services: [] });
+    }
+  };
+
+  const fetchMicrosoftOAuthStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/oauth/microsoft/status`);
+      setMicrosoftOauthStatus(response.data);
+    } catch (error) {
+      console.error('Error fetching Microsoft OAuth status:', error);
+      setMicrosoftOauthStatus({ is_authorized: false, authorized_services: [] });
     }
   };
 
