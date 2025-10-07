@@ -578,6 +578,12 @@ class EmailPollingService:
                 logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email}, defaulting to Google")
                 provider_type = 'google'
         
+        # Normalize provider type - handle both "outlook" and "microsoft"
+        if provider_type.lower() in ['outlook', 'microsoft']:
+            provider_type = 'microsoft'
+        elif provider_type.lower() == 'google':
+            provider_type = 'google'
+        
         logger.info(f"🔄 Polling OAuth account {oauth_email} using {provider_type.upper()} API")
         
         try:
