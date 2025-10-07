@@ -108,6 +108,15 @@ class MicrosoftOAuthTester:
         if details:
             print(f"   Details: {details}")
     
+    def make_request(self, method, url, **kwargs):
+        """Make authenticated HTTP request"""
+        if 'headers' not in kwargs:
+            kwargs['headers'] = self.auth_headers
+        else:
+            kwargs['headers'].update(self.auth_headers)
+        
+        return getattr(requests, method.lower())(url, **kwargs)
+    
     async def test_microsoft_oauth_authorization_flow(self):
         """Test 1: Microsoft OAuth Authorization Flow - /api/oauth/microsoft/authorize"""
         print("\n🔐 Testing Microsoft OAuth Authorization Flow...")
