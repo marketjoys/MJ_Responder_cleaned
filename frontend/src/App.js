@@ -2361,8 +2361,23 @@ const EmailAccounts = () => {
       // Redirect to Google OAuth
       window.location.href = response.data.auth_url;
     } catch (error) {
-      const errorDetail = error.response?.data?.detail;
-      setMessage(typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : (errorDetail || 'OAuth initiation failed'));
+      let errorMessage = 'OAuth initiation failed';
+      
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Handle Pydantic validation errors
+          errorMessage = detail.map(err => `${err.loc?.join('.')}: ${err.msg}`).join(', ');
+        } else if (typeof detail === 'object') {
+          // Handle other error objects
+          errorMessage = JSON.stringify(detail);
+        } else {
+          // Handle string errors
+          errorMessage = String(detail);
+        }
+      }
+      
+      setMessage(errorMessage);
       setLoading(false);
     }
   };
