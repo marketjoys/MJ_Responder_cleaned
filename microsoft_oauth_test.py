@@ -543,7 +543,7 @@ class MicrosoftOAuthTester:
             try:
                 print("   Testing account retrieval...")
                 
-                response = requests.get(f"{API_BASE}/email-accounts", timeout=10)
+                response = self.make_request('get', f"{API_BASE}/email-accounts", timeout=10)
                 
                 if response.status_code == 200:
                     all_accounts = response.json()
