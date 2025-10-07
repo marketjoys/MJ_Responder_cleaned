@@ -95,7 +95,7 @@ const OAuthCallback = ({ provider = 'google' }) => {
             {status === 'error' && 'Authorization Failed'}
           </CardTitle>
           <CardDescription>
-            {status === 'processing' && 'Please wait while we complete your Google OAuth authorization.'}
+            {status === 'processing' && `Please wait while we complete your ${providerName} OAuth authorization.`}
             {status === 'success' && 'You will be redirected automatically.'}
             {status === 'error' && 'There was an issue with the authorization process.'}
           </CardDescription>
