@@ -911,7 +911,8 @@ const CalendarProviders = () => {
       // Redirect to Microsoft OAuth
       window.location.href = response.data.auth_url;
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Microsoft OAuth initiation failed');
+      const errorDetail = error.response?.data?.detail;
+      setMessage(typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : (errorDetail || 'Microsoft OAuth initiation failed'));
       setLoading(false);
     }
   };
