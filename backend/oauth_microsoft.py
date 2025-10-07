@@ -359,9 +359,15 @@ class MicrosoftOAuthService:
             from datetime import timezone as dt_timezone
             expires_at = expires_at.replace(tzinfo=dt_timezone.utc)
         
-        if datetime.now(timezone.utc) >= expires_at - timedelta(minutes=5):
+        current_time = datetime.now(timezone.utc)
+        time_until_expiry = expires_at - current_time
+        logger.info(f"⏰ Token check: Current time: {current_time}, Expires: {expires_at}, Time until expiry: {time_until_expiry}")
+        
+        if current_time >= expires_at - timedelta(minutes=5):
             # Refresh token
+            logger.info("🔄 Token needs refresh (expires within 5 minutes)")
             if not tokens.get('refresh_token'):
+                logger.error("❌ No refresh token available")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Refresh token not available, please re-authorize"
@@ -390,9 +396,20 @@ class MicrosoftOAuthService:
                 }
             )
             
-            return new_tokens['access_token']
+            logger.info("✅ Token refreshed successfully")
+            access_token = new_tokens['access_token']
+        else:
+            logger.info("✅ Using existing token (not expired)")
+            access_token = tokens['access_token']
         
-        return tokens['access_token']
+        # Debug: Show partial token for verification
+        if access_token:
+            token_preview = f"{access_token[:10]}...{access_token[-10:]}" if len(access_token) > 20 else "short_token"
+            logger.info(f"🔑 Returning access token: {token_preview}")
+        else:
+            logger.error("❌ No access token available!")
+            
+        return access_token
     
     async def _refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
         """Refresh access token using refresh token"""
