@@ -163,7 +163,7 @@ class MicrosoftOAuthTester:
             try:
                 print("   Testing with invalid payload...")
                 invalid_payload = {"invalid_field": "test"}
-                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json=invalid_payload, timeout=10)
+                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json=invalid_payload, headers=self.auth_headers, timeout=10)
                 
                 # Should handle invalid payload gracefully (either 400 or still work with defaults)
                 invalid_handled = response.status_code in [200, 400, 422]
