@@ -773,6 +773,98 @@ class EmailPollingService:
         except Exception as e:
             logger.error(f"❌ Error parsing Gmail message: {str(e)}")
             return None
+
+    async def _parse_microsoft_message(self, microsoft_message: Dict[str, Any], account_id: str) -> Optional[Dict[str, Any]]:
+        """Parse Microsoft Graph API message to our email format"""
+        try:
+            # Extract basic fields from Microsoft Graph API response
+            subject = microsoft_message.get('subject', '')
+            
+            # Extract sender information
+            sender_info = microsoft_message.get('from', {}).get('emailAddress', {})
+            sender = f"{sender_info.get('name', '')} <{sender_info.get('address', '')}>"
+            
+            # Extract recipient information
+            to_recipients = microsoft_message.get('toRecipients', [])
+            recipients = []
+            for recipient in to_recipients:
+                email_addr = recipient.get('emailAddress', {})
+                recipients.append(f"{email_addr.get('name', '')} <{email_addr.get('address', '')}>")
+            recipient = ', '.join(recipients) if recipients else ''
+            
+            # Parse received date
+            received_time_str = microsoft_message.get('receivedDateTime', '')
+            try:
+                if received_time_str:
+                    received_at = datetime.fromisoformat(received_time_str.replace('Z', '+00:00'))
+                    received_at = received_at.replace(tzinfo=None)  # Remove timezone
+                else:
+                    received_at = datetime.utcnow()
+            except:
+                received_at = datetime.utcnow()
+            
+            # Extract message ID and conversation ID
+            message_id = microsoft_message.get('internetMessageId', '') or f"ms-{microsoft_message.get('id', '')}"
+            conversation_id = microsoft_message.get('conversationId', '')
+            
+            # Extract body content
+            body_content = microsoft_message.get('body', {})
+            body_html = body_content.get('content', '') if body_content.get('contentType') == 'html' else ''
+            
+            # Convert HTML to plain text for body field
+            body = ''
+            if body_html:
+                import re
+                # Simple HTML to text conversion
+                body = re.sub(r'<[^>]+>', '', body_html)
+                body = re.sub(r'\s+', ' ', body).strip()
+            
+            if not body:
+                body = microsoft_message.get('bodyPreview', '')
+            
+            # Clean body using email reply parser
+            if body:
+                try:
+                    from email_reply_parser import EmailReplyParser
+                    body = EmailReplyParser.parse_reply(body)
+                except:
+                    pass  # If email-reply-parser fails, use original body
+            
+            # Generate thread ID using conversation ID or message ID
+            thread_id = conversation_id or f"ms-thread-{message_id}"
+            
+            # Extract In-Reply-To and References from internet message headers if available
+            internet_headers = microsoft_message.get('internetMessageHeaders', [])
+            in_reply_to = ''
+            references = ''
+            
+            for header in internet_headers:
+                header_name = header.get('name', '').lower()
+                header_value = header.get('value', '')
+                if header_name == 'in-reply-to':
+                    in_reply_to = header_value
+                elif header_name == 'references':
+                    references = header_value
+            
+            return {
+                'microsoft_id': microsoft_message.get('id'),
+                'message_id': message_id,
+                'thread_id': thread_id,
+                'subject': subject,
+                'sender': sender,
+                'recipient': recipient,
+                'body': body or '',
+                'body_html': body_html or '',
+                'received_at': received_at,
+                'in_reply_to': in_reply_to,
+                'references': references,
+                'account_id': account_id,
+                'conversation_id': conversation_id
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error parsing Microsoft message: {str(e)}")
+            return None
     
     async def _process_new_email(self, email_data: Dict[str, Any]):
         """Process a new email through the AI workflow"""
