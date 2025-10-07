@@ -2272,6 +2272,7 @@ const EmailAccounts = () => {
   useEffect(() => {
     fetchAccounts();
     fetchOAuthStatus();
+    fetchMicrosoftOAuthStatus();
   }, []);
 
   const fetchAccounts = async () => {
@@ -2290,6 +2291,16 @@ const EmailAccounts = () => {
     } catch (error) {
       console.error('Error fetching OAuth status:', error);
       setOauthStatus({ is_authorized: false, authorized_services: [] });
+    }
+  };
+
+  const fetchMicrosoftOAuthStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/oauth/microsoft/status`);
+      setMicrosoftOauthStatus(response.data);
+    } catch (error) {
+      console.error('Error fetching Microsoft OAuth status:', error);
+      setMicrosoftOauthStatus({ is_authorized: false, authorized_services: [] });
     }
   };
 
