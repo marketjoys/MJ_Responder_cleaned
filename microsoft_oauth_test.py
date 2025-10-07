@@ -503,7 +503,7 @@ class MicrosoftOAuthTester:
                         "oauth_email": token['email']
                     }
                     
-                    response = requests.post(f"{API_BASE}/email-accounts/oauth", json=account_data, timeout=15)
+                    response = self.make_request('post', f"{API_BASE}/email-accounts/oauth", json=account_data, timeout=15)
                     
                     if response.status_code in [200, 201]:
                         account = response.json()
