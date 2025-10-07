@@ -5007,51 +5007,70 @@ async def create_oauth_email_account(
     
     # Determine provider type
     provider = account_data.provider.lower()
+    oauth_email = account_data.oauth_email
     
     if provider in ['gmail', 'google']:
-        # Google OAuth flow
-        oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
-        if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+        # Find the specific OAuth token for this email
+        oauth_token = await db.oauth_tokens.find_one({
+            'user_id': current_user.id,
+            'user_email': oauth_email
+        })
+        
+        if not oauth_token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Google email access not authorized. Please complete OAuth flow first."
+                detail=f"Google email access not authorized for {oauth_email}. Please complete OAuth flow first."
+            )
+        
+        if "email" not in oauth_token.get("authorized_services", []):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Email access not granted for {oauth_email}. Please re-authorize with email permissions."
             )
         
         try:
-            # Verify OAuth access by testing Gmail API
-            gmail_service = await get_google_gmail_service(current_user.id)
+            # Verify OAuth access by testing Gmail API for this specific account
+            gmail_service = await get_google_gmail_service(current_user.id, oauth_email)
             profile = await gmail_service.get_profile()
             
-            # Use email from OAuth profile
-            oauth_email = oauth_status["user_email"]
-            oauth_user_name = oauth_status["user_name"]
+            oauth_user_name = oauth_token.get("user_name", "")
+            oauth_token_id = oauth_token["id"]
             
         except Exception as e:
-            logger.error(f"Error verifying Google OAuth: {str(e)}")
+            logger.error(f"Error verifying Google OAuth for {oauth_email}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to verify Google OAuth access: {str(e)}"
+                detail=f"Failed to verify Google OAuth access for {oauth_email}: {str(e)}"
             )
     
     elif provider in ['outlook', 'microsoft']:
-        # Microsoft OAuth flow
-        oauth_status = await microsoft_oauth_service.get_oauth_status(current_user.id)
-        if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+        # Find the specific OAuth token for this email
+        oauth_token = await db.oauth_tokens.find_one({
+            'user_id': current_user.id,
+            'user_email': oauth_email
+        })
+        
+        if not oauth_token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Microsoft email access not authorized. Please complete OAuth flow first."
+                detail=f"Microsoft email access not authorized for {oauth_email}. Please complete OAuth flow first."
+            )
+        
+        if "email" not in oauth_token.get("authorized_services", []):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Email access not granted for {oauth_email}. Please re-authorize with email permissions."
             )
         
         try:
-            # Use email from OAuth profile
-            oauth_email = oauth_status["user_email"]
-            oauth_user_name = oauth_status["user_name"]
+            oauth_user_name = oauth_token.get("user_name", "")
+            oauth_token_id = oauth_token["id"]
             
         except Exception as e:
-            logger.error(f"Error verifying Microsoft OAuth: {str(e)}")
+            logger.error(f"Error verifying Microsoft OAuth for {oauth_email}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to verify Microsoft OAuth access: {str(e)}"
+                detail=f"Failed to verify Microsoft OAuth access for {oauth_email}: {str(e)}"
             )
     else:
         raise HTTPException(
