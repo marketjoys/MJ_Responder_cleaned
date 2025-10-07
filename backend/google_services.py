@@ -306,9 +306,9 @@ class GoogleCalendarService:
                     detail=f"Failed to delete event: {response.text}"
                 )
 
-async def get_google_gmail_service(user_id: str) -> GoogleGmailService:
-    """Get Gmail service instance for user"""
-    return GoogleGmailService(user_id)
+async def get_google_gmail_service(user_id: str, oauth_email: Optional[str] = None) -> GoogleGmailService:
+    """Get Gmail service instance for user (supports multiple accounts)"""
+    return GoogleGmailService(user_id, oauth_email)
 
 async def get_google_calendar_service(user_id: str) -> GoogleCalendarService:
     """Get Calendar service instance for user"""
