@@ -556,13 +556,40 @@ class EmailPollingService:
                 logger.info(f"🔌 Removed unhealthy connection for {account.get('email', account_id)}")
     
     async def _poll_oauth_account(self, account: Dict[str, Any]):
-        """Poll OAuth-enabled Gmail account using Gmail API"""
+        """Poll OAuth-enabled email account using appropriate API (Google or Microsoft)"""
         account_id = account['id']
         oauth_email = account.get('oauth_email')
+        provider_type = account.get('provider_type', '').lower()
         
         if not oauth_email:
             logger.error(f"❌ OAuth account {account_id} missing oauth_email field")
             return
+        
+        # Determine provider type from email domain if not specified
+        if not provider_type:
+            email_domain = oauth_email.split('@')[-1].lower()
+            if 'gmail.com' in email_domain or 'googlemail.com' in email_domain:
+                provider_type = 'google'
+            elif 'outlook.com' in email_domain or 'hotmail.com' in email_domain or 'live.com' in email_domain or 'office365.com' in email_domain:
+                provider_type = 'microsoft'
+            else:
+                logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email}, defaulting to Google")
+                provider_type = 'google'
+        
+        logger.info(f"🔄 Polling OAuth account {oauth_email} using {provider_type.upper()} API")
+        
+        try:
+            if provider_type == 'microsoft':
+                await self._poll_microsoft_oauth_account(account, oauth_email)
+            else:
+                await self._poll_google_oauth_account(account, oauth_email)
+                
+        except Exception as e:
+            logger.error(f"❌ Error polling OAuth account {account.get('email', account_id)}: {str(e)}")
+
+    async def _poll_google_oauth_account(self, account: Dict[str, Any], oauth_email: str):
+        """Poll Google OAuth account using Gmail API"""
+        account_id = account['id']
         
         try:
             # Import here to avoid circular imports
@@ -599,7 +626,7 @@ class EmailPollingService:
                         latest_processed = max(latest_processed, email_data['received_at'])
                         
                 except Exception as e:
-                    logger.warning(f"⚠️  Error processing Gmail message {message_info['id']}: {str(e)}")
+                    logger.warning(f"⚠️ Error processing Gmail message {message_info['id']}: {str(e)}")
                     continue
             
             # Update last sync time
@@ -612,15 +639,81 @@ class EmailPollingService:
             )
             
             if new_emails:
-                logger.info(f"📥 Processing {len(new_emails)} new OAuth emails for {account.get('email', account_id)}")
+                logger.info(f"📥 Processing {len(new_emails)} new Google OAuth emails for {oauth_email}")
                 # Process each new email
                 for email_data in new_emails:
                     await self._process_new_email(email_data)
             else:
-                logger.debug(f"📭 No new OAuth emails for {account.get('email', account_id)}")
+                logger.debug(f"📭 No new Google OAuth emails for {oauth_email}")
                 
         except Exception as e:
-            logger.error(f"❌ Error polling OAuth account {account.get('email', account_id)}: {str(e)}")
+            logger.error(f"❌ Error polling Google OAuth account {oauth_email}: {str(e)}")
+            raise
+
+    async def _poll_microsoft_oauth_account(self, account: Dict[str, Any], oauth_email: str):
+        """Poll Microsoft OAuth account using Microsoft Graph API"""
+        account_id = account['id']
+        
+        try:
+            # Import here to avoid circular imports
+            from microsoft_services import MicrosoftMailService
+            
+            # Get Microsoft Mail service for this user
+            mail_service = MicrosoftMailService(account['user_id'])
+            
+            # Get last processed message timestamp from database
+            last_processed = account.get('last_oauth_sync', None)
+            
+            # Get messages from inbox (Microsoft Graph API automatically returns newest first)
+            messages = await mail_service.list_messages(folder='inbox', max_results=50)
+            
+            new_emails = []
+            latest_processed = last_processed or datetime.utcnow()
+            
+            for message in messages:
+                try:
+                    # Parse Microsoft Graph message received time
+                    received_time_str = message.get('receivedDateTime', '')
+                    if received_time_str:
+                        # Parse ISO format datetime
+                        received_at = datetime.fromisoformat(received_time_str.replace('Z', '+00:00'))
+                        received_at = received_at.replace(tzinfo=None)  # Remove timezone for comparison
+                        
+                        # Only process messages newer than last processed
+                        if received_at > (last_processed or datetime.min):
+                            # Get full message details
+                            full_message = await mail_service.get_message(message['id'])
+                            
+                            # Parse Microsoft Graph message
+                            email_data = await self._parse_microsoft_message(full_message, account_id)
+                            if email_data:
+                                new_emails.append(email_data)
+                                latest_processed = max(latest_processed, received_at)
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ Error processing Microsoft message {message.get('id', 'unknown')}: {str(e)}")
+                    continue
+            
+            # Update last sync time
+            await self.db.email_accounts.update_one(
+                {"id": account_id},
+                {"$set": {
+                    "last_oauth_sync": latest_processed,
+                    "last_polled": datetime.utcnow()
+                }}
+            )
+            
+            if new_emails:
+                logger.info(f"📥 Processing {len(new_emails)} new Microsoft OAuth emails for {oauth_email}")
+                # Process each new email
+                for email_data in new_emails:
+                    await self._process_new_email(email_data)
+            else:
+                logger.debug(f"📭 No new Microsoft OAuth emails for {oauth_email}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error polling Microsoft OAuth account {oauth_email}: {str(e)}")
+            raise
     
     async def _parse_gmail_message(self, gmail_message: Dict[str, Any], account_id: str) -> Optional[Dict[str, Any]]:
         """Parse Gmail API message to our email format"""
