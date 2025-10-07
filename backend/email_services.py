@@ -671,8 +671,8 @@ class EmailPollingService:
             # Import here to avoid circular imports
             from microsoft_services import MicrosoftMailService
             
-            # Get Microsoft Mail service for this user
-            mail_service = MicrosoftMailService(account['user_id'])
+            # Get Microsoft Mail service for this user with specific OAuth email
+            mail_service = MicrosoftMailService(account['user_id'], oauth_email)
             
             # Get last processed message timestamp from database
             last_processed = account.get('last_oauth_sync', None)
