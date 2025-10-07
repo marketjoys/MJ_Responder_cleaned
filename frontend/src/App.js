@@ -2660,32 +2660,85 @@ const EmailAccounts = () => {
                           <div>
                             <h4 className="font-medium text-blue-900">OAuth Authentication</h4>
                             <p className="text-sm text-blue-700 mt-1">
-                              OAuth provides secure access to Gmail without storing your password. 
-                              {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email')
-                                ? ' You are already authorized and can create an OAuth account.'
-                                : ' Please authorize Google access first.'
-                              }
+                              OAuth provides secure access to your email without storing your password.
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') ? (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 text-green-700">
-                            <CheckCircle className="h-5 w-5" />
-                            <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
-                          </div>
+                      {/* Provider Selection */}
+                      <div>
+                        <Label>Select Email Provider</Label>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setOauthProvider('google')}
+                            className={`p-4 border-2 rounded-lg flex flex-col items-center gap-2 transition-all ${
+                              oauthProvider === 'google'
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <img src="/google-logo.svg" alt="Google" className="h-8 w-8" />
+                            <span className="font-medium">Google</span>
+                            {oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') && (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setOauthProvider('microsoft')}
+                            className={`p-4 border-2 rounded-lg flex flex-col items-center gap-2 transition-all ${
+                              oauthProvider === 'microsoft'
+                                ? 'border-orange-500 bg-orange-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <img src="/microsoft-logo.svg" alt="Microsoft" className="h-8 w-8" />
+                            <span className="font-medium">Microsoft</span>
+                            {microsoftOauthStatus?.is_authorized && microsoftOauthStatus?.authorized_services?.includes('email') && (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            )}
+                          </button>
                         </div>
-                      ) : (
-                        <div className="space-y-4">
+                      </div>
+
+                      {/* Show authorization status based on selected provider */}
+                      {oauthProvider === 'google' && (
+                        oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="h-5 w-5" />
+                              <span className="font-medium">Using Google account: {oauthStatus.user_email}</span>
+                            </div>
+                          </div>
+                        ) : (
                           <Alert className="border-yellow-200 bg-yellow-50">
                             <AlertCircle className="h-4 w-4 text-yellow-600" />
                             <AlertDescription className="text-yellow-700">
                               You need to authorize Google email access first. Click the "Authorize Google" button above.
                             </AlertDescription>
                           </Alert>
-                        </div>
+                        )
+                      )}
+
+                      {oauthProvider === 'microsoft' && (
+                        microsoftOauthStatus?.is_authorized && microsoftOauthStatus?.authorized_services?.includes('email') ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="h-5 w-5" />
+                              <span className="font-medium">Using Microsoft account: {microsoftOauthStatus.user_email}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <Alert className="border-yellow-200 bg-yellow-50">
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                            <AlertDescription className="text-yellow-700">
+                              You need to authorize Microsoft email access first. Click the "Authorize Microsoft" button above.
+                            </AlertDescription>
+                          </Alert>
+                        )
                       )}
                     </TabsContent>
 
