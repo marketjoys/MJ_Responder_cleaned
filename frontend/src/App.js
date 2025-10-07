@@ -991,7 +991,7 @@ const CalendarProviders = () => {
     setAccountType('manual');
   };
 
-  const revokeOAuth = async () => {
+  const revokeGoogleOAuth = async () => {
     setLoading(true);
     try {
       await axios.post(`${API}/oauth/google/revoke`);
@@ -999,7 +999,20 @@ const CalendarProviders = () => {
       fetchOAuthStatus();
       fetchProviders(); // Refresh providers as OAuth providers may be affected
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Error revoking OAuth access');
+      setMessage(error.response?.data?.detail || 'Error revoking Google OAuth access');
+    }
+    setLoading(false);
+  };
+
+  const revokeMicrosoftOAuth = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/oauth/microsoft/revoke`);
+      setMessage('Microsoft OAuth access revoked successfully');
+      fetchMicrosoftOAuthStatus();
+      fetchProviders(); // Refresh providers as OAuth providers may be affected
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error revoking Microsoft OAuth access');
     }
     setLoading(false);
   };
