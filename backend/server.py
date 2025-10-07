@@ -3301,6 +3301,61 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
     try:
         result = await microsoft_oauth_service.handle_callback(code, state)
         
+        # Auto-create calendar provider if calendar access was granted
+        if 'calendar' in result.get('authorized_services', []):
+            try:
+                # Check if calendar provider already exists for this user
+                existing_provider = await db.calendar_providers.find_one({
+                    'user_id': result['user_id'],
+                    'provider_type': 'microsoft',
+                    'use_oauth': True
+                })
+                
+                if not existing_provider:
+                    # Auto-create calendar provider
+                    from calendar_models import CalendarProvider as CalendarProviderEnum
+                    provider_id = str(uuid.uuid4())
+                    calendar_provider = {
+                        'id': provider_id,
+                        'user_id': result['user_id'],
+                        'provider_type': 'microsoft',
+                        'provider_name': f"{result.get('user_name', 'Microsoft')} Calendar",
+                        'use_oauth': True,
+                        'encrypted_credentials': '',  # OAuth uses tokens, not stored credentials
+                        'is_active': True,
+                        'timezone': 'UTC',
+                        'created_at': datetime.now(timezone.utc),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                    await db.calendar_providers.insert_one(calendar_provider)
+                    logger.info(f"✅ Auto-created Microsoft calendar provider for user {result['user_id']}")
+                    
+                    # Auto-fetch and store user's calendars (Microsoft typically has one default calendar)
+                    try:
+                        from microsoft_services import MicrosoftCalendarService
+                        calendar_service = MicrosoftCalendarService(result['user_id'])
+                        # For Microsoft, we'll create a default calendar entry
+                        calendar_doc = {
+                            'id': str(uuid.uuid4()),
+                            'user_id': result['user_id'],
+                            'provider_id': provider_id,
+                            'external_calendar_id': 'primary',
+                            'name': f"{result.get('user_name', 'Microsoft')} Calendar",
+                            'description': 'Microsoft Outlook Calendar',
+                            'timezone': 'UTC',
+                            'is_primary': True,
+                            'access_role': 'owner',
+                            'created_at': datetime.now(timezone.utc),
+                            'updated_at': datetime.now(timezone.utc)
+                        }
+                        await db.calendars.insert_one(calendar_doc)
+                        logger.info(f"✅ Auto-created Microsoft calendar for user {result['user_id']}")
+                    except Exception as cal_error:
+                        logger.error(f"Error auto-creating Microsoft calendar: {str(cal_error)}")
+            except Exception as provider_error:
+                logger.error(f"Error auto-creating Microsoft calendar provider: {str(provider_error)}")
+                # Don't fail the OAuth flow if calendar provider creation fails
+        
         return {
             "success": True,
             "user_id": result["user_id"],
