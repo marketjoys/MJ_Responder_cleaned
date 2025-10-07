@@ -380,7 +380,7 @@ class MicrosoftOAuthTester:
             try:
                 print("   Testing with missing oauth_email field...")
                 invalid_data = {"provider": "microsoft"}
-                response = requests.post(f"{API_BASE}/email-accounts/oauth", json=invalid_data, timeout=10)
+                response = self.make_request('post', f"{API_BASE}/email-accounts/oauth", json=invalid_data, timeout=10)
                 
                 # Should return 400 or 422 for missing required field
                 missing_email_handled = response.status_code in [400, 422]
