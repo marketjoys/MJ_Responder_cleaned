@@ -339,7 +339,7 @@ class MicrosoftOAuthTester:
                 
                 try:
                     print(f"   Testing OAuth account creation for: {oauth_email}")
-                    response = requests.post(f"{API_BASE}/email-accounts/oauth", json=account_data, timeout=15)
+                    response = self.make_request('post', f"{API_BASE}/email-accounts/oauth", json=account_data, timeout=15)
                     
                     create_passed = response.status_code in [200, 201]
                     
