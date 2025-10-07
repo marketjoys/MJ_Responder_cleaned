@@ -559,7 +559,7 @@ class EmailPollingService:
         """Poll OAuth-enabled email account using appropriate API (Google or Microsoft)"""
         account_id = account['id']
         oauth_email = account.get('oauth_email')
-        provider_type = account.get('provider_type', '').lower()
+        provider_type = account.get('provider', '').lower()
         
         if not oauth_email:
             logger.error(f"❌ OAuth account {account_id} missing oauth_email field")
