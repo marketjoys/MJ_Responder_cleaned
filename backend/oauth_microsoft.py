@@ -346,6 +346,12 @@ class MicrosoftOAuthService:
         
         # Check if token is expired or will expire in next 5 minutes
         expires_at = tokens['expires_at']
+        # Ensure expires_at has timezone info for comparison
+        if not hasattr(expires_at, 'tzinfo') or expires_at.tzinfo is None:
+            # If naive datetime, assume UTC
+            from datetime import timezone as dt_timezone
+            expires_at = expires_at.replace(tzinfo=dt_timezone.utc)
+        
         if datetime.now(timezone.utc) >= expires_at - timedelta(minutes=5):
             # Refresh token
             if not tokens.get('refresh_token'):
