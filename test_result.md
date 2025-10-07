@@ -238,8 +238,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "OAuth Email Polling & Processing Integration"
+  stuck_tasks:
+    - "OAuth Email Polling & Processing Integration"
   test_all: false
   test_priority: "high_first"
 
