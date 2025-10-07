@@ -242,17 +242,13 @@ class MicrosoftOAuthTester:
                 unauth_passed = False
                 unauth_details = f"Exception: {str(e)}"
             
-            # Test 2b: Test status endpoint structure
+            # Test 2b: Test status endpoint structure (authenticated)
             try:
                 print("   Testing status endpoint response structure...")
-                response = requests.get(f"{API_BASE}/oauth/microsoft/status", timeout=10)
+                response = self.make_request('get', f"{API_BASE}/oauth/microsoft/status", timeout=10)
                 
                 if response.status_code == 200:
                     status_data = response.json()
-                    
-                    # Check expected fields in response
-                    has_expected_structure = True
-                    expected_fields = ['authorized', 'accounts']  # Common OAuth status fields
                     
                     # The response might be different based on implementation
                     # Let's be flexible and just check it's valid JSON
@@ -260,8 +256,8 @@ class MicrosoftOAuthTester:
                     structure_details = f"Status: {response.status_code}, Valid JSON: {structure_passed}, Data: {str(status_data)[:100]}"
                     
                 else:
-                    structure_passed = response.status_code in [401, 403]  # Expected for unauth
-                    structure_details = f"Status: {response.status_code}"
+                    structure_passed = False
+                    structure_details = f"Status: {response.status_code}, Error: {response.text[:100]}"
                     
             except Exception as e:
                 structure_passed = False
