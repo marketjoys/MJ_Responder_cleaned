@@ -180,15 +180,16 @@ class MicrosoftMailService:
             )
 
 class MicrosoftCalendarService:
-    """Microsoft Graph Calendar API service using OAuth"""
+    """Microsoft Graph Calendar API service using OAuth (supports multiple accounts)"""
     
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, oauth_email: Optional[str] = None):
         self.user_id = user_id
+        self.oauth_email = oauth_email  # Specific email for multi-account support
         self.base_url = "https://graph.microsoft.com/v1.0"
         
     async def _get_headers(self) -> Dict[str, str]:
-        """Get authorization headers with valid token"""
-        access_token = await microsoft_oauth_service.get_valid_token(self.user_id, 'calendar')
+        """Get authorization headers with valid token for specific account"""
+        access_token = await microsoft_oauth_service.get_valid_token(self.user_id, 'calendar', self.oauth_email)
         return {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
