@@ -4975,20 +4975,22 @@ async def initialize_test_emails():
 # Enhanced Email Accounts with OAuth support
 class EmailAccountCreateOAuth(BaseModel):
     name: str
-    email: str
+    email: Optional[str] = None  # Can be auto-filled from selected OAuth account
     provider: str = "gmail"  # oauth provider
     auth_type: str = "oauth"  # "oauth" or "manual"
-    # Manual fields (existing)
-    username: Optional[str] = None
-    password: Optional[str] = None
-    imap_server: Optional[str] = None
-    imap_port: Optional[int] = None
-    smtp_server: Optional[str] = None
-    smtp_port: Optional[int] = None
-    # OAuth fields
-    use_oauth: bool = False
+    # OAuth-specific fields
+    oauth_email: str  # The specific Google/Microsoft email to use
+    use_oauth: bool = True
+    # Account configuration
     signature: str = ""
+    persona: str = ""
     is_active: bool = True
+    auto_send: bool = True
+    # Follow-up configuration  
+    enable_follow_ups: bool = True
+    follow_up_hours_override: Optional[int] = None
+    max_follow_ups_override: Optional[int] = None
+    custom_follow_up_template: Optional[str] = None
 
 @api_router.post("/email-accounts/oauth", response_model=Dict[str, Any])
 async def create_oauth_email_account(
