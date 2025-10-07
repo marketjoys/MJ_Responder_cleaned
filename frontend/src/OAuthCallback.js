@@ -125,7 +125,7 @@ const OAuthCallback = ({ provider = 'google' }) => {
               <h4 className="font-semibold mb-2">Authorization Details:</h4>
               <div className="space-y-2 text-sm">
                 <div>
-                  <span className="font-medium">User:</span> {result.user_info?.name} ({result.user_info?.email})
+                  <span className="font-medium">User:</span> {result.user_name} ({result.user_email})
                 </div>
                 <div>
                   <span className="font-medium">Authorized Services:</span> 
