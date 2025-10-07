@@ -203,6 +203,18 @@ backend:
         agent: "testing"
         comment: "✅ API TIMEOUT FIX WITH REDIS FALLBACK COMPREHENSIVE VERIFICATION COMPLETED: The production readiness fixes are working correctly! Key Findings: 1) API TIMEOUT FIX OPERATIONAL: /api/emails/test endpoint returns immediately (0.04-0.08s response time, well under 3s requirement), includes email_id, status='queued', and processing_method='background_tasks' as specified. Redis fallback to FastAPI BackgroundTasks is functioning properly. 2) NON-BLOCKING CONCURRENT REQUESTS: Tested 3 concurrent requests, all completed in 0.20-0.22s with no blocking behavior detected. System handles multiple simultaneous requests correctly. 3) BACKGROUND PROCESSING: Emails are queued immediately and processed in background. Some emails complete full workflow (classifying → generating_draft → validating → ready_to_send/needs_redraft), though some may get stuck in 'classifying' stage due to API rate limits. 4) FOLLOW-UP CANCELLATION CONFIRMED: Email normalization functions working perfectly (Gmail aliases, dots, case-insensitive matching). Enhanced logging operational. 5) PRODUCTION READY: Core timeout fix requirement met - endpoint no longer blocks for 30-60 seconds, returns immediately with background processing. Minor: Some background processing may experience delays due to external API rate limits, but this doesn't affect the primary timeout fix functionality."
 
+  - task: "OAuth Email Polling & Processing Integration"
+    implemented: true
+    working: false
+    file: "server.py, email_services.py, microsoft_services.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL OAUTH POLLING ISSUES IDENTIFIED: Comprehensive investigation reveals multiple critical issues preventing OAuth email polling and processing for user amits.joys@gmail.com with Microsoft OAuth account amits.joys_outlook.com#EXT#@amitsjoysoutlook.onmicrosoft.com. ISSUE 1 - INCORRECT API ROUTING: Backend logs show '401: Google email access not authorized or expired' when polling Microsoft OAuth account. System incorrectly attempts to use Google Gmail API instead of Microsoft Graph API for Microsoft OAuth accounts. ISSUE 2 - REDIS DEPENDENCY: Redis server not running (Error 99 connecting to localhost:6379) causing email processing failures even with background task fallback. Email processing pipeline has hard Redis dependency. ISSUE 3 - OAUTH TOKEN MISMATCH: Microsoft OAuth token exists in oauth_tokens_microsoft collection but email polling service cannot properly route to Microsoft services. EVIDENCE: User successfully authenticated, Microsoft OAuth properly configured with valid token (expires 2025-10-07T13:19:04.733000), email account configured correctly (auth_type='oauth', use_oauth=True, is_active=True), polling service running with 1 connection, but polling fails due to incorrect service routing. ROOT CAUSE: OAuth service routing logic incorrectly maps Microsoft OAuth accounts to Google services instead of Microsoft Graph API services."
+
 frontend:
   - task: "Signature Typing Functionality"
     implemented: true
