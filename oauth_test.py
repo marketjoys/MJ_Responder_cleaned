@@ -118,9 +118,7 @@ class OAuthTester:
         
         # Test 2: POST /api/oauth/microsoft/authorize with calendar scope
         try:
-            calendar_auth_data = {
-                "scopes": ["calendar"]
-            }
+            calendar_auth_data = ["calendar"]
             response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", 
                                    json=calendar_auth_data, headers=headers, timeout=10)
             
