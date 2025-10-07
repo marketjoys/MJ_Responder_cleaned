@@ -59,7 +59,9 @@ class MicrosoftMailService:
                 )
                 
                 if response.status_code != 200:
-                    logger.error(f"Failed to list messages: {response.text}")
+                    logger.error(f"Failed to list messages: Status {response.status_code}, Response: {response.text}")
+                    logger.error(f"Request headers: {headers}")
+                    logger.error(f"Request URL: {response.url}")
                     raise HTTPException(
                         status_code=response.status_code,
                         detail=f"Failed to retrieve messages: {response.text}"
