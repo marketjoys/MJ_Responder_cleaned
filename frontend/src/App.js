@@ -3869,7 +3869,11 @@ const EmailProcessing = () => {
                             <span className="font-medium text-red-800">Processing Error</span>
                           </div>
                           <div className="text-sm text-red-700">
-                            <p className="whitespace-pre-wrap">{safeEmail.error}</p>
+                            <p className="whitespace-pre-wrap">
+                              {typeof safeEmail.error === 'object' 
+                                ? JSON.stringify(safeEmail.error, null, 2)
+                                : safeEmail.error}
+                            </p>
                           </div>
                         </div>
                       )}
