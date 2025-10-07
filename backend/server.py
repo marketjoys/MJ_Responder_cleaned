@@ -3146,6 +3146,65 @@ async def handle_google_oauth_callback(code: str, state: str):
     try:
         result = await google_oauth_service.handle_callback(code, state)
         
+        # Auto-create calendar provider if calendar access was granted
+        if 'calendar' in result.get('authorized_services', []):
+            try:
+                # Check if calendar provider already exists for this user
+                existing_provider = await db.calendar_providers.find_one({
+                    'user_id': result['user_id'],
+                    'provider_type': 'google',
+                    'use_oauth': True
+                })
+                
+                if not existing_provider:
+                    # Auto-create calendar provider
+                    from calendar_models import CalendarProvider as CalendarProviderEnum
+                    provider_id = str(uuid.uuid4())
+                    calendar_provider = {
+                        'id': provider_id,
+                        'user_id': result['user_id'],
+                        'provider_type': 'google',
+                        'provider_name': f"{result['user_info'].get('name', 'Google')} Calendar",
+                        'use_oauth': True,
+                        'encrypted_credentials': '',  # OAuth uses tokens, not stored credentials
+                        'is_active': True,
+                        'timezone': 'UTC',
+                        'created_at': datetime.now(timezone.utc),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                    await db.calendar_providers.insert_one(calendar_provider)
+                    logger.info(f"✅ Auto-created Google calendar provider for user {result['user_id']}")
+                    
+                    # Auto-fetch and store user's calendars
+                    try:
+                        from google_services import get_google_calendar_service
+                        calendar_service = await get_google_calendar_service(result['user_id'])
+                        user_calendars = await calendar_service.list_calendars()
+                        
+                        # Store calendars in database
+                        for cal in user_calendars:
+                            calendar_doc = {
+                                'id': str(uuid.uuid4()),
+                                'user_id': result['user_id'],
+                                'provider_id': provider_id,
+                                'external_calendar_id': cal.get('id'),
+                                'name': cal.get('summary', 'Calendar'),
+                                'description': cal.get('description', ''),
+                                'timezone': cal.get('timeZone', 'UTC'),
+                                'is_primary': cal.get('primary', False),
+                                'access_role': cal.get('accessRole', ''),
+                                'created_at': datetime.now(timezone.utc),
+                                'updated_at': datetime.now(timezone.utc)
+                            }
+                            await db.calendars.insert_one(calendar_doc)
+                        
+                        logger.info(f"✅ Auto-fetched and stored {len(user_calendars)} calendars for user {result['user_id']}")
+                    except Exception as cal_error:
+                        logger.error(f"Error auto-fetching calendars: {str(cal_error)}")
+            except Exception as provider_error:
+                logger.error(f"Error auto-creating calendar provider: {str(provider_error)}")
+                # Don't fail the OAuth flow if calendar provider creation fails
+        
         return {
             "success": True,
             "user_id": result["user_id"],
