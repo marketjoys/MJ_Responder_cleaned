@@ -2243,8 +2243,10 @@ const IntentManagement = () => {
 const EmailAccounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [oauthStatus, setOauthStatus] = useState(null);
+  const [microsoftOauthStatus, setMicrosoftOauthStatus] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
+  const [oauthProvider, setOauthProvider] = useState('google'); // 'google' or 'microsoft'
   const [formData, setFormData] = useState({
     name: '',
     email: '',
