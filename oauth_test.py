@@ -258,8 +258,12 @@ class OAuthTester:
         # Test 1: POST /api/email-accounts/oauth with provider='gmail'
         try:
             gmail_data = {
+                "name": "Test Gmail OAuth Account",
+                "email": "test.oauth@gmail.com",
                 "provider": "gmail",
-                "name": "Test Gmail OAuth Account"
+                "auth_type": "oauth",
+                "use_oauth": True,
+                "signature": "Test OAuth Signature"
             }
             response = requests.post(f"{API_BASE}/email-accounts/oauth", 
                                    json=gmail_data, headers=headers, timeout=10)
