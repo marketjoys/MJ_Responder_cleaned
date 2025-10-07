@@ -2387,10 +2387,18 @@ const EmailAccounts = () => {
       const oauthEmail = oauthProvider === 'google' 
         ? oauthStatus?.user_email 
         : microsoftOauthStatus?.user_email;
+      
+      // Validate that we have an OAuth email
+      if (!oauthEmail) {
+        setMessage(`❌ No ${oauthProvider} email found. Please complete OAuth authorization first.`);
+        setLoading(false);
+        return;
+      }
         
       const accountData = {
         name: formData.name,
-        email: oauthEmail || formData.email,
+        email: oauthEmail, // Keep for backward compatibility
+        oauth_email: oauthEmail, // Required field for backend
         provider: provider,
         auth_type: 'oauth',
         use_oauth: true,
@@ -2411,7 +2419,24 @@ const EmailAccounts = () => {
       fetchOAuthStatus();
       fetchMicrosoftOAuthStatus();
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Error creating OAuth account');
+      // Improved error handling for validation errors and other error objects
+      let errorMessage = 'Error creating OAuth account';
+      
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Handle Pydantic validation errors
+          errorMessage = detail.map(err => `${err.loc?.join('.')}: ${err.msg}`).join(', ');
+        } else if (typeof detail === 'object') {
+          // Handle other error objects
+          errorMessage = JSON.stringify(detail);
+        } else {
+          // Handle string errors
+          errorMessage = detail;
+        }
+      }
+      
+      setMessage(errorMessage);
     }
     setLoading(false);
   };
