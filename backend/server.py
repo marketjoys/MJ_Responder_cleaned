@@ -5494,10 +5494,18 @@ async def migrate_oauth_data_structure():
             
             if is_oauth_account:
                 # This is an OAuth account - try to link it to the right OAuth token
+                # Check both Google and Microsoft OAuth token collections
                 oauth_token = await db.oauth_tokens.find_one({
                     'user_id': user_id,
                     'user_email': email
                 })
+                
+                if not oauth_token:
+                    # Also check Microsoft OAuth tokens
+                    oauth_token = await db.oauth_tokens_microsoft.find_one({
+                        'user_id': user_id,
+                        'user_email': email
+                    })
                 
                 if oauth_token:
                     # Link the account to the specific OAuth token
@@ -5520,18 +5528,9 @@ async def migrate_oauth_data_structure():
                     migration_stats['oauth_tokens_linked'] += 1
                     logger.info(f"✅ Linked OAuth account {email} to token {oauth_token.get('id')}")
                 else:
-                    # OAuth account but no matching token - convert to manual or deactivate
-                    await db.email_accounts.update_one(
-                        {'id': account_id},
-                        {'$set': {
-                            'auth_type': 'manual',
-                            'use_oauth': False,
-                            'oauth_token_id': None,
-                            'oauth_email': None,
-                            'is_active': False  # Deactivate since no valid OAuth token
-                        }}
-                    )
-                    logger.warning(f"⚠️ Deactivated OAuth account {email} - no matching OAuth token found")
+                    # OAuth account but no matching token - keep as OAuth but mark as needs re-auth
+                    # Don't deactivate or convert to manual - let user re-authenticate
+                    logger.warning(f"⚠️ OAuth account {email} needs re-authentication - no matching OAuth token found")
                 
                 migration_stats['oauth_accounts_updated'] += 1
             
