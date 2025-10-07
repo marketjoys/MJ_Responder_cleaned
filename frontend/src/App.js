@@ -2355,7 +2355,7 @@ const EmailAccounts = () => {
   const initiateGoogleOAuth = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/oauth/google/authorize`, ['email']);
+      const response = await axios.post(`${API}/oauth/google/authorize`, ['email', 'calendar']);
       // Redirect to Google OAuth
       window.location.href = response.data.auth_url;
     } catch (error) {
@@ -2367,7 +2367,7 @@ const EmailAccounts = () => {
   const initiateMicrosoftOAuth = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/oauth/microsoft/authorize`, ['email']);
+      const response = await axios.post(`${API}/oauth/microsoft/authorize`, ['email', 'calendar']);
       // Redirect to Microsoft OAuth
       window.location.href = response.data.auth_url;
     } catch (error) {
