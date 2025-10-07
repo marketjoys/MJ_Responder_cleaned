@@ -2380,19 +2380,27 @@ const EmailAccounts = () => {
     setLoading(true);
     try {
       const provider = oauthProvider === 'google' ? 'gmail' : 'outlook';
+      const oauthEmail = oauthProvider === 'google' 
+        ? oauthStatus?.user_email 
+        : microsoftOauthStatus?.user_email;
+        
       const accountData = {
         name: formData.name,
-        email: formData.email,
+        email: oauthEmail || formData.email,
         provider: provider,
         auth_type: 'oauth',
         use_oauth: true,
         signature: formData.signature,
         persona: formData.persona,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        enable_follow_ups: formData.enable_follow_ups,
+        follow_up_hours_override: formData.follow_up_hours_override,
+        max_follow_ups_override: formData.max_follow_ups_override,
+        custom_follow_up_template: formData.custom_follow_up_template
       };
 
       await axios.post(`${API}/email-accounts/oauth`, accountData);
-      setMessage('OAuth email account created successfully!');
+      setMessage('✅ Email account and calendar successfully connected!');
       setIsCreating(false);
       resetForm();
       fetchAccounts();
