@@ -291,7 +291,7 @@ class DuplicateEmailTester:
         except Exception as e:
             self.log_test_result("Database Consistency Check", False, f"Exception: {str(e)}")
     
-    def test_oauth_modal_functionality(self):
+    async def test_oauth_modal_functionality(self):
         """Test 3: OAuth Modal Functionality"""
         print("\n🔐 Testing OAuth Modal Functionality...")
         
