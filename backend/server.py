@@ -5078,6 +5078,19 @@ async def create_oauth_email_account(
             detail=f"Unsupported OAuth provider: {provider}. Use 'gmail', 'google', 'outlook', or 'microsoft'"
         )
     
+    # Check if email account already exists for this OAuth email
+    existing_account = await db.email_accounts.find_one({
+        'user_id': current_user.id,
+        'oauth_email': oauth_email,
+        'auth_type': 'oauth'
+    })
+    
+    if existing_account:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Email account already exists for {oauth_email}. Use a different OAuth account or update the existing one."
+        )
+    
     try:
         account = EmailAccount(
             id=str(uuid.uuid4()),
@@ -5087,6 +5100,8 @@ async def create_oauth_email_account(
             provider=provider,
             auth_type="oauth",
             use_oauth=True,
+            oauth_token_id=oauth_token_id,
+            oauth_email=oauth_email,
             # OAuth accounts don't need manual credentials
             username="",
             password="",
@@ -5095,10 +5110,17 @@ async def create_oauth_email_account(
             smtp_server="",
             smtp_port=0,
             signature=account_data.signature,
+            persona=account_data.persona,
             is_active=account_data.is_active,
+            auto_send=account_data.auto_send,
+            enable_follow_ups=account_data.enable_follow_ups,
+            follow_up_hours_override=account_data.follow_up_hours_override,
+            max_follow_ups_override=account_data.max_follow_ups_override,
+            custom_follow_up_template=account_data.custom_follow_up_template,
             last_uid=0,
             uidvalidity=None,
-            last_polled=None
+            last_polled=None,
+            last_oauth_sync=None
         )
         
         # Insert into database
@@ -5109,6 +5131,7 @@ async def create_oauth_email_account(
         account_dict["_id"] = str(result.inserted_id)
         account_dict["oauth_user"] = oauth_user_name
         
+        logger.info(f"✅ Created OAuth email account for {oauth_email} (User: {current_user.id})")
         return account_dict
         
     except HTTPException:
