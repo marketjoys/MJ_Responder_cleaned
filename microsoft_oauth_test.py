@@ -120,7 +120,7 @@ class MicrosoftOAuthTester:
             
             try:
                 print("   Testing /api/oauth/microsoft/authorize endpoint...")
-                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json=auth_payload, timeout=15)
+                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", json=auth_payload, headers=self.auth_headers, timeout=15)
                 
                 auth_passed = response.status_code == 200
                 
