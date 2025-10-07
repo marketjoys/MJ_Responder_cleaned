@@ -563,8 +563,8 @@ class EmailPollingService:
             # Import here to avoid circular imports
             from google_services import get_google_gmail_service
             
-            # Get Gmail service
-            gmail_service = await get_google_gmail_service(account['user_id'])
+            # Get Gmail service for this specific account
+            gmail_service = await get_google_gmail_service(account['user_id'], account['email'])
             
             # Get last processed message timestamp from database
             last_processed = account.get('last_oauth_sync', None)
