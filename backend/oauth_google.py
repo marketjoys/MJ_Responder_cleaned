@@ -305,11 +305,19 @@ class GoogleOAuthService:
             
             return response.json()
     
-    async def refresh_access_token(self, user_id: str) -> Optional[str]:
-        """Refresh access token using refresh token"""
+    async def refresh_access_token(self, user_id: str, oauth_email: Optional[str] = None) -> Optional[str]:
+        """Refresh access token using refresh token for specific email or first available"""
         
-        # Get stored tokens
-        oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
+        # Get stored tokens - prioritize specific email if provided
+        if oauth_email:
+            oauth_tokens = await db.oauth_tokens.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+        else:
+            # Fallback to any token for this user (backward compatibility)
+            oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
+            
         if not oauth_tokens or not oauth_tokens.get('refresh_token'):
             return None
         
