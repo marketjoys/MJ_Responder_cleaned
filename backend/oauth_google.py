@@ -429,26 +429,67 @@ class GoogleOAuthService:
             await db.oauth_tokens.delete_many({'user_id': user_id})
             return False
     
-    async def get_oauth_status(self, user_id: str) -> Dict[str, Any]:
-        """Get OAuth authorization status for user"""
+    async def get_oauth_status(self, user_id: str, oauth_email: Optional[str] = None) -> Dict[str, Any]:
+        """Get OAuth authorization status for user - supports multiple accounts"""
         
-        oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
-        if not oauth_tokens:
+        if oauth_email:
+            # Get status for specific email
+            oauth_tokens = await db.oauth_tokens.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+            if not oauth_tokens:
+                return {
+                    'is_authorized': False,
+                    'authorized_services': [],
+                    'user_email': None,
+                    'expires_at': None
+                }
+            
             return {
-                'is_authorized': False,
-                'authorized_services': [],
-                'user_email': None,
-                'expires_at': None
+                'is_authorized': True,
+                'authorized_services': oauth_tokens.get('authorized_services', []),
+                'user_email': oauth_tokens.get('user_email'),
+                'user_name': oauth_tokens.get('user_name'),
+                'expires_at': oauth_tokens.get('expires_at'),
+                'needs_refresh': oauth_tokens['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5)
             }
-        
-        return {
-            'is_authorized': True,
-            'authorized_services': oauth_tokens.get('authorized_services', []),
-            'user_email': oauth_tokens.get('user_email'),
-            'user_name': oauth_tokens.get('user_name'),
-            'expires_at': oauth_tokens.get('expires_at'),
-            'needs_refresh': oauth_tokens['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5)
-        }
+        else:
+            # Get all authorized accounts for this user
+            all_tokens = await db.oauth_tokens.find({'user_id': user_id}).to_list(length=100)
+            
+            if not all_tokens:
+                return {
+                    'is_authorized': False,
+                    'authorized_services': [],
+                    'authorized_accounts': [],
+                    'user_email': None,
+                    'expires_at': None
+                }
+            
+            # Return info about all accounts
+            authorized_accounts = []
+            for token in all_tokens:
+                authorized_accounts.append({
+                    'user_email': token.get('user_email'),
+                    'user_name': token.get('user_name'),
+                    'authorized_services': token.get('authorized_services', []),
+                    'expires_at': token.get('expires_at'),
+                    'needs_refresh': token['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5)
+                })
+            
+            # For backward compatibility, return first account as primary
+            primary = all_tokens[0]
+            return {
+                'is_authorized': True,
+                'authorized_services': primary.get('authorized_services', []),
+                'user_email': primary.get('user_email'),
+                'user_name': primary.get('user_name'),
+                'expires_at': primary.get('expires_at'),
+                'needs_refresh': primary['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5),
+                'authorized_accounts': authorized_accounts,
+                'total_accounts': len(all_tokens)
+            }
 
 # Global OAuth service instance
 google_oauth_service = GoogleOAuthService()
