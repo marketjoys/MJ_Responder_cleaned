@@ -609,6 +609,10 @@ class EmailPollingService:
             # Get last processed message timestamp from database
             last_processed = account.get('last_oauth_sync', None)
             
+            # Ensure last_processed is timezone-naive for comparison
+            if last_processed and hasattr(last_processed, 'tzinfo') and last_processed.tzinfo is not None:
+                last_processed = last_processed.replace(tzinfo=None)
+            
             # Build query for new messages
             query = "in:inbox"
             if last_processed:
@@ -629,7 +633,8 @@ class EmailPollingService:
                     
                     # Parse Gmail API message
                     email_data = await self._parse_gmail_message(full_message, account_id)
-                    if email_data and email_data['received_at'] > (last_processed or datetime.min):
+                    comparison_time = last_processed if last_processed else datetime.min
+                    if email_data and email_data['received_at'] > comparison_time:
                         new_emails.append(email_data)
                         latest_processed = max(latest_processed, email_data['received_at'])
                         
