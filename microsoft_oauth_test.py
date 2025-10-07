@@ -573,7 +573,7 @@ class MicrosoftOAuthTester:
                     account_id = test_account.get('id')
                     
                     # Test get specific account
-                    response = requests.get(f"{API_BASE}/email-accounts/{account_id}", timeout=10)
+                    response = self.make_request('get', f"{API_BASE}/email-accounts/{account_id}", timeout=10)
                     get_specific_passed = response.status_code == 200
                     
                     # Test toggle account
