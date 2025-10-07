@@ -577,7 +577,7 @@ class MicrosoftOAuthTester:
                     get_specific_passed = response.status_code == 200
                     
                     # Test toggle account
-                    response = requests.put(f"{API_BASE}/email-accounts/{account_id}/toggle", timeout=10)
+                    response = self.make_request('put', f"{API_BASE}/email-accounts/{account_id}/toggle", timeout=10)
                     toggle_passed = response.status_code == 200
                     
                     operations_passed = get_specific_passed and toggle_passed
