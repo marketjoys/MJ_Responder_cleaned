@@ -2360,9 +2360,17 @@ const EmailAccounts = () => {
     e.preventDefault();
     
     if (accountType === 'oauth') {
-      if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')) {
-        setMessage('Please authorize Google email access first');
-        return;
+      // Check OAuth status based on selected provider
+      if (oauthProvider === 'google') {
+        if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')) {
+          setMessage('Please authorize Google email access first');
+          return;
+        }
+      } else if (oauthProvider === 'microsoft') {
+        if (!microsoftOauthStatus?.is_authorized || !microsoftOauthStatus?.authorized_services?.includes('email')) {
+          setMessage('Please authorize Microsoft email access first');
+          return;
+        }
       }
       await createOAuthAccount();
     } else {
