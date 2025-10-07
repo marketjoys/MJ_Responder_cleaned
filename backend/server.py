@@ -3235,10 +3235,57 @@ async def handle_google_oauth_callback(code: str, state: str):
 
 @api_router.get("/oauth/google/status")
 async def get_google_oauth_status(current_user: User = Depends(get_current_active_user)):
-    """Get current Google OAuth authorization status"""
+    """Get current Google OAuth authorization status for all authorized accounts"""
     try:
-        status = await google_oauth_service.get_oauth_status(current_user.id)
-        return status
+        # Get all OAuth tokens for this user
+        all_tokens = await db.oauth_tokens.find({'user_id': current_user.id}).to_list(length=100)
+        
+        if not all_tokens:
+            return {
+                'is_authorized': False,
+                'authorized_services': [],
+                'authorized_accounts': [],
+                'total_accounts': 0
+            }
+        
+        # Process each token to get account info
+        authorized_accounts = []
+        all_services = set()
+        
+        for token in all_tokens:
+            services = token.get('authorized_services', [])
+            all_services.update(services)
+            
+            # Check if existing email account exists for this OAuth email
+            existing_email_account = await db.email_accounts.find_one({
+                'user_id': current_user.id,
+                'oauth_email': token.get('user_email'),
+                'auth_type': 'oauth'
+            })
+            
+            authorized_accounts.append({
+                'user_email': token.get('user_email'),
+                'user_name': token.get('user_name'),
+                'authorized_services': services,
+                'expires_at': token.get('expires_at'),
+                'needs_refresh': token['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5),
+                'oauth_token_id': token.get('id'),
+                'has_email_account': existing_email_account is not None,
+                'email_account_id': existing_email_account.get('id') if existing_email_account else None
+            })
+        
+        # Return comprehensive status
+        return {
+            'is_authorized': True,
+            'authorized_services': list(all_services),
+            'authorized_accounts': authorized_accounts,
+            'total_accounts': len(all_tokens),
+            # Backward compatibility - use first account as primary
+            'user_email': all_tokens[0].get('user_email') if all_tokens else None,
+            'user_name': all_tokens[0].get('user_name') if all_tokens else None,
+            'expires_at': all_tokens[0].get('expires_at') if all_tokens else None,
+            'needs_refresh': all_tokens[0]['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5) if all_tokens else False
+        }
     except Exception as e:
         logger.error(f"OAuth status error: {str(e)}")
         raise HTTPException(
