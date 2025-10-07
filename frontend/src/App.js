@@ -3487,7 +3487,7 @@ const EmailProcessing = () => {
                             Responded
                           </Badge>
                         )}
-                        {thread.follow_ups.length > 0 && (
+                        {thread.follow_ups && Array.isArray(thread.follow_ups) && thread.follow_ups.length > 0 && (
                           <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                             <Timer className="h-3 w-3 mr-1" />
                             {thread.follow_ups.length} Follow-ups
