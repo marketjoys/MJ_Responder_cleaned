@@ -558,13 +558,18 @@ class EmailPollingService:
     async def _poll_oauth_account(self, account: Dict[str, Any]):
         """Poll OAuth-enabled Gmail account using Gmail API"""
         account_id = account['id']
+        oauth_email = account.get('oauth_email')
+        
+        if not oauth_email:
+            logger.error(f"❌ OAuth account {account_id} missing oauth_email field")
+            return
         
         try:
             # Import here to avoid circular imports
             from google_services import get_google_gmail_service
             
-            # Get Gmail service for this specific account
-            gmail_service = await get_google_gmail_service(account['user_id'], account['email'])
+            # Get Gmail service for this specific OAuth account
+            gmail_service = await get_google_gmail_service(account['user_id'], oauth_email)
             
             # Get last processed message timestamp from database
             last_processed = account.get('last_oauth_sync', None)
