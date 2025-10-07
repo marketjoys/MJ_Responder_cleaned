@@ -4650,14 +4650,6 @@ async def check_email_received_response(original_email_id: str, thread_id: str) 
 
 # Router will be included at the end of the file after all endpoints are defined
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
