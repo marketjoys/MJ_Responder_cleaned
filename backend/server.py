@@ -4871,7 +4871,7 @@ async def create_oauth_email_account(
     account_data: EmailAccountCreateOAuth,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create email account using OAuth credentials"""
+    """Create email account using OAuth credentials (Google or Microsoft)"""
     
     if not account_data.use_oauth:
         raise HTTPException(
@@ -4879,28 +4879,67 @@ async def create_oauth_email_account(
             detail="This endpoint is for OAuth-based accounts only"
         )
     
-    # Check if user has OAuth authorization for email
-    oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
-    if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+    # Determine provider type
+    provider = account_data.provider.lower()
+    
+    if provider in ['gmail', 'google']:
+        # Google OAuth flow
+        oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
+        if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google email access not authorized. Please complete OAuth flow first."
+            )
+        
+        try:
+            # Verify OAuth access by testing Gmail API
+            gmail_service = await get_google_gmail_service(current_user.id)
+            profile = await gmail_service.get_profile()
+            
+            # Use email from OAuth profile
+            oauth_email = oauth_status["user_email"]
+            oauth_user_name = oauth_status["user_name"]
+            
+        except Exception as e:
+            logger.error(f"Error verifying Google OAuth: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to verify Google OAuth access: {str(e)}"
+            )
+    
+    elif provider in ['outlook', 'microsoft']:
+        # Microsoft OAuth flow
+        oauth_status = await microsoft_oauth_service.get_oauth_status(current_user.id)
+        if not oauth_status["is_authorized"] or "email" not in oauth_status["authorized_services"]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Microsoft email access not authorized. Please complete OAuth flow first."
+            )
+        
+        try:
+            # Use email from OAuth profile
+            oauth_email = oauth_status["user_email"]
+            oauth_user_name = oauth_status["user_name"]
+            
+        except Exception as e:
+            logger.error(f"Error verifying Microsoft OAuth: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to verify Microsoft OAuth access: {str(e)}"
+            )
+    else:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google email access not authorized. Please complete OAuth flow first."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported OAuth provider: {provider}. Use 'gmail', 'google', 'outlook', or 'microsoft'"
         )
     
     try:
-        # Verify OAuth access by testing Gmail API
-        gmail_service = await get_google_gmail_service(current_user.id)
-        profile = await gmail_service.get_profile()
-        
-        # Use email from OAuth profile
-        oauth_email = oauth_status["user_email"]
-        
         account = EmailAccount(
             id=str(uuid.uuid4()),
             user_id=current_user.id,
             name=account_data.name,
             email=oauth_email,
-            provider=account_data.provider,
+            provider=provider,
             auth_type="oauth",
             use_oauth=True,
             # OAuth accounts don't need manual credentials
@@ -4923,7 +4962,7 @@ async def create_oauth_email_account(
         # Return account without sensitive data
         account_dict = account.dict()
         account_dict["_id"] = str(result.inserted_id)
-        account_dict["oauth_user"] = oauth_status["user_name"]
+        account_dict["oauth_user"] = oauth_user_name
         
         return account_dict
         
