@@ -290,8 +290,12 @@ class OAuthTester:
         # Test 2: POST /api/email-accounts/oauth with provider='outlook'
         try:
             outlook_data = {
+                "name": "Test Outlook OAuth Account",
+                "email": "test.oauth@outlook.com",
                 "provider": "outlook",
-                "name": "Test Outlook OAuth Account"
+                "auth_type": "oauth",
+                "use_oauth": True,
+                "signature": "Test OAuth Signature"
             }
             response = requests.post(f"{API_BASE}/email-accounts/oauth", 
                                    json=outlook_data, headers=headers, timeout=10)
