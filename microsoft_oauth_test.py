@@ -397,7 +397,7 @@ class MicrosoftOAuthTester:
                     "provider": "microsoft",
                     "oauth_email": "nonexistent@outlook.com"
                 }
-                response = requests.post(f"{API_BASE}/email-accounts/oauth", json=nonexistent_data, timeout=10)
+                response = self.make_request('post', f"{API_BASE}/email-accounts/oauth", json=nonexistent_data, timeout=10)
                 
                 # Should return 400 or 404 for missing OAuth token
                 nonexistent_handled = response.status_code in [400, 404, 422]
