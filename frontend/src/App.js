@@ -2316,13 +2316,26 @@ const EmailAccounts = () => {
     }
   };
 
+  const initiateMicrosoftOAuth = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/oauth/microsoft/authorize`, ['email']);
+      // Redirect to Microsoft OAuth
+      window.location.href = response.data.auth_url;
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Microsoft OAuth initiation failed');
+      setLoading(false);
+    }
+  };
+
   const createOAuthAccount = async () => {
     setLoading(true);
     try {
+      const provider = oauthProvider === 'google' ? 'gmail' : 'outlook';
       const accountData = {
         name: formData.name,
         email: formData.email,
-        provider: 'gmail',
+        provider: provider,
         auth_type: 'oauth',
         use_oauth: true,
         signature: formData.signature,
@@ -2336,6 +2349,7 @@ const EmailAccounts = () => {
       resetForm();
       fetchAccounts();
       fetchOAuthStatus();
+      fetchMicrosoftOAuthStatus();
     } catch (error) {
       setMessage(error.response?.data?.detail || 'Error creating OAuth account');
     }
