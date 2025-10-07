@@ -8,12 +8,13 @@ import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const OAuthCallback = () => {
+const OAuthCallback = ({ provider = 'google' }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('processing'); // processing, success, error
   const [message, setMessage] = useState('Processing OAuth callback...');
   const [result, setResult] = useState(null);
+  const providerName = provider === 'google' ? 'Google' : 'Microsoft';
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -34,7 +35,11 @@ const OAuthCallback = () => {
       }
 
       try {
-        const response = await axios.get(`${API}/oauth/google/callback`, {
+        const callbackUrl = provider === 'google' 
+          ? `${API}/oauth/google/callback`
+          : `${API}/oauth/microsoft/callback`;
+          
+        const response = await axios.get(callbackUrl, {
           params: { code, state }
         });
 
@@ -63,7 +68,7 @@ const OAuthCallback = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, provider]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 flex items-center justify-center p-4">
