@@ -2550,7 +2550,7 @@ async def detect_and_cancel_follow_ups_workflow() -> Dict[str, Any]:
 # ============================================================================
 
 async def auto_send_email(email_id: str):
-    """Auto-send approved email if account has auto_send enabled"""
+    """Auto-send approved email if account has auto_send enabled - supports both OAuth and manual accounts"""
     try:
         # Get email
         email_doc = await db.emails.find_one({"id": email_id})
@@ -2562,9 +2562,6 @@ async def auto_send_email(email_id: str):
         if not account_doc or not account_doc.get('is_active') or not account_doc.get('auto_send', True):
             return
         
-        # Create connection
-        connection = EmailConnection(account_doc)
-        
         # Extract sender email
         sender_email = email_doc['sender']
         if '<' in sender_email:
@@ -2575,16 +2572,58 @@ async def auto_send_email(email_id: str):
         if not subject.lower().startswith('re:'):
             subject = f"Re: {subject}"
         
-        # Send email - signature already included in draft after validation
-        success = connection.send_email(
-            to_email=sender_email,
-            subject=subject,
-            body=email_doc['draft'],
-            body_html=email_doc['draft_html'],
-            message_id_to_reply=email_doc['message_id'],
-            references=email_doc.get('references', ''),
-            signature_already_included=True  # Prevent double signatures
-        )
+        success = False
+        
+        # Handle OAuth vs Manual accounts differently
+        if account_doc.get('auth_type') == 'oauth' and account_doc.get('use_oauth'):
+            # OAuth account - use Gmail API
+            try:
+                oauth_email = account_doc.get('oauth_email')
+                if not oauth_email:
+                    logger.error(f"OAuth account {account_doc['id']} missing oauth_email field")
+                    return
+                
+                # Get Gmail service for this specific OAuth account
+                gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
+                
+                # Get final content with signature (from validation)
+                final_body = email_doc.get('final_plain_text', email_doc.get('draft', ''))
+                final_html = email_doc.get('final_html', email_doc.get('draft_html', ''))
+                
+                # Send via Gmail API
+                result = await gmail_service.send_message(
+                    to_email=sender_email,
+                    subject=subject,
+                    body=final_body,
+                    body_html=final_html if final_html else None,
+                    in_reply_to=email_doc.get('message_id', '')
+                )
+                
+                if result:
+                    success = True
+                    logger.info(f"✅ Sent OAuth email via Gmail API from {oauth_email} to {sender_email}")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to send OAuth email from {account_doc.get('oauth_email')}: {str(e)}")
+        
+        else:
+            # Manual account - use SMTP
+            try:
+                connection = EmailConnection(account_doc)
+                
+                # Send email - signature already included in draft after validation
+                success = connection.send_email(
+                    to_email=sender_email,
+                    subject=subject,
+                    body=email_doc.get('final_plain_text', email_doc.get('draft', '')),
+                    body_html=email_doc.get('final_html', email_doc.get('draft_html', '')),
+                    message_id_to_reply=email_doc['message_id'],
+                    references=email_doc.get('references', ''),
+                    signature_already_included=True  # Prevent double signatures
+                )
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to send manual email from {account_doc.get('email')}: {str(e)}")
         
         if success:
             # Update status to sent
