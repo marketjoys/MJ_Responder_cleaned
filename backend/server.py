@@ -4648,8 +4648,7 @@ async def check_email_received_response(original_email_id: str, thread_id: str) 
         logger.error(f"Error checking email response for {original_email_id}: {str(e)}")
         return False
 
-# Include the router in the main app
-app.include_router(api_router)
+# Router will be included at the end of the file after all endpoints are defined
 
 app.add_middleware(
     CORSMiddleware,
