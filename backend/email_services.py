@@ -570,7 +570,9 @@ class EmailPollingService:
             email_domain = oauth_email.split('@')[-1].lower()
             if 'gmail.com' in email_domain or 'googlemail.com' in email_domain:
                 provider_type = 'google'
-            elif 'outlook.com' in email_domain or 'hotmail.com' in email_domain or 'live.com' in email_domain or 'office365.com' in email_domain:
+            elif ('outlook.com' in email_domain or 'hotmail.com' in email_domain or 
+                  'live.com' in email_domain or 'office365.com' in email_domain or 
+                  'onmicrosoft.com' in email_domain):
                 provider_type = 'microsoft'
             else:
                 logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email}, defaulting to Google")
