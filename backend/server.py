@@ -199,12 +199,15 @@ class EmailAccountCreate(BaseModel):
     name: str
     email: str
     provider: str
+    # Authentication type
+    auth_type: str = "manual"  # "oauth" or "manual"
+    # Manual authentication fields
     imap_server: Optional[str] = None
     imap_port: Optional[int] = None
     smtp_server: Optional[str] = None
     smtp_port: Optional[int] = None
-    username: str
-    password: str
+    username: str = ""
+    password: str = ""
     persona: str = ""
     signature: str = ""
     auto_send: bool = True
