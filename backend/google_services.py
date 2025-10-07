@@ -177,13 +177,14 @@ class GoogleGmailService:
 class GoogleCalendarService:
     """Google Calendar API service using OAuth"""
     
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, oauth_email: Optional[str] = None):
         self.user_id = user_id
+        self.oauth_email = oauth_email  # Specific email for multi-account support
         self.base_url = "https://www.googleapis.com/calendar/v3"
     
     async def _get_headers(self) -> Dict[str, str]:
-        """Get authorization headers with valid token"""
-        access_token = await google_oauth_service.get_valid_token(self.user_id, 'calendar')
+        """Get authorization headers with valid token for specific account"""
+        access_token = await google_oauth_service.get_valid_token(self.user_id, 'calendar', self.oauth_email)
         if not access_token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
