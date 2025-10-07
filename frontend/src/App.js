@@ -2440,7 +2440,7 @@ const EmailAccounts = () => {
     setAccountType('manual');
   };
 
-  const revokeOAuth = async () => {
+  const revokeGoogleOAuth = async () => {
     setLoading(true);
     try {
       await axios.post(`${API}/oauth/google/revoke`);
@@ -2448,7 +2448,20 @@ const EmailAccounts = () => {
       fetchOAuthStatus();
       fetchAccounts(); // Refresh accounts as OAuth accounts may be affected
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Error revoking OAuth access');
+      setMessage(error.response?.data?.detail || 'Error revoking Google OAuth access');
+    }
+    setLoading(false);
+  };
+
+  const revokeMicrosoftOAuth = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/oauth/microsoft/revoke`);
+      setMessage('Microsoft OAuth access revoked successfully');
+      fetchMicrosoftOAuthStatus();
+      fetchAccounts(); // Refresh accounts as OAuth accounts may be affected
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error revoking Microsoft OAuth access');
     }
     setLoading(false);
   };
