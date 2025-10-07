@@ -5255,7 +5255,7 @@ async def create_oauth_email_account(
     
     elif provider in ['outlook', 'microsoft']:
         # Find the specific OAuth token for this email
-        oauth_token = await db.oauth_tokens.find_one({
+        oauth_token = await db.oauth_tokens_microsoft.find_one({
             'user_id': current_user.id,
             'user_email': oauth_email
         })
