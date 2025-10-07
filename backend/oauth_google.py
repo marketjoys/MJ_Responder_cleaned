@@ -402,32 +402,69 @@ class GoogleOAuthService:
         # Try to refresh token if needed
         return await self.refresh_access_token(user_id, oauth_email or oauth_tokens.get('user_email'))
     
-    async def revoke_tokens(self, user_id: str) -> bool:
-        """Revoke OAuth tokens and remove from database"""
+    async def revoke_tokens(self, user_id: str, oauth_email: Optional[str] = None) -> bool:
+        """Revoke OAuth tokens and remove from database - supports specific email"""
         
-        oauth_tokens = await db.oauth_tokens.find_one({'user_id': user_id})
-        if not oauth_tokens:
-            return True
-        
-        try:
-            # Revoke token with Google
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    'https://oauth2.googleapis.com/revoke',
-                    data={'token': oauth_tokens['access_token']},
-                    headers={'Content-Type': 'application/x-www-form-urlencoded'}
-                )
+        if oauth_email:
+            # Revoke specific OAuth account
+            oauth_tokens = await db.oauth_tokens.find_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
             
-            # Remove from database regardless of Google response
-            await db.oauth_tokens.delete_many({'user_id': user_id})
-            logger.info(f"OAuth tokens revoked for user {user_id}")
-            return True
+            if not oauth_tokens:
+                return True
             
-        except Exception as e:
-            logger.error(f"Error revoking tokens: {str(e)}")
-            # Still remove from database
+            try:
+                # Revoke token with Google
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        'https://oauth2.googleapis.com/revoke',
+                        data={'token': oauth_tokens['access_token']},
+                        headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                    )
+                
+                # Remove specific token from database
+                await db.oauth_tokens.delete_one({
+                    'user_id': user_id,
+                    'user_email': oauth_email
+                })
+                logger.info(f"OAuth tokens revoked for user {user_id}, email {oauth_email}")
+                return True
+                
+            except Exception as e:
+                logger.error(f"Error revoking tokens for {oauth_email}: {str(e)}")
+                # Still remove from database
+                await db.oauth_tokens.delete_one({
+                    'user_id': user_id,
+                    'user_email': oauth_email
+                })
+                return False
+        else:
+            # Revoke all tokens for user (existing behavior)
+            all_tokens = await db.oauth_tokens.find({'user_id': user_id}).to_list(length=100)
+            
+            if not all_tokens:
+                return True
+            
+            success_count = 0
+            for token in all_tokens:
+                try:
+                    # Revoke token with Google
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(
+                            'https://oauth2.googleapis.com/revoke',
+                            data={'token': token['access_token']},
+                            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                        )
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"Error revoking token for {token.get('user_email')}: {str(e)}")
+            
+            # Remove all tokens from database
             await db.oauth_tokens.delete_many({'user_id': user_id})
-            return False
+            logger.info(f"OAuth tokens revoked for user {user_id} ({success_count}/{len(all_tokens)} successful)")
+            return success_count == len(all_tokens)
     
     async def get_oauth_status(self, user_id: str, oauth_email: Optional[str] = None) -> Dict[str, Any]:
         """Get OAuth authorization status for user - supports multiple accounts"""
