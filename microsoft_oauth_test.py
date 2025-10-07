@@ -38,14 +38,54 @@ class MicrosoftOAuthTester:
         self.auth_headers = {}
         
     async def setup(self):
-        """Setup database connection"""
+        """Setup database connection and authentication"""
         try:
             self.client = AsyncIOMotorClient(MONGO_URL)
             self.db = self.client[DB_NAME]
             print("✅ Database connection established")
+            
+            # Authenticate with existing user
+            await self.authenticate()
+            
             return True
         except Exception as e:
-            print(f"❌ Database connection failed: {str(e)}")
+            print(f"❌ Setup failed: {str(e)}")
+            return False
+    
+    async def authenticate(self):
+        """Authenticate with the API to get access token"""
+        try:
+            print("🔐 Authenticating with API...")
+            
+            # Try to login with admin user
+            login_data = {
+                "email": "admin@example.com",
+                "password": "admin123"
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+            
+            if response.status_code == 200:
+                auth_response = response.json()
+                self.auth_token = auth_response.get('access_token')
+                self.test_user_id = auth_response.get('user', {}).get('id')
+                
+                if self.auth_token:
+                    self.auth_headers = {
+                        "Authorization": f"Bearer {self.auth_token}",
+                        "Content-Type": "application/json"
+                    }
+                    print(f"✅ Authenticated successfully (User ID: {self.test_user_id})")
+                    return True
+                else:
+                    print("❌ No access token received")
+                    return False
+            else:
+                print(f"❌ Authentication failed: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
             return False
     
     async def cleanup(self):
