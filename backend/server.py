@@ -1446,9 +1446,6 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
     if not account_doc:
         raise HTTPException(status_code=404, detail="Email account not found")
     
-    # Create connection and send
-    connection = EmailConnection(account_doc)
-    
     # Extract sender email
     sender_email = email_doc['sender']
     if '<' in sender_email:
@@ -1459,17 +1456,60 @@ async def send_email_reply(email_id: str, request: SendEmailRequest):
     if not subject.lower().startswith('re:'):
         subject = f"Re: {subject}"
     
-    # Send email - signature already included if email was processed through validation
-    signature_already_included = email_doc.get('validation_result') is not None
-    success = connection.send_email(
-        to_email=sender_email,
-        subject=subject,
-        body=email_doc['draft'],
-        body_html=email_doc['draft_html'],
-        message_id_to_reply=email_doc['message_id'],
-        references=email_doc.get('references', ''),
-        signature_already_included=signature_already_included
-    )
+    success = False
+    
+    # Handle OAuth vs Manual accounts differently
+    if account_doc.get('auth_type') == 'oauth' and account_doc.get('use_oauth'):
+        # OAuth account - use Gmail API
+        try:
+            oauth_email = account_doc.get('oauth_email')
+            if not oauth_email:
+                raise HTTPException(status_code=400, detail="OAuth account missing oauth_email field")
+            
+            # Get Gmail service for this specific OAuth account
+            gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
+            
+            # Get final content (use validated content if available, otherwise draft)
+            final_body = email_doc.get('final_plain_text', email_doc.get('draft', ''))
+            final_html = email_doc.get('final_html', email_doc.get('draft_html', ''))
+            
+            # Send via Gmail API
+            result = await gmail_service.send_message(
+                to_email=sender_email,
+                subject=subject,
+                body=final_body,
+                body_html=final_html if final_html else None,
+                in_reply_to=email_doc.get('message_id', '')
+            )
+            
+            if result:
+                success = True
+                logger.info(f"✅ Manual sent OAuth email via Gmail API from {oauth_email} to {sender_email}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to send OAuth email from {account_doc.get('oauth_email')}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send OAuth email: {str(e)}")
+    
+    else:
+        # Manual account - use SMTP
+        try:
+            connection = EmailConnection(account_doc)
+            
+            # Send email - signature already included if email was processed through validation
+            signature_already_included = email_doc.get('validation_result') is not None
+            success = connection.send_email(
+                to_email=sender_email,
+                subject=subject,
+                body=email_doc.get('final_plain_text', email_doc.get('draft', '')),
+                body_html=email_doc.get('final_html', email_doc.get('draft_html', '')),
+                message_id_to_reply=email_doc['message_id'],
+                references=email_doc.get('references', ''),
+                signature_already_included=signature_already_included
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to send manual email from {account_doc.get('email')}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send manual email: {str(e)}")
     
     if success:
         # Update status to sent
