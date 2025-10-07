@@ -2360,7 +2360,8 @@ const EmailAccounts = () => {
       // Redirect to Google OAuth
       window.location.href = response.data.auth_url;
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'OAuth initiation failed');
+      const errorDetail = error.response?.data?.detail;
+      setMessage(typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : (errorDetail || 'OAuth initiation failed'));
       setLoading(false);
     }
   };
