@@ -5393,6 +5393,163 @@ async def create_oauth_calendar_provider(
             detail=f"Failed to create OAuth calendar provider: {str(e)}"
         )
 
+# Data Migration Functions for Multi-Account OAuth Support
+async def migrate_oauth_data_structure():
+    """Migrate existing data to support multi-account OAuth structure"""
+    logger.info("🔄 Starting OAuth multi-account data migration...")
+    
+    try:
+        # Step 1: Update existing email accounts to include new OAuth fields
+        accounts_to_update = await db.email_accounts.find({}).to_list(length=1000)
+        
+        migration_stats = {
+            'total_accounts': len(accounts_to_update),
+            'manual_accounts_updated': 0,
+            'oauth_accounts_updated': 0,
+            'oauth_tokens_linked': 0
+        }
+        
+        for account in accounts_to_update:
+            account_id = account.get('id')
+            user_id = account.get('user_id')
+            email = account.get('email')
+            
+            # Determine if this is an OAuth account (has use_oauth flag or auth_type)
+            is_oauth_account = account.get('use_oauth', False) or account.get('auth_type') == 'oauth'
+            
+            if is_oauth_account:
+                # This is an OAuth account - try to link it to the right OAuth token
+                oauth_token = await db.oauth_tokens.find_one({
+                    'user_id': user_id,
+                    'user_email': email
+                })
+                
+                if oauth_token:
+                    # Link the account to the specific OAuth token
+                    await db.email_accounts.update_one(
+                        {'id': account_id},
+                        {'$set': {
+                            'auth_type': 'oauth',
+                            'use_oauth': True,
+                            'oauth_token_id': oauth_token.get('id'),
+                            'oauth_email': oauth_token.get('user_email'),
+                            'last_oauth_sync': account.get('last_polled'),
+                            'username': '',
+                            'password': '',
+                            'imap_server': '',
+                            'imap_port': 993,
+                            'smtp_server': '',
+                            'smtp_port': 587
+                        }}
+                    )
+                    migration_stats['oauth_tokens_linked'] += 1
+                    logger.info(f"✅ Linked OAuth account {email} to token {oauth_token.get('id')}")
+                else:
+                    # OAuth account but no matching token - convert to manual or deactivate
+                    await db.email_accounts.update_one(
+                        {'id': account_id},
+                        {'$set': {
+                            'auth_type': 'manual',
+                            'use_oauth': False,
+                            'oauth_token_id': None,
+                            'oauth_email': None,
+                            'is_active': False  # Deactivate since no valid OAuth token
+                        }}
+                    )
+                    logger.warning(f"⚠️ Deactivated OAuth account {email} - no matching OAuth token found")
+                
+                migration_stats['oauth_accounts_updated'] += 1
+            
+            else:
+                # This is a manual account - ensure fields are set correctly
+                update_fields = {
+                    'auth_type': 'manual',
+                    'use_oauth': False,
+                    'oauth_token_id': None,
+                    'oauth_email': None
+                }
+                
+                # Only update if fields are missing or incorrect
+                needs_update = False
+                for field, value in update_fields.items():
+                    if account.get(field) != value:
+                        needs_update = True
+                        break
+                
+                if needs_update:
+                    await db.email_accounts.update_one(
+                        {'id': account_id},
+                        {'$set': update_fields}
+                    )
+                    migration_stats['manual_accounts_updated'] += 1
+        
+        # Step 2: Add IDs to OAuth tokens if missing
+        oauth_tokens = await db.oauth_tokens.find({}).to_list(length=1000)
+        tokens_updated = 0
+        
+        for token in oauth_tokens:
+            if not token.get('id'):
+                new_id = str(uuid.uuid4())
+                await db.oauth_tokens.update_one(
+                    {'_id': token['_id']},
+                    {'$set': {'id': new_id}}
+                )
+                tokens_updated += 1
+        
+        if tokens_updated > 0:
+            logger.info(f"✅ Added IDs to {tokens_updated} OAuth tokens")
+        
+        # Step 3: Log migration summary
+        logger.info(f"🎉 OAuth multi-account migration completed!")
+        logger.info(f"📊 Migration Summary:")
+        logger.info(f"   Total accounts processed: {migration_stats['total_accounts']}")
+        logger.info(f"   Manual accounts updated: {migration_stats['manual_accounts_updated']}")
+        logger.info(f"   OAuth accounts updated: {migration_stats['oauth_accounts_updated']}")
+        logger.info(f"   OAuth tokens linked: {migration_stats['oauth_tokens_linked']}")
+        logger.info(f"   OAuth tokens given IDs: {tokens_updated}")
+        
+        return migration_stats
+        
+    except Exception as e:
+        logger.error(f"❌ Error during OAuth migration: {str(e)}")
+        raise
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup"""
+    global polling_service
+    
+    try:
+        # Run data migration to support multi-user and multi-OAuth structure
+        await migrate_existing_data_to_users()
+        await migrate_oauth_data_structure()
+        
+        # Initialize periodic tasks if Redis is available
+        if RQ_ENABLED:
+            try:
+                schedule_periodic_tasks()
+                logger.info("✅ Scheduled periodic tasks (follow-up processing, response detection)")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not schedule periodic tasks: {str(e)}")
+        
+        # Initialize polling service
+        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
+        
+        # Start email polling in background
+        asyncio.create_task(polling_service.start_polling())
+        logger.info("🚀 Email polling service started")
+        
+        # Initialize default data if needed
+        await initialize_default_intents()
+        await initialize_default_accounts()
+        await initialize_test_emails()
+        
+        logger.info("🎉 Application startup completed successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Error during application startup: {str(e)}")
+        # Don't raise - let the app continue with partial functionality
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     global polling_service
