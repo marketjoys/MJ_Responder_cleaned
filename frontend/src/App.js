@@ -3574,7 +3574,7 @@ const EmailProcessing = () => {
                     )}
 
                     {/* Follow-ups */}
-                    {thread.follow_ups.length > 0 && (
+                    {thread.follow_ups && Array.isArray(thread.follow_ups) && thread.follow_ups.length > 0 && (
                       <div>
                         <h4 className="font-semibold text-slate-800 mb-3">Follow-ups ({thread.follow_ups.length})</h4>
                         <div className="space-y-3">
