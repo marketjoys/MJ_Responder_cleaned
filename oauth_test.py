@@ -99,9 +99,7 @@ class OAuthTester:
         
         # Test 1: POST /api/oauth/microsoft/authorize with email scope
         try:
-            email_auth_data = {
-                "scopes": ["email"]
-            }
+            email_auth_data = ["email"]
             response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", 
                                    json=email_auth_data, headers=headers, timeout=10)
             
