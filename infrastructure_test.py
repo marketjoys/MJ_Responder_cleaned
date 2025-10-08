@@ -492,7 +492,7 @@ class InfrastructureTester:
         except Exception as e:
             self.log_test_result("Environment Variables", False, f"Exception: {str(e)}")
     
-    def test_email_processing_pipeline(self):
+    async def test_email_processing_pipeline(self):
         """Test 6: Email Processing Pipeline - Basic workflow without triggering actual emails"""
         print("\n📧 Testing Email Processing Pipeline...")
         
@@ -502,25 +502,22 @@ class InfrastructureTester:
                 import httpx
                 groq_key = os.environ.get('GROQ_API_KEY')
                 
-                async def test_groq():
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            "https://api.groq.com/openai/v1/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {groq_key}",
-                                "Content-Type": "application/json"
-                            },
-                            json={
-                                "messages": [{"role": "user", "content": "Test"}],
-                                "model": "llama-3.3-70b-versatile",
-                                "max_completion_tokens": 10
-                            },
-                            timeout=10
-                        )
-                        return response.status_code == 200
-                
-                groq_passed = await test_groq()
-                groq_details = f"Groq API accessible: {groq_passed}"
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {groq_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "messages": [{"role": "user", "content": "Test"}],
+                            "model": "llama-3.3-70b-versatile",
+                            "max_completion_tokens": 10
+                        },
+                        timeout=10
+                    )
+                    groq_passed = response.status_code == 200
+                    groq_details = f"Groq API accessible: {groq_passed}"
             except Exception as e:
                 groq_passed = False
                 groq_details = f"Groq API error: {str(e)}"
@@ -529,25 +526,22 @@ class InfrastructureTester:
             try:
                 cohere_key = os.environ.get('COHERE_API_KEY')
                 
-                async def test_cohere():
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            "https://api.cohere.com/v1/embed",
-                            headers={
-                                "Authorization": f"Bearer {cohere_key}",
-                                "Content-Type": "application/json"
-                            },
-                            json={
-                                "model": "embed-english-v3.0",
-                                "texts": ["test"],
-                                "input_type": "classification"
-                            },
-                            timeout=10
-                        )
-                        return response.status_code == 200
-                
-                cohere_passed = await test_cohere()
-                cohere_details = f"Cohere API accessible: {cohere_passed}"
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.cohere.com/v1/embed",
+                        headers={
+                            "Authorization": f"Bearer {cohere_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": "embed-english-v3.0",
+                            "texts": ["test"],
+                            "input_type": "classification"
+                        },
+                        timeout=10
+                    )
+                    cohere_passed = response.status_code == 200
+                    cohere_details = f"Cohere API accessible: {cohere_passed}"
             except Exception as e:
                 cohere_passed = False
                 cohere_details = f"Cohere API error: {str(e)}"
