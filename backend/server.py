@@ -5334,6 +5334,9 @@ async def create_oauth_email_account(
     provider = account_data.provider.lower()
     oauth_email = account_data.oauth_email
     
+    # ACCOUNT LIMITS VALIDATION: Check account limits before creating
+    await validate_account_limits(current_user.id, provider)
+    
     if provider in ['gmail', 'google']:
         # Find the specific OAuth token for this email
         oauth_token = await db.oauth_tokens.find_one({
