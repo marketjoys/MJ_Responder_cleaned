@@ -205,7 +205,7 @@ backend:
 
   - task: "OAuth Email Polling & Processing Integration"
     implemented: true
-    working: false
+    working: true
     file: "server.py, email_services.py, microsoft_services.py"
     stuck_count: 1
     priority: "high"
@@ -214,6 +214,33 @@ backend:
       - working: false
         agent: "testing"
         comment: "❌ CRITICAL OAUTH POLLING ISSUES IDENTIFIED: Comprehensive investigation reveals multiple critical issues preventing OAuth email polling and processing for user amits.joys@gmail.com with Microsoft OAuth account amits.joys_outlook.com#EXT#@amitsjoysoutlook.onmicrosoft.com. ISSUE 1 - INCORRECT API ROUTING: Backend logs show '401: Google email access not authorized or expired' when polling Microsoft OAuth account. System incorrectly attempts to use Google Gmail API instead of Microsoft Graph API for Microsoft OAuth accounts. ISSUE 2 - REDIS DEPENDENCY: Redis server not running (Error 99 connecting to localhost:6379) causing email processing failures even with background task fallback. Email processing pipeline has hard Redis dependency. ISSUE 3 - OAUTH TOKEN MISMATCH: Microsoft OAuth token exists in oauth_tokens_microsoft collection but email polling service cannot properly route to Microsoft services. EVIDENCE: User successfully authenticated, Microsoft OAuth properly configured with valid token (expires 2025-10-07T13:19:04.733000), email account configured correctly (auth_type='oauth', use_oauth=True, is_active=True), polling service running with 1 connection, but polling fails due to incorrect service routing. ROOT CAUSE: OAuth service routing logic incorrectly maps Microsoft OAuth accounts to Google services instead of Microsoft Graph API services."
+      - working: true
+        agent: "testing"
+        comment: "✅ OAUTH ROUTING FIXES AND ACCOUNT LIMITS COMPREHENSIVE TESTING COMPLETED: Extensive testing confirms the critical fixes from the review request have been successfully implemented and are operational. KEY FINDINGS: 1) OAUTH ROUTING FIX IMPLEMENTED: Enhanced provider detection logic in email_services.py (_poll_oauth_account method) now correctly routes Microsoft accounts to Microsoft Graph API and Google accounts to Gmail API. Provider field-based routing with OAuth token-based fallback detection working correctly. Improved error handling prevents defaulting to wrong provider. 2) ACCOUNT LIMITS IMPLEMENTATION WORKING: validate_account_limits function properly enforces 2 Gmail + 2 Outlook + 1 Custom = 5 total accounts per user. Both manual (/api/email-accounts) and OAuth (/api/email-accounts/oauth) endpoints validate limits before account creation. Proper error messages when limits exceeded. 3) REDIS RQ INTEGRATION OPERATIONAL: Redis server running correctly (PONG response), RQ workers active (2 workers found), queue stats available for email_processing, follow_up, and background queues. Email processing properly queued via RQ with background task fallback. 4) EXISTING FUNCTIONALITY PRESERVED: All core email processing functions available, basic API endpoints working, database collections exist, authentication system functional. OAuth services (Google and Microsoft) properly imported and available. CRITICAL SUCCESS: The OAuth routing issue that caused Microsoft accounts to incorrectly use Google Gmail API has been resolved with enhanced provider detection logic and proper service routing."
+
+  - task: "Account Limits Implementation"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ACCOUNT LIMITS IMPLEMENTATION VERIFIED: Comprehensive testing confirms the account limits system is fully operational. CORE FUNCTIONALITY: validate_account_limits function correctly enforces 2 Gmail + 2 Outlook + 1 Custom = 5 total accounts per user. Function properly normalizes provider types (gmail/google, outlook/microsoft, custom) and validates both provider-specific and total account limits. ENDPOINT INTEGRATION: Both manual account creation (/api/email-accounts) and OAuth account creation (/api/email-accounts/oauth) endpoints call validate_account_limits before creating accounts. Proper HTTP 400 error responses with detailed messages when limits exceeded. LIMIT ENFORCEMENT: Gmail/Google accounts limited to 2 per user, Outlook/Microsoft accounts limited to 2 per user, Custom accounts limited to 1 per user, Total accounts limited to 5 per user. System correctly counts existing accounts by provider type and prevents creation when limits would be exceeded."
+
+  - task: "Redis RQ Integration"
+    implemented: true
+    working: true
+    file: "server.py, tasks.py, email_services.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ REDIS RQ INTEGRATION COMPREHENSIVE VERIFICATION: Testing confirms Redis RQ integration is fully operational for email and follow-up processing. REDIS CONNECTIVITY: Redis server running and accessible (PONG response), RQ queue stats available showing email_processing, follow_up, and background queues with proper structure. RQ WORKERS: 2 active RQ workers found and processing queues correctly. EMAIL PROCESSING QUEUE: Email processing properly queued via RQ with background task fallback when Redis unavailable. /api/emails/test endpoint returns processing_method='rq' or 'background_tasks' based on Redis availability. QUEUE STATISTICS: get_queue_stats function working correctly, returning queue counts and Redis connection status. FALLBACK MECHANISM: System gracefully falls back to FastAPI BackgroundTasks when Redis unavailable, ensuring email processing continues without interruption."
 
 frontend:
   - task: "Signature Typing Functionality"
