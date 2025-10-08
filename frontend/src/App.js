@@ -2546,6 +2546,13 @@ const EmailAccounts = () => {
     e.preventDefault();
     
     if (accountType === 'oauth') {
+      // Check account limits first
+      const limitCheck = canAddAccount(oauthProvider);
+      if (!limitCheck.canAdd) {
+        setMessage(`❌ ${limitCheck.reason}`);
+        return;
+      }
+      
       // Check OAuth status based on selected provider
       if (oauthProvider === 'google') {
         if (!oauthStatus?.is_authorized || !oauthStatus?.authorized_services?.includes('email')) {
@@ -2562,6 +2569,13 @@ const EmailAccounts = () => {
       }
       await createOAuthAccount();
     } else {
+      // Check account limits for manual accounts
+      const limitCheck = canAddAccount(formData.provider);
+      if (!limitCheck.canAdd) {
+        setMessage(`❌ ${limitCheck.reason}`);
+        return;
+      }
+      
       // Existing manual account creation logic
       setLoading(true);
       setMessage('');
