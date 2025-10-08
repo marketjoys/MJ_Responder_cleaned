@@ -109,7 +109,9 @@ class OAuthIssueTester:
             print(f"   Email: {token.get('email', 'Not set')}")
             print(f"   Expires: {expires_at}")
             print(f"   Expired: {is_expired}")
-            print(f"   Scopes: {token.get('scopes', [])}")
+            print(f"   Scopes: {token.get('scope', 'Not set')}")
+            print(f"   User Email: {token.get('user_email', 'Not set')}")
+            print(f"   Authorized Services: {token.get('authorized_services', [])}")
         else:
             print("❌ No Google OAuth token found")
             return
