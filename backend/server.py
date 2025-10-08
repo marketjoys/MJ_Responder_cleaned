@@ -3633,6 +3633,58 @@ async def revoke_microsoft_oauth(current_user: User = Depends(get_current_active
             detail=f"Failed to revoke Microsoft OAuth: {str(e)}"
         )
 
+@api_router.post("/oauth/microsoft/revoke/{oauth_email}")
+async def revoke_specific_microsoft_oauth(
+    oauth_email: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Revoke Microsoft OAuth tokens for a specific email account"""
+    try:
+        # Find the specific OAuth token
+        oauth_token = await db.oauth_tokens_microsoft.find_one({
+            'user_id': current_user.id,
+            'user_email': oauth_email
+        })
+        
+        if not oauth_token:
+            return {
+                "success": True,
+                "message": f"No Microsoft OAuth token found for {oauth_email}. Already revoked or never authorized."
+            }
+        
+        # Revoke the specific token
+        success = await microsoft_oauth_service.revoke_access(current_user.id, oauth_email)
+        
+        # Also update/deactivate any email accounts using this OAuth email
+        await db.email_accounts.update_many(
+            {
+                'user_id': current_user.id,
+                'oauth_email': oauth_email,
+                'auth_type': 'oauth',
+                'provider': {'$in': ['outlook', 'microsoft']}
+            },
+            {
+                '$set': {
+                    'is_active': False,
+                    'last_oauth_sync': None
+                }
+            }
+        )
+        
+        logger.info(f"Microsoft OAuth revoked for user {current_user.id}, email {oauth_email}")
+        
+        return {
+            "success": success,
+            "message": f"Microsoft OAuth access revoked for {oauth_email}" if success else f"Failed to revoke Microsoft OAuth for {oauth_email}"
+        }
+        
+    except Exception as e:
+        logger.error(f"OAuth revoke error for {oauth_email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke Microsoft OAuth for {oauth_email}: {str(e)}"
+        )
+
 # Follow-up Configuration Routes
 @api_router.get("/follow-up/config", response_model=FollowUpConfig)
 async def get_follow_up_config(current_user: User = Depends(get_current_active_user)):
