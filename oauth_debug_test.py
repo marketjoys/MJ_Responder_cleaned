@@ -374,23 +374,25 @@ class OAuthDebugTester:
         print("\n🔐 Testing OAuth Flow...")
         
         try:
-            # Test OAuth endpoints
+            # Test OAuth authorize endpoint (POST with authentication required)
             try:
-                response = requests.get(f"{API_BASE}/oauth/microsoft/login", timeout=10, allow_redirects=False)
-                oauth_login_available = response.status_code in [200, 302, 307]
-                print(f"   OAuth login endpoint: {oauth_login_available} (Status: {response.status_code})")
+                # This should require authentication, so expect 401/403
+                oauth_data = ["email", "calendar"]
+                response = requests.post(f"{API_BASE}/oauth/microsoft/authorize", 
+                                       json=oauth_data, timeout=10)
+                oauth_authorize_available = response.status_code in [401, 403, 422]  # Should require auth
+                print(f"   OAuth authorize endpoint: {oauth_authorize_available} (Status: {response.status_code})")
                 
-                if response.status_code in [302, 307]:
-                    redirect_url = response.headers.get('Location', '')
-                    print(f"   Redirect URL: {redirect_url[:100]}...")
-                    has_microsoft_auth = 'login.microsoftonline.com' in redirect_url
-                    print(f"   Redirects to Microsoft: {has_microsoft_auth}")
-                else:
-                    has_microsoft_auth = False
+                if response.status_code == 401:
+                    print(f"   OAuth authorize requires authentication (expected)")
+                elif response.status_code == 403:
+                    print(f"   OAuth authorize forbidden (may need proper auth)")
+                elif response.status_code == 422:
+                    print(f"   OAuth authorize validation error (endpoint exists)")
+                
             except Exception as e:
-                oauth_login_available = False
-                has_microsoft_auth = False
-                print(f"   OAuth login endpoint test failed: {str(e)}")
+                oauth_authorize_available = False
+                print(f"   OAuth authorize endpoint test failed: {str(e)}")
             
             # Test OAuth callback endpoint
             try:
@@ -403,6 +405,10 @@ class OAuthDebugTester:
                                       params=callback_params, timeout=10)
                 callback_accessible = response.status_code in [400, 401, 500]  # Should fail but be accessible
                 print(f"   OAuth callback endpoint: {callback_accessible} (Status: {response.status_code})")
+                
+                if response.status_code == 400:
+                    print(f"   OAuth callback returned 400 - likely invalid state/code (expected)")
+                
             except Exception as e:
                 callback_accessible = False
                 print(f"   OAuth callback endpoint test failed: {str(e)}")
