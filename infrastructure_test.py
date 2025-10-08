@@ -48,7 +48,7 @@ class InfrastructureTester:
             self.client = AsyncIOMotorClient(MONGO_URL)
             self.db = self.client[DB_NAME]
             # Test connection
-            await self.db.admin.command('ping')
+            await self.client.admin.command('ping')
             print("✅ Database connection established")
             return True
         except Exception as e:
