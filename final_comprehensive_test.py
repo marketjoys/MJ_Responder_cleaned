@@ -21,7 +21,7 @@ load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
 # Configuration
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://email-sync-debug-4.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://account-sync-repair.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 # Expected API Keys from review request

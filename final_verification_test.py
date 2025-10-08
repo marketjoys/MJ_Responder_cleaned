@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 # Configuration
-BACKEND_URL = "https://email-sync-debug-4.preview.emergentagent.com"
+BACKEND_URL = "https://account-sync-repair.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_specific_endpoints():
