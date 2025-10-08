@@ -2727,10 +2727,11 @@ const EmailAccounts = () => {
           </div>
           <Button 
             onClick={() => setIsCreating(true)}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            disabled={getAccountCounts().total >= ACCOUNT_LIMITS.total}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Account
+            Add Account {getAccountCounts().total >= ACCOUNT_LIMITS.total && '(Limit Reached)'}
           </Button>
         </div>
 
