@@ -266,9 +266,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "OAuth Email Polling & Processing Integration"
-  stuck_tasks:
-    - "OAuth Email Polling & Processing Integration"
+    - "OAuth Routing Fixes and Account Limits Implementation Testing Completed"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
