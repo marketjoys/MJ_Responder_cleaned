@@ -2223,6 +2223,9 @@ async def main():
         tester.test_meeting_detection_and_calendar_agent()
         tester.test_email_calendar_integration()
         
+        # NEW: OAuth Multiple Account Management Tests
+        await tester.test_oauth_multiple_account_management()
+        
         # Print summary
         tester.print_summary()
         
