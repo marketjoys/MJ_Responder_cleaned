@@ -5254,6 +5254,69 @@ class EmailAccountCreateOAuth(BaseModel):
     max_follow_ups_override: Optional[int] = None
     custom_follow_up_template: Optional[str] = None
 
+# Account limits validation helper function
+async def validate_account_limits(user_id: str, provider: str) -> None:
+    """
+    Validate account limits: 2 Gmail + 2 Outlook + 1 Custom = 5 total accounts per user
+    
+    Args:
+        user_id: User ID
+        provider: Provider type ('gmail', 'google', 'outlook', 'microsoft', or 'custom')
+        
+    Raises:
+        HTTPException: If account limits would be exceeded
+    """
+    # Get current account counts by provider
+    existing_accounts = await db.email_accounts.find({
+        'user_id': user_id
+    }).to_list(100)
+    
+    # Count accounts by provider type
+    gmail_count = 0
+    outlook_count = 0
+    custom_count = 0
+    total_count = len(existing_accounts)
+    
+    for account in existing_accounts:
+        account_provider = account.get('provider', '').lower()
+        if account_provider in ['gmail', 'google']:
+            gmail_count += 1
+        elif account_provider in ['outlook', 'microsoft']:
+            outlook_count += 1
+        else:
+            custom_count += 1
+    
+    # Normalize provider for checking
+    provider_normalized = provider.lower()
+    if provider_normalized in ['gmail', 'google']:
+        provider_type = 'gmail'
+        current_count = gmail_count
+        limit = 2
+    elif provider_normalized in ['outlook', 'microsoft']:
+        provider_type = 'outlook'
+        current_count = outlook_count
+        limit = 2
+    else:
+        provider_type = 'custom'
+        current_count = custom_count
+        limit = 1
+    
+    # Check total limit first (5 accounts max)
+    if total_count >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum of 5 email accounts allowed per user. Current count: {total_count}"
+        )
+    
+    # Check provider-specific limit
+    if current_count >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum of {limit} {provider_type.title()} account(s) allowed per user. Current count: {current_count}"
+        )
+    
+    logger.info(f"✅ Account limits validated - User: {user_id}, Provider: {provider_type}, Count: {current_count}/{limit}, Total: {total_count}/5")
+
 @api_router.post("/email-accounts/oauth", response_model=Dict[str, Any])
 async def create_oauth_email_account(
     account_data: EmailAccountCreateOAuth,
