@@ -565,26 +565,43 @@ class EmailPollingService:
             logger.error(f"❌ OAuth account {account_id} missing oauth_email field")
             return
         
-        # Determine provider type from email domain if not specified
-        if not provider_type:
+        # Enhanced debugging for provider routing
+        logger.info(f"🔍 OAUTH ROUTING DEBUG - Account ID: {account_id}")
+        logger.info(f"🔍 OAuth Email: {oauth_email}")
+        logger.info(f"🔍 Provider (from account): {account.get('provider')}")
+        logger.info(f"🔍 Auth Type: {account.get('auth_type')}")
+        logger.info(f"🔍 Use OAuth: {account.get('use_oauth')}")
+        
+        # Determine provider type from account field first, then email domain
+        if provider_type:
+            logger.info(f"🔍 Using provider from account field: {provider_type}")
+        else:
             email_domain = oauth_email.split('@')[-1].lower()
+            logger.info(f"🔍 Email domain: {email_domain}")
+            
             if 'gmail.com' in email_domain or 'googlemail.com' in email_domain:
                 provider_type = 'google'
+                logger.info(f"🔍 Domain-based provider detection: {provider_type}")
             elif ('outlook.com' in email_domain or 'hotmail.com' in email_domain or 
                   'live.com' in email_domain or 'office365.com' in email_domain or 
                   'onmicrosoft.com' in email_domain):
                 provider_type = 'microsoft'
+                logger.info(f"🔍 Domain-based provider detection: {provider_type}")
             else:
-                logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email}, defaulting to Google")
+                logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email} (domain: {email_domain}), defaulting to Google")
                 provider_type = 'google'
         
         # Normalize provider type - handle both "outlook" and "microsoft"
+        original_provider = provider_type
         if provider_type.lower() in ['outlook', 'microsoft']:
             provider_type = 'microsoft'
-        elif provider_type.lower() == 'google':
+        elif provider_type.lower() in ['gmail', 'google']:
             provider_type = 'google'
         
-        logger.info(f"🔄 Polling OAuth account {oauth_email} using {provider_type.upper()} API")
+        if original_provider != provider_type:
+            logger.info(f"🔄 Normalized provider: {original_provider} -> {provider_type}")
+        
+        logger.info(f"🚀 FINAL ROUTING: Polling OAuth account {oauth_email} using {provider_type.upper()} API")
         
         try:
             if provider_type == 'microsoft':
@@ -593,7 +610,9 @@ class EmailPollingService:
                 await self._poll_google_oauth_account(account, oauth_email)
                 
         except Exception as e:
-            logger.error(f"❌ Error polling OAuth account {account.get('email', account_id)}: {str(e)}")
+            logger.error(f"❌ Error polling OAuth account {oauth_email} (provider: {provider_type}): {str(e)}")
+            # Re-raise to allow upper levels to handle
+            raise
 
     async def _poll_google_oauth_account(self, account: Dict[str, Any], oauth_email: str):
         """Poll Google OAuth account using Gmail API"""
