@@ -2331,6 +2331,65 @@ const EmailAccounts = () => {
   const [message, setMessage] = useState('');
   const [editingAccount, setEditingAccount] = useState(null);
 
+  // Account counting and limits
+  const getAccountCounts = () => {
+    const counts = {
+      gmail: 0,
+      google: 0,
+      outlook: 0,
+      microsoft: 0,
+      yahoo: 0,
+      custom: 0,
+      total: accounts.length
+    };
+    
+    accounts.forEach(account => {
+      const provider = account.provider.toLowerCase();
+      if (provider === 'gmail' || provider === 'google') {
+        counts.gmail += 1;
+        counts.google += 1;
+      } else if (provider === 'outlook' || provider === 'microsoft') {
+        counts.outlook += 1;
+        counts.microsoft += 1;
+      } else if (provider === 'yahoo') {
+        counts.yahoo += 1;
+      } else if (provider === 'custom') {
+        counts.custom += 1;
+      }
+    });
+    
+    return counts;
+  };
+
+  const canAddAccount = (providerType) => {
+    const counts = getAccountCounts();
+    const normalizedProvider = providerType.toLowerCase();
+    
+    // Check total limit
+    if (counts.total >= ACCOUNT_LIMITS.total) {
+      return { canAdd: false, reason: `Maximum ${ACCOUNT_LIMITS.total} total accounts reached` };
+    }
+    
+    // Check provider-specific limits
+    if ((normalizedProvider === 'gmail' || normalizedProvider === 'google') && counts.gmail >= ACCOUNT_LIMITS.gmail) {
+      return { canAdd: false, reason: `Maximum ${ACCOUNT_LIMITS.gmail} Gmail accounts reached` };
+    }
+    
+    if ((normalizedProvider === 'outlook' || normalizedProvider === 'microsoft') && counts.outlook >= ACCOUNT_LIMITS.outlook) {
+      return { canAdd: false, reason: `Maximum ${ACCOUNT_LIMITS.outlook} Outlook accounts reached` };
+    }
+    
+    if (normalizedProvider === 'yahoo' && counts.yahoo >= ACCOUNT_LIMITS.yahoo) {
+      return { canAdd: false, reason: `Maximum ${ACCOUNT_LIMITS.yahoo} Yahoo account reached` };
+    }
+    
+    if (normalizedProvider === 'custom' && counts.custom >= ACCOUNT_LIMITS.custom) {
+      return { canAdd: false, reason: `Maximum ${ACCOUNT_LIMITS.custom} custom SMTP account reached` };
+    }
+    
+    return { canAdd: true, reason: '' };
+  };
+
   useEffect(() => {
     fetchAccounts();
     fetchOAuthStatus();
