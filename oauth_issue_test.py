@@ -234,8 +234,8 @@ class OAuthIssueTester:
         print("-" * 30)
         
         # Check if the OAuth token has timezone issues
-        if google_tokens:
-            token = google_tokens[0]
+        if google_tokens or oauth_tokens:
+            token = google_tokens[0] if google_tokens else oauth_tokens[0]
             expires_at = token.get("expires_at")
             created_at = token.get("created_at")
             
