@@ -239,7 +239,7 @@ class InfrastructureTester:
         try:
             # Test 3a: Basic Connection and Ping
             try:
-                await self.db.admin.command('ping')
+                await self.client.admin.command('ping')
                 ping_passed = True
                 ping_details = "MongoDB ping successful"
             except Exception as e:
