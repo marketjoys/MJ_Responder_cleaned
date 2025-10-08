@@ -167,21 +167,29 @@ class MicrosoftOAuthTenantTester:
         try:
             # Import Microsoft OAuth service to check configuration
             sys.path.append('/app/backend')
-            from oauth_microsoft import microsoft_oauth_service
+            from oauth_microsoft import MicrosoftOAuthConfig
+            
+            # Create config instance to check tenant configuration
+            config = MicrosoftOAuthConfig()
             
             # Check if the service is configured with common tenant
-            tenant_id = microsoft_oauth_service.tenant_id if hasattr(microsoft_oauth_service, 'tenant_id') else None
+            tenant_correct = config.tenant_id == "common"
             
-            if tenant_id:
-                tenant_correct = tenant_id == "common"
-                details = f"Service tenant ID: '{tenant_id}' (should be 'common')"
-            else:
-                # Try to get tenant from environment as fallback
-                env_tenant = os.environ.get('MICROSOFT_TENANT_ID')
-                tenant_correct = env_tenant == "common"
-                details = f"Environment tenant ID: '{env_tenant}' (should be 'common')"
+            # Check that the auth URL uses the common tenant endpoint
+            expected_auth_url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+            auth_url_correct = config.auth_url == expected_auth_url
             
-            self.log_test_result("Tenant Configuration Verification", tenant_correct, details)
+            # Check that the token URL uses the common tenant endpoint
+            expected_token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+            token_url_correct = config.token_url == expected_token_url
+            
+            all_passed = tenant_correct and auth_url_correct and token_url_correct
+            
+            details = f"Tenant ID: '{config.tenant_id}' (should be 'common'), " \
+                     f"Auth URL correct: {auth_url_correct}, " \
+                     f"Token URL correct: {token_url_correct}"
+            
+            self.log_test_result("Tenant Configuration Verification", all_passed, details)
             
         except Exception as e:
             self.log_test_result("Tenant Configuration Verification", False, f"Exception: {str(e)}")
