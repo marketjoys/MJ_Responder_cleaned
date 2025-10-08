@@ -225,16 +225,19 @@ backend:
         comment: "❌ CRITICAL OAUTH DEBUGGING - MICROSOFT PERSONAL ACCOUNT AUTHENTICATION BLOCKED: Comprehensive OAuth debugging reveals the root cause of AADSTS50020 error for user amits.joys@gmail.com trying to add Microsoft Outlook account. CRITICAL FINDINGS: 1) TENANT CONFIGURATION ISSUE: MICROSOFT_TENANT_ID is set to specific tenant 'cf93f5c7-89b8-4808-b550-b61a85422828' instead of 'common', preventing personal Microsoft accounts (live.com identity provider) from authenticating. Azure AD error AADSTS50020 occurs because personal accounts don't exist in the specific tenant directory. 2) OAUTH TOKEN STORAGE: No Microsoft OAuth tokens found in oauth_tokens_microsoft collection for target user - authentication never completes due to tenant restriction. 3) OAUTH FLOW STATUS: OAuth endpoints functional (/api/oauth/microsoft/authorize, /api/oauth/microsoft/callback) but authentication fails at Microsoft's authorization server due to tenant configuration. 4) EMAIL POLLING: OAuth routing logic correctly implemented in email_services.py with proper Microsoft Graph API integration, but no OAuth accounts exist to poll due to failed authentication. 5) CONFIGURATION ANALYSIS: Microsoft OAuth config complete with valid client credentials, but tenant restricts to organizational accounts only. SOLUTION REQUIRED: Change MICROSOFT_TENANT_ID from specific tenant to 'common' to support both personal and organizational Microsoft accounts."
 
   - task: "Microsoft OAuth Tenant Configuration Fix"
-    implemented: false
-    working: false
+    implemented: true
+    working: true
     file: "backend/.env"
     stuck_count: 0
     priority: "critical"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
         comment: "❌ CRITICAL ISSUE IDENTIFIED: Microsoft OAuth tenant configuration prevents personal Microsoft account authentication. Current MICROSOFT_TENANT_ID='cf93f5c7-89b8-4808-b550-b61a85422828' is a specific tenant that only supports organizational accounts. Personal Microsoft accounts (like amits.joys@outlook.com) use live.com identity provider which doesn't exist in this tenant, causing AADSTS50020 error. REQUIRED FIX: Change MICROSOFT_TENANT_ID to 'common' to support both personal and organizational Microsoft accounts. This is the root cause preventing user amits.joys@gmail.com from successfully adding their Microsoft Outlook account."
+      - working: true
+        agent: "testing"
+        comment: "✅ MICROSOFT OAUTH TENANT FIX VERIFICATION COMPLETED: Comprehensive testing confirms the tenant configuration fix is working correctly! Key Findings: 1) Environment Variables: MICROSOFT_TENANT_ID successfully changed from specific tenant 'cf93f5c7-89b8-4808-b550-b61a85422828' to 'common' in backend/.env. All Microsoft OAuth environment variables properly configured. 2) OAuth Service Configuration: Microsoft OAuth service correctly uses 'common' tenant for both authorization and token URLs (login.microsoftonline.com/common/oauth2/v2.0/authorize and login.microsoftonline.com/common/oauth2/v2.0/token). 3) OAuth Endpoints: All Microsoft OAuth endpoints (/api/oauth/microsoft/status, /api/oauth/microsoft/authorize) are functional and properly protected with authentication. 4) Personal Account Support: Configuration now supports both organizational AND personal Microsoft accounts. No longer restricted to specific organizational tenant. 5) AADSTS50020 Error Resolution: Tenant configuration change eliminates the root cause of AADSTS50020 errors that prevented personal Microsoft accounts (like amits.joys@outlook.com) from authenticating. SUCCESS: The fix is complete and operational - users should now be able to add personal Microsoft accounts without encountering tenant-specific authentication errors."
 
   - task: "Account Limits Implementation"
     implemented: true
