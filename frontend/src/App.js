@@ -2705,8 +2705,8 @@ const EmailAccounts = () => {
         setMessage(`Google OAuth access revoked for ${account.email}`);
         fetchOAuthStatus();
       } else if (account.provider === 'outlook' || account.provider === 'microsoft') {
-        // For now, revoke all Microsoft OAuth (we can enhance this later for specific accounts)
-        await axios.post(`${API}/oauth/microsoft/revoke`);
+        // Use specific Microsoft OAuth revocation for individual accounts
+        await axios.post(`${API}/oauth/microsoft/revoke/${encodeURIComponent(account.oauth_email)}`);
         setMessage(`Microsoft OAuth access revoked for ${account.email}`);
         fetchMicrosoftOAuthStatus();
       }
