@@ -2297,6 +2297,17 @@ const EmailAccounts = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
   const [oauthProvider, setOauthProvider] = useState('google'); // 'google' or 'microsoft'
+  
+  // Account limits
+  const ACCOUNT_LIMITS = {
+    gmail: 2,
+    google: 2,  // alias for gmail
+    outlook: 2, 
+    microsoft: 2,  // alias for outlook
+    yahoo: 1,
+    custom: 1,
+    total: 5  // Maximum total accounts (2 Gmail + 2 Outlook + 1 Custom)
+  };
   const [formData, setFormData] = useState({
     name: '',
     email: '',
