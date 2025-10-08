@@ -1104,6 +1104,9 @@ async def create_email_account(account: EmailAccountCreate, current_user: User =
             detail="OAuth accounts should be created using /email-accounts/oauth endpoint"
         )
     
+    # ACCOUNT LIMITS VALIDATION: Check account limits before creating
+    await validate_account_limits(current_user.id, account.provider)
+    
     # Set manual authentication fields
     account_dict["auth_type"] = "manual"
     account_dict["use_oauth"] = False
