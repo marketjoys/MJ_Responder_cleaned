@@ -2583,6 +2583,55 @@ const EmailAccounts = () => {
     setLoading(false);
   };
 
+  const handleEditAccount = (account) => {
+    // Populate form with account data for editing
+    setFormData({
+      name: account.name,
+      email: account.email,
+      provider: account.provider,
+      username: account.username || account.email,
+      password: '', // Don't populate password for security
+      imap_server: account.imap_server,
+      imap_port: account.imap_port,
+      smtp_server: account.smtp_server,
+      smtp_port: account.smtp_port,
+      signature: account.signature || '',
+      persona: account.persona || '',
+      is_active: account.is_active,
+      enable_follow_ups: account.enable_follow_ups,
+      follow_up_hours_override: account.follow_up_hours_override,
+      max_follow_ups_override: account.max_follow_ups_override,
+      custom_follow_up_template: account.custom_follow_up_template || ''
+    });
+    setAccountType(account.use_oauth ? 'oauth' : 'manual');
+    setEditingAccount(account);
+    setIsCreating(true); // Reuse the same dialog
+  };
+
+  const handleRevokeAccountOAuth = async (account) => {
+    if (!window.confirm(`Are you sure you want to revoke OAuth access for ${account.email}? This will disconnect the account and stop email polling.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (account.provider === 'gmail' || account.provider === 'google') {
+        await axios.post(`${API}/oauth/google/revoke/${encodeURIComponent(account.oauth_email)}`);
+        setMessage(`Google OAuth access revoked for ${account.email}`);
+        fetchOAuthStatus();
+      } else if (account.provider === 'outlook' || account.provider === 'microsoft') {
+        // For now, revoke all Microsoft OAuth (we can enhance this later for specific accounts)
+        await axios.post(`${API}/oauth/microsoft/revoke`);
+        setMessage(`Microsoft OAuth access revoked for ${account.email}`);
+        fetchMicrosoftOAuthStatus();
+      }
+      fetchAccounts();
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error revoking OAuth access');
+    }
+    setLoading(false);
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
