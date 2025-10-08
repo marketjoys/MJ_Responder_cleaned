@@ -205,11 +205,11 @@ backend:
 
   - task: "OAuth Email Polling & Processing Integration"
     implemented: true
-    working: true
+    working: false
     file: "server.py, email_services.py, microsoft_services.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: false
         agent: "testing"
@@ -220,6 +220,9 @@ backend:
       - working: true
         agent: "main"
         comment: "✅ OAUTH ROUTING & PRODUCTION READINESS FIXES COMPLETED: Fixed critical OAuth routing issues and implemented account limits to make app production-ready. FIXES: 1) OAuth Routing Fix: Enhanced provider detection logic in email_services.py to check OAuth token collections when provider field is missing, preventing Microsoft OAuth accounts from being routed to Google Gmail API. No longer defaults to Google for unknown domains - raises error instead. 2) Account Limits Implementation: Added validate_account_limits() function enforcing 2 Gmail + 2 Outlook + 1 Custom = 5 total accounts per user in both /api/email-accounts and /api/email-accounts/oauth endpoints. 3) Redis RQ Integration: Installed and configured Redis server properly, started RQ workers for email_processing and follow_up queues, verified Redis connectivity and queue processing. 4) Provider Detection Priority: Provider field → OAuth tokens → domain matching → error (no Google fallback). All critical production readiness issues resolved without affecting existing functionality."
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL OAUTH DEBUGGING - MICROSOFT PERSONAL ACCOUNT AUTHENTICATION BLOCKED: Comprehensive OAuth debugging reveals the root cause of AADSTS50020 error for user amits.joys@gmail.com trying to add Microsoft Outlook account. CRITICAL FINDINGS: 1) TENANT CONFIGURATION ISSUE: MICROSOFT_TENANT_ID is set to specific tenant 'cf93f5c7-89b8-4808-b550-b61a85422828' instead of 'common', preventing personal Microsoft accounts (live.com identity provider) from authenticating. Azure AD error AADSTS50020 occurs because personal accounts don't exist in the specific tenant directory. 2) OAUTH TOKEN STORAGE: No Microsoft OAuth tokens found in oauth_tokens_microsoft collection for target user - authentication never completes due to tenant restriction. 3) OAUTH FLOW STATUS: OAuth endpoints functional (/api/oauth/microsoft/authorize, /api/oauth/microsoft/callback) but authentication fails at Microsoft's authorization server due to tenant configuration. 4) EMAIL POLLING: OAuth routing logic correctly implemented in email_services.py with proper Microsoft Graph API integration, but no OAuth accounts exist to poll due to failed authentication. 5) CONFIGURATION ANALYSIS: Microsoft OAuth config complete with valid client credentials, but tenant restricts to organizational accounts only. SOLUTION REQUIRED: Change MICROSOFT_TENANT_ID from specific tenant to 'common' to support both personal and organizational Microsoft accounts."
 
   - task: "Account Limits Implementation"
     implemented: true
