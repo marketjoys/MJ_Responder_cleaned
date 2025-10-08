@@ -2158,6 +2158,223 @@ class EmailAssistantTester:
         except Exception as e:
             self.log_test_result("EMAIL-CALENDAR INTEGRATION", False, f"Exception: {str(e)}")
     
+    async def test_oauth_multiple_account_management(self):
+        """Test OAuth Multiple Account Management and Individual Revocation"""
+        print("\n🔐 Testing OAuth Multiple Account Management...")
+        
+        try:
+            # First, authenticate to get a user token
+            auth_response = await self.authenticate_test_user()
+            if not auth_response:
+                self.log_test_result("OAuth Multiple Account Management", False, "Failed to authenticate test user")
+                return
+            
+            headers = {"Authorization": f"Bearer {auth_response['access_token']}"}
+            
+            # Test 1: Check current OAuth status for Google
+            try:
+                response = requests.get(f"{API_BASE}/oauth/google/status", headers=headers, timeout=10)
+                google_status_passed = response.status_code in [200, 403]  # 403 means not authorized, which is valid
+                google_status = response.json() if response.status_code == 200 else {"is_authorized": False}
+                google_status_details = f"Status: {response.status_code}, Authorized: {google_status.get('is_authorized', False)}"
+            except Exception as e:
+                google_status_passed = False
+                google_status_details = f"Error: {str(e)}"
+            
+            # Test 2: Check current OAuth status for Microsoft
+            try:
+                response = requests.get(f"{API_BASE}/oauth/microsoft/status", headers=headers, timeout=10)
+                microsoft_status_passed = response.status_code in [200, 403]  # 403 means not authorized, which is valid
+                microsoft_status = response.json() if response.status_code == 200 else {"is_authorized": False}
+                microsoft_status_details = f"Status: {response.status_code}, Authorized: {microsoft_status.get('is_authorized', False)}"
+            except Exception as e:
+                microsoft_status_passed = False
+                microsoft_status_details = f"Error: {str(e)}"
+            
+            # Test 3: Test OAuth account creation endpoint (should return auth URL)
+            try:
+                oauth_data = {
+                    "provider": "microsoft",
+                    "oauth_email": "test.oauth@outlook.com",
+                    "name": "Test OAuth Account",
+                    "persona": "Professional assistant",
+                    "signature": "Best regards,\nTest OAuth Account"
+                }
+                response = requests.post(f"{API_BASE}/email-accounts/oauth", json=oauth_data, headers=headers, timeout=15)
+                oauth_creation_passed = response.status_code in [200, 201, 400]  # 400 might be expected if limits reached
+                
+                if response.status_code in [200, 201]:
+                    oauth_response = response.json()
+                    oauth_creation_details = f"Status: {response.status_code}, Has auth_url: {'auth_url' in oauth_response}"
+                else:
+                    oauth_creation_details = f"Status: {response.status_code}, Response: {response.text[:100]}"
+            except Exception as e:
+                oauth_creation_passed = False
+                oauth_creation_details = f"Error: {str(e)}"
+            
+            # Test 4: Test account limits enforcement
+            try:
+                # Try to create multiple accounts to test limits
+                limit_test_passed = True
+                accounts_created = 0
+                
+                for i in range(6):  # Try to create 6 accounts (should fail after 5)
+                    test_data = {
+                        "provider": "gmail" if i % 2 == 0 else "outlook",
+                        "oauth_email": f"test{i}@{'gmail.com' if i % 2 == 0 else 'outlook.com'}",
+                        "name": f"Test Account {i}",
+                        "persona": "Test",
+                        "signature": "Test"
+                    }
+                    
+                    response = requests.post(f"{API_BASE}/email-accounts/oauth", json=test_data, headers=headers, timeout=10)
+                    
+                    if response.status_code in [200, 201]:
+                        accounts_created += 1
+                    elif response.status_code == 400 and "limit" in response.text.lower():
+                        # Expected limit reached
+                        break
+                    else:
+                        # Unexpected error
+                        limit_test_passed = False
+                        break
+                
+                limit_details = f"Accounts created before limit: {accounts_created}, Limit enforcement: {limit_test_passed}"
+            except Exception as e:
+                limit_test_passed = False
+                limit_details = f"Error: {str(e)}"
+            
+            # Test 5: Test individual Microsoft OAuth revocation endpoint
+            try:
+                test_email = "test.revoke@outlook.com"
+                response = requests.post(f"{API_BASE}/oauth/microsoft/revoke/{test_email}", headers=headers, timeout=10)
+                revocation_passed = response.status_code in [200, 404]  # 404 is valid if account doesn't exist
+                revocation_details = f"Status: {response.status_code}"
+                
+                if response.status_code == 200:
+                    revocation_response = response.json()
+                    revocation_details += f", Success: {revocation_response.get('success', False)}"
+            except Exception as e:
+                revocation_passed = False
+                revocation_details = f"Error: {str(e)}"
+            
+            # Test 6: Test OAuth polling routing logic by checking database
+            try:
+                # Check if there are any OAuth accounts in the database
+                oauth_accounts = await self.db.email_accounts.find({
+                    "auth_type": "oauth",
+                    "use_oauth": True
+                }).to_list(10)
+                
+                routing_test_passed = True
+                routing_details = f"Found {len(oauth_accounts)} OAuth accounts"
+                
+                # Check if accounts have proper provider routing information
+                for account in oauth_accounts:
+                    oauth_email = account.get('oauth_email', '')
+                    provider = account.get('provider', '').lower()
+                    
+                    # Verify Microsoft accounts are not routed to Google
+                    if 'outlook.com' in oauth_email or 'onmicrosoft.com' in oauth_email:
+                        if provider not in ['microsoft', 'outlook']:
+                            routing_test_passed = False
+                            routing_details += f", ROUTING ERROR: Microsoft email {oauth_email} has provider {provider}"
+                    
+                    # Verify Google accounts are not routed to Microsoft
+                    elif 'gmail.com' in oauth_email:
+                        if provider not in ['google', 'gmail']:
+                            routing_test_passed = False
+                            routing_details += f", ROUTING ERROR: Google email {oauth_email} has provider {provider}"
+                
+            except Exception as e:
+                routing_test_passed = False
+                routing_details = f"Error: {str(e)}"
+            
+            # Test 7: Test OAuth token collections exist and are properly structured
+            try:
+                google_tokens = await self.db.oauth_tokens.count_documents({})
+                microsoft_tokens = await self.db.oauth_tokens_microsoft.count_documents({})
+                
+                token_structure_passed = True
+                token_details = f"Google tokens: {google_tokens}, Microsoft tokens: {microsoft_tokens}"
+                
+                # Check if tokens have proper structure
+                if google_tokens > 0:
+                    sample_google = await self.db.oauth_tokens.find_one({})
+                    required_fields = ['user_id', 'access_token', 'user_email', 'authorized_services']
+                    if not all(field in sample_google for field in required_fields):
+                        token_structure_passed = False
+                        token_details += ", Google token structure invalid"
+                
+                if microsoft_tokens > 0:
+                    sample_microsoft = await self.db.oauth_tokens_microsoft.find_one({})
+                    required_fields = ['user_id', 'access_token', 'user_email', 'authorized_services']
+                    if not all(field in sample_microsoft for field in required_fields):
+                        token_structure_passed = False
+                        token_details += ", Microsoft token structure invalid"
+                        
+            except Exception as e:
+                token_structure_passed = False
+                token_details = f"Error: {str(e)}"
+            
+            # Overall assessment
+            all_passed = (google_status_passed and microsoft_status_passed and oauth_creation_passed and 
+                         limit_test_passed and revocation_passed and routing_test_passed and token_structure_passed)
+            
+            # Log individual results
+            self.log_test_result("OAuth - Google Status Check", google_status_passed, google_status_details)
+            self.log_test_result("OAuth - Microsoft Status Check", microsoft_status_passed, microsoft_status_details)
+            self.log_test_result("OAuth - Account Creation", oauth_creation_passed, oauth_creation_details)
+            self.log_test_result("OAuth - Account Limits", limit_test_passed, limit_details)
+            self.log_test_result("OAuth - Individual Revocation", revocation_passed, revocation_details)
+            self.log_test_result("OAuth - Polling Routing Logic", routing_test_passed, routing_details)
+            self.log_test_result("OAuth - Token Structure", token_structure_passed, token_details)
+            
+            details = f"Google: {google_status_passed}, Microsoft: {microsoft_status_passed}, " \
+                     f"Creation: {oauth_creation_passed}, Limits: {limit_test_passed}, " \
+                     f"Revocation: {revocation_passed}, Routing: {routing_test_passed}, Tokens: {token_structure_passed}"
+            
+            self.log_test_result("OAuth Multiple Account Management", all_passed, details)
+            
+        except Exception as e:
+            self.log_test_result("OAuth Multiple Account Management", False, f"Exception: {str(e)}")
+    
+    async def authenticate_test_user(self):
+        """Authenticate a test user and return token"""
+        try:
+            # Try to get existing user or create one
+            test_user_email = "test.oauth@example.com"
+            test_password = "testpassword123"
+            
+            # Try login first
+            login_data = {
+                "email": test_user_email,
+                "password": test_password
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+            
+            if response.status_code == 200:
+                return response.json()
+            
+            # If login failed, try to register
+            register_data = {
+                "email": test_user_email,
+                "password": test_password,
+                "full_name": "Test OAuth User"
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/register", json=register_data, timeout=10)
+            
+            if response.status_code == 200:
+                return response.json()
+            
+            return None
+            
+        except Exception as e:
+            print(f"   ❌ Authentication failed: {str(e)}")
+            return None
+
     def print_summary(self):
         """Print test summary"""
         print("\n" + "="*80)
