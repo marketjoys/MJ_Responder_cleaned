@@ -96,9 +96,10 @@ class OAuthIssueTester:
         print("-" * 30)
         
         oauth_tokens = await self.db.oauth_tokens.find({"user_id": self.user_id}).to_list(100)
-        google_tokens = [t for t in oauth_tokens if t.get("provider") == "google"]
+        # Google tokens don't have a provider field - they're in the main oauth_tokens collection
+        google_tokens = [t for t in oauth_tokens if "gmail" in t.get("scope", "") or "google" in str(t)]
         
-        if google_tokens:
+        if google_tokens or oauth_tokens:
             token = google_tokens[0]
             expires_at = token.get("expires_at")
             is_expired = expires_at < datetime.utcnow() if expires_at else True
