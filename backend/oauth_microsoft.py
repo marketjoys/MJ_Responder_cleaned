@@ -496,10 +496,22 @@ class MicrosoftOAuthService:
                 'total_accounts': len(all_tokens)
             }
     
-    async def revoke_access(self, user_id: str) -> bool:
-        """Revoke OAuth access for a user"""
-        result = await db.oauth_tokens_microsoft.delete_many({'user_id': user_id})
-        return result.deleted_count > 0
+    async def revoke_access(self, user_id: str, oauth_email: Optional[str] = None) -> bool:
+        """Revoke OAuth access for a user (supports specific email or all accounts)"""
+        
+        if oauth_email:
+            # Revoke specific OAuth account
+            logger.info(f"🗑️ Revoking Microsoft OAuth for user {user_id}, email {oauth_email}")
+            result = await db.oauth_tokens_microsoft.delete_one({
+                'user_id': user_id,
+                'user_email': oauth_email
+            })
+            return result.deleted_count > 0
+        else:
+            # Revoke all tokens for user (existing behavior)
+            logger.info(f"🗑️ Revoking ALL Microsoft OAuth tokens for user {user_id}")
+            result = await db.oauth_tokens_microsoft.delete_many({'user_id': user_id})
+            return result.deleted_count > 0
 
 # Global service instance
 microsoft_oauth_service = MicrosoftOAuthService()
