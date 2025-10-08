@@ -171,6 +171,22 @@ class GoogleOAuthService:
             {'$set': {'used': True}}
         )
         
+        # Check if this authorization code has been used before
+        existing_code_usage = await db.oauth_code_usage.find_one({'code': code})
+        if existing_code_usage:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Authorization code has already been used"
+            )
+        
+        # Mark authorization code as used
+        await db.oauth_code_usage.insert_one({
+            'code': code,
+            'user_id': oauth_state['user_id'],
+            'used_at': datetime.now(timezone.utc),
+            'expires_at': datetime.now(timezone.utc) + timedelta(hours=1)  # Cleanup after 1 hour
+        })
+        
         try:
             # Exchange code for tokens
             token_data = await self._exchange_code_for_tokens(code)
