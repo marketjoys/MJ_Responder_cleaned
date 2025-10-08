@@ -2734,6 +2734,60 @@ const EmailAccounts = () => {
           </Button>
         </div>
 
+        {/* Account Limits Summary */}
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <BarChart3 className="h-5 w-5" />
+              Account Usage
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-700">Gmail:</span>
+                  <Badge variant={getAccountCounts().gmail >= ACCOUNT_LIMITS.gmail ? "destructive" : "outline"}>
+                    {getAccountCounts().gmail}/{ACCOUNT_LIMITS.gmail}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-700">Outlook:</span>
+                  <Badge variant={getAccountCounts().outlook >= ACCOUNT_LIMITS.outlook ? "destructive" : "outline"}>
+                    {getAccountCounts().outlook}/{ACCOUNT_LIMITS.outlook}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-700">Yahoo:</span>
+                  <Badge variant={getAccountCounts().yahoo >= ACCOUNT_LIMITS.yahoo ? "destructive" : "outline"}>
+                    {getAccountCounts().yahoo}/{ACCOUNT_LIMITS.yahoo}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-700">Custom:</span>
+                  <Badge variant={getAccountCounts().custom >= ACCOUNT_LIMITS.custom ? "destructive" : "outline"}>
+                    {getAccountCounts().custom}/{ACCOUNT_LIMITS.custom}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-blue-700">Total:</span>
+                  <Badge variant={getAccountCounts().total >= ACCOUNT_LIMITS.total ? "destructive" : "default"}>
+                    {getAccountCounts().total}/{ACCOUNT_LIMITS.total}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {message && (
           <Alert className={(typeof message === 'string' && message.includes('✅')) ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
             <AlertCircle className={`h-4 w-4 ${(typeof message === 'string' && message.includes('✅')) ? 'text-green-600' : 'text-red-600'}`} />
