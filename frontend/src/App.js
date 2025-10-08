@@ -3050,11 +3050,30 @@ const EmailAccounts = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleEditAccount(account)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => toggleAccount(account.id, account.is_active)}
                       className={account.is_active ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
                     >
                       {account.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </Button>
+                    {account.use_oauth && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRevokeAccountOAuth(account)}
+                        className="text-purple-600 hover:text-purple-700"
+                        title="Revoke OAuth Access"
+                      >
+                        <PowerOff className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
