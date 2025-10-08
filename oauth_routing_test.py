@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-OAuth Email Polling & Processing Integration Test
-Tests the critical fixes for OAuth routing and Redis connectivity
+OAuth Routing Fixes and Account Limits Testing
+Tests the critical fixes mentioned in the review request:
+1. OAuth Routing Fix - Microsoft accounts should use Microsoft Graph API, not Google Gmail API
+2. Account Limits Implementation - 2 Gmail + 2 Outlook + 1 Custom = 5 total accounts per user
+3. Redis RQ Integration - Verify Redis is running and RQ workers are processing queues
+4. Existing Functionality Preservation - Verify existing email processing workflow still works
 """
 import asyncio
 import sys
