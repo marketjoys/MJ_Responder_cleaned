@@ -511,8 +511,14 @@ class OAuthDebugTester:
                 # Test the endpoint structure (should require authentication)
                 response = requests.post(f"{API_BASE}/email-accounts/oauth", 
                                        json={}, timeout=10)
-                oauth_endpoint_exists = response.status_code in [400, 401, 422]  # Should fail but exist
+                oauth_endpoint_exists = response.status_code in [400, 401, 403, 422]  # Should fail but exist
                 print(f"   OAuth account creation endpoint exists: {oauth_endpoint_exists} (Status: {response.status_code})")
+                
+                if response.status_code == 401:
+                    print(f"   OAuth account creation requires authentication (expected)")
+                elif response.status_code == 403:
+                    print(f"   OAuth account creation forbidden (may need proper auth)")
+                
             except Exception as e:
                 oauth_endpoint_exists = False
                 print(f"   OAuth account creation endpoint test failed: {str(e)}")
