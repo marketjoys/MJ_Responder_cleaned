@@ -572,24 +572,48 @@ class EmailPollingService:
         logger.info(f"🔍 Auth Type: {account.get('auth_type')}")
         logger.info(f"🔍 Use OAuth: {account.get('use_oauth')}")
         
-        # Determine provider type from account field first, then email domain
+        # CRITICAL FIX: Determine provider type with improved logic
         if provider_type:
             logger.info(f"🔍 Using provider from account field: {provider_type}")
         else:
-            email_domain = oauth_email.split('@')[-1].lower()
-            logger.info(f"🔍 Email domain: {email_domain}")
+            # Fallback to checking OAuth tokens in database to determine provider
+            logger.info(f"🔍 No provider field, checking OAuth tokens for {oauth_email}")
             
-            if 'gmail.com' in email_domain or 'googlemail.com' in email_domain:
-                provider_type = 'google'
-                logger.info(f"🔍 Domain-based provider detection: {provider_type}")
-            elif ('outlook.com' in email_domain or 'hotmail.com' in email_domain or 
-                  'live.com' in email_domain or 'office365.com' in email_domain or 
-                  'onmicrosoft.com' in email_domain):
+            # Check Microsoft OAuth tokens first
+            microsoft_token = await self.db.oauth_tokens_microsoft.find_one({
+                'user_email': oauth_email
+            })
+            
+            if microsoft_token:
                 provider_type = 'microsoft'
-                logger.info(f"🔍 Domain-based provider detection: {provider_type}")
+                logger.info(f"🔍 Found Microsoft OAuth token -> provider: {provider_type}")
             else:
-                logger.warning(f"⚠️ Unknown OAuth provider for {oauth_email} (domain: {email_domain}), defaulting to Google")
-                provider_type = 'google'
+                # Check Google OAuth tokens
+                google_token = await self.db.oauth_tokens.find_one({
+                    'user_email': oauth_email
+                })
+                
+                if google_token:
+                    provider_type = 'google'
+                    logger.info(f"🔍 Found Google OAuth token -> provider: {provider_type}")
+                else:
+                    # Final fallback: domain-based detection
+                    email_domain = oauth_email.split('@')[-1].lower()
+                    logger.info(f"🔍 No OAuth tokens found, using email domain: {email_domain}")
+                    
+                    if 'gmail.com' in email_domain or 'googlemail.com' in email_domain:
+                        provider_type = 'google'
+                        logger.info(f"🔍 Domain-based provider detection: {provider_type}")
+                    elif ('outlook.com' in email_domain or 'hotmail.com' in email_domain or 
+                          'live.com' in email_domain or 'office365.com' in email_domain or 
+                          'onmicrosoft.com' in email_domain):
+                        provider_type = 'microsoft'
+                        logger.info(f"🔍 Domain-based provider detection: {provider_type}")
+                    else:
+                        # CRITICAL FIX: Don't default to Google, raise error instead
+                        logger.error(f"❌ Cannot determine OAuth provider for {oauth_email} (domain: {email_domain})")
+                        logger.error(f"❌ No OAuth tokens found and domain not recognized")
+                        raise Exception(f"Cannot determine OAuth provider for {oauth_email}")
         
         # Normalize provider type - handle both "outlook" and "microsoft"
         original_provider = provider_type
@@ -597,6 +621,9 @@ class EmailPollingService:
             provider_type = 'microsoft'
         elif provider_type.lower() in ['gmail', 'google']:
             provider_type = 'google'
+        else:
+            logger.error(f"❌ Invalid provider type: {provider_type}")
+            raise Exception(f"Invalid provider type: {provider_type}")
         
         if original_provider != provider_type:
             logger.info(f"🔄 Normalized provider: {original_provider} -> {provider_type}")
