@@ -892,6 +892,12 @@ const CalendarProviders = () => {
   };
 
   const initiateGoogleOAuth = async () => {
+    // Prevent double clicks
+    if (loading) {
+      console.warn('OAuth request already in progress, ignoring duplicate request');
+      return;
+    }
+    
     setLoading(true);
     try {
       const response = await axios.post(`${API}/oauth/google/authorize`, ['calendar']);
