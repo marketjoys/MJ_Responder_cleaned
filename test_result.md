@@ -275,6 +275,18 @@ backend:
         agent: "testing"
         comment: "✅ REDIS RQ INTEGRATION COMPREHENSIVE VERIFICATION: Testing confirms Redis RQ integration is fully operational for email and follow-up processing. REDIS CONNECTIVITY: Redis server running and accessible (PONG response), RQ queue stats available showing email_processing, follow_up, and background queues with proper structure. RQ WORKERS: 2 active RQ workers found and processing queues correctly. EMAIL PROCESSING QUEUE: Email processing properly queued via RQ with background task fallback when Redis unavailable. /api/emails/test endpoint returns processing_method='rq' or 'background_tasks' based on Redis availability. QUEUE STATISTICS: get_queue_stats function working correctly, returning queue counts and Redis connection status. FALLBACK MECHANISM: System gracefully falls back to FastAPI BackgroundTasks when Redis unavailable, ensuring email processing continues without interruption."
 
+  - task: "OAuth Status Endpoint Error Handling Fix"
+    implemented: false
+    working: false
+    file: "oauth_google.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL OAUTH ISSUE IDENTIFIED: Google OAuth status endpoint (/api/oauth/google/status) returns 500 Internal Server Error when corrupted token data exists in database. Specifically, invalid date format in expires_at field (e.g., 'invalid_date_format' string instead of datetime) causes unhandled exception. Microsoft OAuth status endpoint handles similar corrupted data correctly. Root cause: Insufficient error handling in Google OAuth service when processing malformed token data. This could cause production 500 errors if OAuth tokens become corrupted. RECOMMENDATION: Add proper error handling and data validation in oauth_google.py get_oauth_status() method to handle malformed token data gracefully and return appropriate error responses instead of 500 errors."
+
 frontend:
   - task: "Signature Typing Functionality"
     implemented: true
