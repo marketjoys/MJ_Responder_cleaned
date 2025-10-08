@@ -2318,6 +2318,7 @@ const EmailAccounts = () => {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [editingAccount, setEditingAccount] = useState(null);
 
   useEffect(() => {
     fetchAccounts();
