@@ -469,6 +469,32 @@ class GoogleOAuthService:
     async def get_oauth_status(self, user_id: str, oauth_email: Optional[str] = None) -> Dict[str, Any]:
         """Get OAuth authorization status for user - supports multiple accounts"""
         
+        def _safe_date_check(expires_at) -> bool:
+            """Safely check if token needs refresh, handling malformed dates"""
+            try:
+                if not expires_at:
+                    return True  # No expiry means needs refresh
+                
+                # Handle string dates (corrupted data)
+                if isinstance(expires_at, str):
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                    except:
+                        logger.warning(f"Corrupted expires_at date format: {expires_at}")
+                        return True  # Treat corrupted dates as expired
+                
+                # Handle datetime objects
+                if isinstance(expires_at, datetime):
+                    # Ensure timezone aware
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    return expires_at < datetime.now(timezone.utc) + timedelta(minutes=5)
+                
+                return True  # Unknown format, assume needs refresh
+            except Exception as e:
+                logger.warning(f"Error checking token expiry: {str(e)}")
+                return True
+        
         if oauth_email:
             # Get status for specific email
             oauth_tokens = await db.oauth_tokens.find_one({
@@ -489,7 +515,7 @@ class GoogleOAuthService:
                 'user_email': oauth_tokens.get('user_email'),
                 'user_name': oauth_tokens.get('user_name'),
                 'expires_at': oauth_tokens.get('expires_at'),
-                'needs_refresh': oauth_tokens['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5)
+                'needs_refresh': _safe_date_check(oauth_tokens.get('expires_at'))
             }
         else:
             # Get all authorized accounts for this user
@@ -512,7 +538,7 @@ class GoogleOAuthService:
                     'user_name': token.get('user_name'),
                     'authorized_services': token.get('authorized_services', []),
                     'expires_at': token.get('expires_at'),
-                    'needs_refresh': token['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5)
+                    'needs_refresh': _safe_date_check(token.get('expires_at'))
                 })
             
             # For backward compatibility, return first account as primary
@@ -523,7 +549,7 @@ class GoogleOAuthService:
                 'user_email': primary.get('user_email'),
                 'user_name': primary.get('user_name'),
                 'expires_at': primary.get('expires_at'),
-                'needs_refresh': primary['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5),
+                'needs_refresh': _safe_date_check(primary.get('expires_at')),
                 'authorized_accounts': authorized_accounts,
                 'total_accounts': len(all_tokens)
             }
