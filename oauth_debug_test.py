@@ -486,16 +486,16 @@ class OAuthDebugTester:
                 except Exception as e:
                     print(f"   Microsoft Graph API test failed: {str(e)}")
             
-            all_passed = (oauth_login_available and callback_accessible and 
+            all_passed = (oauth_authorize_available and callback_accessible and 
                          token_structure_valid and not is_expired)
             
-            details = f"Login endpoint: {oauth_login_available}, Callback: {callback_accessible}, " \
+            details = f"Authorize endpoint: {oauth_authorize_available}, Callback: {callback_accessible}, " \
                      f"Token structure: {token_structure_valid}, Token expired: {is_expired}, " \
-                     f"Graph API: {graph_api_accessible}, Microsoft redirect: {has_microsoft_auth}"
+                     f"Graph API: {graph_api_accessible}"
             
             self.log_test_result("OAuth Flow", all_passed, details)
             
-            return oauth_login_available, token_structure_valid, is_expired
+            return oauth_authorize_available, token_structure_valid, is_expired
             
         except Exception as e:
             self.log_test_result("OAuth Flow", False, f"Exception: {str(e)}")
