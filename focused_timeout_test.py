@@ -7,7 +7,7 @@ import time
 import json
 
 # Configuration
-BACKEND_URL = "https://sync-without-waste.preview.emergentagent.com"
+BACKEND_URL = "https://prod-readiness-6.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_api_timeout_fix():
