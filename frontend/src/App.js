@@ -2303,6 +2303,7 @@ const EmailAccounts = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [accountType, setAccountType] = useState('manual'); // 'manual' or 'oauth'
   const [oauthProvider, setOauthProvider] = useState('google'); // 'google' or 'microsoft'
+  const [selectedOauthEmail, setSelectedOauthEmail] = useState(null); // For multiple OAuth accounts
   
   // Account limits
   const ACCOUNT_LIMITS = {
