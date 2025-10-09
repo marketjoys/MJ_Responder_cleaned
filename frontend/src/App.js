@@ -2581,10 +2581,22 @@ const EmailAccounts = () => {
           await initiateGoogleOAuth();
           return;
         }
+        
+        // Check if user has selected a specific account
+        if (oauthStatus?.authorized_accounts?.length > 0 && !selectedOauthEmail) {
+          setMessage('❌ Please select a Google account to use');
+          return;
+        }
       } else if (oauthProvider === 'microsoft') {
         if (!microsoftOauthStatus?.is_authorized || !microsoftOauthStatus?.authorized_services?.includes('email')) {
           // Initiate OAuth flow if not authorized
           await initiateMicrosoftOAuth();
+          return;
+        }
+        
+        // Check if user has selected a specific account
+        if (microsoftOauthStatus?.authorized_accounts?.length > 0 && !selectedOauthEmail) {
+          setMessage('❌ Please select a Microsoft account to use');
           return;
         }
       }
