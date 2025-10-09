@@ -2944,23 +2944,141 @@ const EmailAccounts = () => {
                         </div>
                       </div>
 
-                      {/* Show current authorization status */}
+                      {/* Show current authorization status and account selection */}
                       {oauthProvider === 'google' && oauthStatus?.is_authorized && oauthStatus?.authorized_services?.includes('email') && (
-                        <Alert className="border-green-200 bg-green-50">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-700">
-                            Connected: {oauthStatus.user_email}
-                          </AlertDescription>
-                        </Alert>
+                        <div className="space-y-3">
+                          <Alert className="border-green-200 bg-green-50">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700">
+                              {oauthStatus.authorized_accounts?.length > 0 
+                                ? `${oauthStatus.authorized_accounts.length} Google account(s) connected`
+                                : `Connected: ${oauthStatus.user_email}`
+                              }
+                            </AlertDescription>
+                          </Alert>
+                          
+                          {/* Multiple Account Selection */}
+                          {oauthStatus.authorized_accounts?.length > 0 && (
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Select Account</Label>
+                              <div className="space-y-2">
+                                {oauthStatus.authorized_accounts.map((account) => {
+                                  const hasEmailAccount = accounts.some(acc => acc.oauth_email === account.user_email);
+                                  return (
+                                    <div 
+                                      key={account.user_email}
+                                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                        selectedOauthEmail === account.user_email 
+                                          ? 'border-blue-500 bg-blue-50' 
+                                          : hasEmailAccount
+                                            ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                                            : 'border-gray-200 hover:border-blue-300 bg-white'
+                                      }`}
+                                      onClick={() => !hasEmailAccount && setSelectedOauthEmail(account.user_email)}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium text-sm">
+                                            {account.user_name || account.user_email}
+                                          </div>
+                                          <div className="text-xs text-gray-600">{account.user_email}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {hasEmailAccount && (
+                                            <Badge variant="secondary" className="text-xs">Already Added</Badge>
+                                          )}
+                                          {selectedOauthEmail === account.user_email && (
+                                            <CheckCircle className="h-4 w-4 text-blue-600" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* Add More Accounts Button */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={initiateGoogleOAuth}
+                                className="w-full mt-3"
+                                disabled={loading}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Another Google Account
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {oauthProvider === 'microsoft' && microsoftOauthStatus?.is_authorized && microsoftOauthStatus?.authorized_services?.includes('email') && (
-                        <Alert className="border-green-200 bg-green-50">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-700">
-                            Connected: {microsoftOauthStatus.user_email}
-                          </AlertDescription>
-                        </Alert>
+                        <div className="space-y-3">
+                          <Alert className="border-green-200 bg-green-50">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700">
+                              {microsoftOauthStatus.authorized_accounts?.length > 0 
+                                ? `${microsoftOauthStatus.authorized_accounts.length} Microsoft account(s) connected`
+                                : `Connected: ${microsoftOauthStatus.user_email}`
+                              }
+                            </AlertDescription>
+                          </Alert>
+                          
+                          {/* Multiple Account Selection */}
+                          {microsoftOauthStatus.authorized_accounts?.length > 0 && (
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Select Account</Label>
+                              <div className="space-y-2">
+                                {microsoftOauthStatus.authorized_accounts.map((account) => {
+                                  const hasEmailAccount = accounts.some(acc => acc.oauth_email === account.user_email);
+                                  return (
+                                    <div 
+                                      key={account.user_email}
+                                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                        selectedOauthEmail === account.user_email 
+                                          ? 'border-orange-500 bg-orange-50' 
+                                          : hasEmailAccount
+                                            ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                                            : 'border-gray-200 hover:border-orange-300 bg-white'
+                                      }`}
+                                      onClick={() => !hasEmailAccount && setSelectedOauthEmail(account.user_email)}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium text-sm">
+                                            {account.user_name || account.user_email}
+                                          </div>
+                                          <div className="text-xs text-gray-600">{account.user_email}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {hasEmailAccount && (
+                                            <Badge variant="secondary" className="text-xs">Already Added</Badge>
+                                          )}
+                                          {selectedOauthEmail === account.user_email && (
+                                            <CheckCircle className="h-4 w-4 text-orange-600" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* Add More Accounts Button */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={initiateMicrosoftOAuth}
+                                className="w-full mt-3"
+                                disabled={loading}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Another Microsoft Account
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </TabsContent>
 
