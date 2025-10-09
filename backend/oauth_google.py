@@ -359,8 +359,22 @@ class GoogleOAuthService:
         if not oauth_tokens or not oauth_tokens.get('refresh_token'):
             return None
         
-        # Check if token needs refresh (expires in next 5 minutes)
-        if oauth_tokens['expires_at'] > datetime.now(timezone.utc) + timedelta(minutes=5):
+        # Check if token needs refresh (expires in next 5 minutes) - safe datetime comparison
+        expires_at = oauth_tokens['expires_at']
+        current_time = datetime.now(timezone.utc)
+        
+        # Ensure both datetimes are timezone-aware for comparison
+        if isinstance(expires_at, str):
+            try:
+                expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            except:
+                logger.warning(f"Invalid expires_at format: {expires_at}, forcing refresh")
+                expires_at = current_time  # Force refresh on invalid format
+        elif isinstance(expires_at, datetime):
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at > current_time + timedelta(minutes=5):
             return oauth_tokens['access_token']  # Token still valid
         
         try:
