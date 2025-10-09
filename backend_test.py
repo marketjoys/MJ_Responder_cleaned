@@ -28,30 +28,74 @@ API_BASE = f"{BACKEND_URL}/api"
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
 
-class EmailAssistantTester:
+class BackendTester:
     def __init__(self):
         self.client = None
         self.db = None
         self.test_results = []
-        self.polling_service = None
         self.auth_token = None
         self.test_user_id = None
         
     async def setup(self):
-        """Setup database connection"""
+        """Setup database connection and authentication"""
         try:
             self.client = AsyncIOMotorClient(MONGO_URL)
             self.db = self.client[DB_NAME]
             print("✅ Database connection established")
+            
+            # Get or create test user
+            await self.setup_test_user()
             return True
         except Exception as e:
             print(f"❌ Database connection failed: {str(e)}")
             return False
     
+    async def setup_test_user(self):
+        """Setup test user for authentication"""
+        try:
+            # Try to find existing user first
+            existing_user = await self.db.users.find_one({}, sort=[("created_at", 1)])
+            
+            if existing_user:
+                # Login with existing user
+                login_data = {
+                    "email": existing_user["email"],
+                    "password": "admin123"  # Default password from migration
+                }
+                
+                try:
+                    response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+                    if response.status_code == 200:
+                        result = response.json()
+                        self.auth_token = result.get('access_token')
+                        self.test_user_id = result.get('user', {}).get('id')
+                        print(f"✅ Logged in as existing user: {existing_user['email']}")
+                        return
+                except:
+                    pass
+            
+            # Create new test user if login failed
+            test_email = f"backend.test.{int(time.time())}@example.com"
+            register_data = {
+                "email": test_email,
+                "password": "BackendTest123!",
+                "full_name": "Backend Test User"
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/register", json=register_data, timeout=15)
+            if response.status_code == 200:
+                result = response.json()
+                self.auth_token = result.get('access_token')
+                self.test_user_id = result.get('user', {}).get('id')
+                print(f"✅ Created new test user: {test_email}")
+            else:
+                print(f"❌ Failed to create test user: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Error setting up test user: {str(e)}")
+    
     async def cleanup(self):
         """Cleanup resources"""
-        if self.polling_service:
-            self.polling_service.stop_polling()
         if self.client:
             self.client.close()
     
