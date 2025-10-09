@@ -174,10 +174,32 @@ class GoogleOAuthService:
         # Check if this authorization code has been used before
         existing_code_usage = await db.oauth_code_usage.find_one({'code': code})
         if existing_code_usage:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Authorization code has already been used"
-            )
+            logger.warning(f"⚠️ OAuth authorization code reuse attempt for user {oauth_state['user_id']}")
+            # Check if user already has a valid OAuth token from this recent authorization
+            recent_token = await db.oauth_tokens.find_one({
+                'user_id': oauth_state['user_id'],
+                'created_at': {'$gte': existing_code_usage['used_at'] - timedelta(minutes=5)}
+            })
+            
+            if recent_token:
+                # Return success response since authorization was already successful
+                logger.info(f"✅ Returning existing successful OAuth result for user {oauth_state['user_id']}")
+                user_info = {
+                    'email': recent_token.get('user_email', ''),
+                    'name': recent_token.get('user_name', ''),
+                    'id': recent_token.get('user_email', '').split('@')[0]
+                }
+                return {
+                    'user_id': oauth_state['user_id'],
+                    'authorized_services': recent_token.get('authorized_services', []),
+                    'requested_services': oauth_state.get('requested_services', []),
+                    'user_info': user_info
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="OAuth authorization was already completed. Please try again if needed."
+                )
         
         # Mark authorization code as used
         await db.oauth_code_usage.insert_one({
