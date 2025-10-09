@@ -3360,7 +3360,9 @@ const EmailAccounts = () => {
                     ) : (
                       <>
                         <Plus className="h-4 w-4 mr-2" />
-                        {accountType === 'oauth' && (oauthProvider === 'google' ? oauthStatus?.is_authorized : microsoftOauthStatus?.is_authorized) ? 'Add Account' : 'Create Account'}
+                        {accountType === 'oauth' && (oauthProvider === 'google' ? oauthStatus?.is_authorized : microsoftOauthStatus?.is_authorized) 
+                          ? (selectedOauthEmail ? 'Add Account' : 'Setup OAuth')
+                          : 'Create Account'}
                       </>
                     )}
                   </Button>
