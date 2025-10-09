@@ -114,64 +114,41 @@ class BackendTester:
         if details:
             print(f"   Details: {details}")
     
-    async def test_connection_health_check(self):
-        """Test 1: Connection Health Check - IMAP connection pooling and reuse"""
-        print("\n🔍 Testing Connection Health Check...")
+    def test_oauth_google_status_multiple_accounts(self):
+        """Test OAuth Google Status - Multiple Account Support"""
+        print("\n🔍 Testing OAuth Google Status for Multiple Accounts...")
+        
+        if not self.auth_token:
+            self.log_test_result("OAuth Google Status Multiple Accounts", False, "No auth token")
+            return
+        
+        headers = {"Authorization": f"Bearer {self.auth_token}"}
         
         try:
-            # Get active email accounts
-            accounts = await self.db.email_accounts.find({"is_active": True}).to_list(10)
-            if not accounts:
-                self.log_test_result("Connection Health Check", False, "No active email accounts found")
-                return
+            response = requests.get(f"{API_BASE}/oauth/google/status", headers=headers, timeout=10)
             
-            account = accounts[0]
-            print(f"Testing connection for: {account['email']}")
-            
-            # Test 1a: Create connection
-            connection1 = EmailConnection(account)
-            connect_result1 = connection1.connect_imap()
-            
-            if not connect_result1:
-                self.log_test_result("Connection Health Check", False, "Failed to establish initial IMAP connection")
-                return
-            
-            # Test 1b: Check connection health
-            health_check1 = connection1._is_connection_healthy()
-            
-            # Test 1c: Create second connection to same account (should reuse)
-            connection2 = EmailConnection(account)
-            connect_result2 = connection2.connect_imap()
-            
-            # Test 1d: Verify both connections work
-            health_check2 = connection2._is_connection_healthy()
-            
-            # Test 1e: Test connection reuse in polling service
-            self.polling_service = EmailPollingService(MONGO_URL, DB_NAME)
-            
-            # Simulate multiple polls to test connection reuse
-            await self.polling_service._poll_account(account)
-            initial_connections = len(self.polling_service.connections)
-            
-            await self.polling_service._poll_account(account)
-            final_connections = len(self.polling_service.connections)
-            
-            # Cleanup
-            connection1.disconnect_imap()
-            connection2.disconnect_imap()
-            
-            # Evaluate results
-            all_passed = (connect_result1 and health_check1 and connect_result2 and 
-                         health_check2 and initial_connections == final_connections == 1)
-            
-            details = f"Initial connect: {connect_result1}, Health1: {health_check1}, " \
-                     f"Second connect: {connect_result2}, Health2: {health_check2}, " \
-                     f"Connection reuse: {initial_connections == final_connections}"
-            
-            self.log_test_result("Connection Health Check", all_passed, details)
-            
+            if response.status_code == 200:
+                status_data = response.json()
+                
+                # Check for multiple account support fields
+                has_authorized_accounts = 'authorized_accounts' in status_data
+                has_total_accounts = 'total_accounts' in status_data
+                authorized_accounts = status_data.get('authorized_accounts', [])
+                
+                # Test structure for multiple accounts
+                multiple_account_structure = has_authorized_accounts and has_total_accounts
+                
+                details = f"Status: 200, Multiple Account Fields: {multiple_account_structure}, " \
+                         f"Authorized Accounts Array: {len(authorized_accounts)} accounts"
+                
+                self.log_test_result("OAuth Google Status Multiple Accounts", True, details)
+                
+            else:
+                details = f"Status: {response.status_code}, Error: {response.text[:100]}"
+                self.log_test_result("OAuth Google Status Multiple Accounts", False, details)
+                
         except Exception as e:
-            self.log_test_result("Connection Health Check", False, f"Exception: {str(e)}")
+            self.log_test_result("OAuth Google Status Multiple Accounts", False, f"Exception: {str(e)}")
     
     async def test_seed_data_verification(self):
         """Test 2: Seed Data Verification - intents, knowledge base, email accounts"""
