@@ -3354,10 +3354,10 @@ async def handle_google_oauth_callback(code: str, state: str):
 async def get_google_oauth_status(current_user: User = Depends(get_current_active_user)):
     """Get current Google OAuth authorization status for all authorized accounts"""
     try:
-        # Get all OAuth tokens for this user
-        all_tokens = await db.oauth_tokens.find({'user_id': current_user.id}).to_list(length=100)
+        # Use the OAuth service method which has proper error handling for corrupted token data
+        oauth_status = await google_oauth_service.get_oauth_status(current_user.id)
         
-        if not all_tokens:
+        if not oauth_status.get('is_authorized', False):
             return {
                 'is_authorized': False,
                 'authorized_services': [],
@@ -3370,43 +3370,56 @@ async def get_google_oauth_status(current_user: User = Depends(get_current_activ
                 'needs_refresh': False
             }
         
-        # Process each token to get account info
+        # Get all OAuth tokens for additional fields needed by this endpoint
+        all_tokens = await db.oauth_tokens.find({'user_id': current_user.id}).to_list(length=100)
+        
+        # Process each token to get account info with additional fields
         authorized_accounts = []
         all_services = set()
         
+        # Create a mapping of email to oauth account data from the service
+        oauth_accounts_map = {}
+        if 'authorized_accounts' in oauth_status:
+            for account in oauth_status['authorized_accounts']:
+                oauth_accounts_map[account.get('user_email')] = account
+        
         for token in all_tokens:
+            user_email = token.get('user_email')
             services = token.get('authorized_services', [])
             all_services.update(services)
             
             # Check if existing email account exists for this OAuth email
             existing_email_account = await db.email_accounts.find_one({
                 'user_id': current_user.id,
-                'oauth_email': token.get('user_email'),
+                'oauth_email': user_email,
                 'auth_type': 'oauth'
             })
             
+            # Use safe data from oauth service if available, otherwise fallback to token data
+            oauth_account = oauth_accounts_map.get(user_email, {})
+            
             authorized_accounts.append({
-                'user_email': token.get('user_email'),
+                'user_email': user_email,
                 'user_name': token.get('user_name'),
                 'authorized_services': services,
                 'expires_at': token.get('expires_at'),
-                'needs_refresh': token['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5),
+                'needs_refresh': oauth_account.get('needs_refresh', True),  # Use safe check from oauth service
                 'oauth_token_id': token.get('id'),
                 'has_email_account': existing_email_account is not None,
                 'email_account_id': existing_email_account.get('id') if existing_email_account else None
             })
         
-        # Return comprehensive status
+        # Return comprehensive status using oauth service data
         return {
-            'is_authorized': True,
+            'is_authorized': oauth_status.get('is_authorized', True),
             'authorized_services': list(all_services),
             'authorized_accounts': authorized_accounts,
-            'total_accounts': len(all_tokens),
-            # Backward compatibility - use first account as primary
-            'user_email': all_tokens[0].get('user_email') if all_tokens else None,
-            'user_name': all_tokens[0].get('user_name') if all_tokens else None,
-            'expires_at': all_tokens[0].get('expires_at') if all_tokens else None,
-            'needs_refresh': all_tokens[0]['expires_at'] < datetime.now(timezone.utc) + timedelta(minutes=5) if all_tokens else False
+            'total_accounts': oauth_status.get('total_accounts', len(all_tokens)),
+            # Backward compatibility - use oauth service data which has safe error handling
+            'user_email': oauth_status.get('user_email'),
+            'user_name': oauth_status.get('user_name'),
+            'expires_at': oauth_status.get('expires_at'),
+            'needs_refresh': oauth_status.get('needs_refresh', False)
         }
     except Exception as e:
         logger.error(f"OAuth status error: {str(e)}")
