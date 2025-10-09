@@ -1282,7 +1282,7 @@ const CalendarProviders = () => {
                 {/* Provider Type Selection */}
                 <div>
                   <Label>Provider Type</Label>
-                  <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                  <Tabs value={accountType} onValueChange={(value) => { setAccountType(value); setSelectedOauthEmail(null); }} className="mt-2">
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="oauth" className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
@@ -2870,7 +2870,7 @@ const EmailAccounts = () => {
                 {/* Account Type Selection */}
                 <div>
                   <Label>Account Type</Label>
-                  <Tabs value={accountType} onValueChange={setAccountType} className="mt-2">
+                  <Tabs value={accountType} onValueChange={(value) => { setAccountType(value); setSelectedOauthEmail(null); }} className="mt-2">
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="oauth" className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
