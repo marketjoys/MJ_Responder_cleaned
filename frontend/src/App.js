@@ -2668,11 +2668,17 @@ const EmailAccounts = () => {
       imap_port: 993,
       smtp_server: '',
       smtp_port: 587,
-      signature: '',
-      persona: '',
-      is_active: true
+      signature: 'Best regards,<br>[Your Name]<br>[Your Title]<br>[Company Name]',
+      persona: 'I am a professional and helpful assistant representing this organization. I respond courteously to all inquiries and provide accurate, relevant information.',
+      is_active: true,
+      // Follow-up settings
+      enable_follow_ups: true,
+      follow_up_hours_override: null,
+      max_follow_ups_override: null,
+      custom_follow_up_template: ''
     });
     setAccountType('manual');
+    setSelectedOauthEmail(null); // Clear OAuth account selection
   };
 
   const revokeGoogleOAuth = async () => {
