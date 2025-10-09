@@ -2492,9 +2492,23 @@ const EmailAccounts = () => {
     setLoading(true);
     try {
       const provider = oauthProvider === 'google' ? 'gmail' : 'outlook';
-      const oauthEmail = oauthProvider === 'google' 
-        ? oauthStatus?.user_email 
-        : microsoftOauthStatus?.user_email;
+      
+      // Use selected OAuth email or fallback to the first available
+      let oauthEmail = selectedOauthEmail;
+      
+      if (!oauthEmail) {
+        // Fallback to first available account
+        if (oauthProvider === 'google' && oauthStatus?.authorized_accounts?.length > 0) {
+          oauthEmail = oauthStatus.authorized_accounts[0].user_email;
+        } else if (oauthProvider === 'microsoft' && microsoftOauthStatus?.authorized_accounts?.length > 0) {
+          oauthEmail = microsoftOauthStatus.authorized_accounts[0].user_email;
+        } else {
+          // Original fallback
+          oauthEmail = oauthProvider === 'google' 
+            ? oauthStatus?.user_email 
+            : microsoftOauthStatus?.user_email;
+        }
+      }
       
       // Validate that we have an OAuth email
       if (!oauthEmail) {
