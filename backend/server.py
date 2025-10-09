@@ -3145,7 +3145,7 @@ async def get_email_threads(current_user: User = Depends(get_current_active_user
             
             has_response = any(
                 email.get("sender", "") != original_sender and 
-                (datetime.fromisoformat(email.get("received_at", "")) if isinstance(email.get("received_at"), str) else email.get("received_at", datetime.min)) > original_received_at
+                self._safe_datetime_compare(email.get("received_at"), original_received_at)
                 for email in responses
             )
             
