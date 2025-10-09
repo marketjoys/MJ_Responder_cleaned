@@ -3074,6 +3074,30 @@ async def get_emails(current_user: User = Depends(get_current_active_user)):
     emails = await db.emails.find({"user_id": current_user.id}).sort("received_at", -1).to_list(100)
     return [EmailMessage(**email) for email in emails]
 
+def _safe_datetime_compare(email_received_at, original_received_at) -> bool:
+    """Safely compare datetimes handling timezone awareness"""
+    try:
+        # Convert email received_at to datetime if it's a string
+        if isinstance(email_received_at, str):
+            email_dt = datetime.fromisoformat(email_received_at)
+        elif isinstance(email_received_at, datetime):
+            email_dt = email_received_at
+        else:
+            # If we can't parse it, assume it's not a response
+            return False
+        
+        # Ensure both datetimes have timezone info for proper comparison
+        if email_dt.tzinfo is None:
+            email_dt = email_dt.replace(tzinfo=timezone.utc)
+        
+        if original_received_at.tzinfo is None:
+            original_received_at = original_received_at.replace(tzinfo=timezone.utc)
+        
+        return email_dt > original_received_at
+    except Exception:
+        # If any parsing fails, assume it's not a response
+        return False
+
 @api_router.get("/emails/threads")
 async def get_email_threads(current_user: User = Depends(get_current_active_user)):
     """Get all email threads with their follow-ups and responses"""
