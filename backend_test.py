@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend Testing for Email Assistant System
-Tests connection health, seed data, email processing workflow, polling system, and API endpoints
+Backend Testing for OAuth Email Account and Polling System
+Focus on the specific issues: multiple OAuth accounts, email polling, and Redis integration
 """
 import asyncio
 import sys
@@ -16,7 +16,6 @@ import uuid
 sys.path.append('/app/backend')
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from email_services import EmailPollingService, EmailConnection
 from dotenv import load_dotenv
 
 # Load environment variables
