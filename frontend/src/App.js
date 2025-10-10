@@ -2762,6 +2762,7 @@ const EmailAccounts = () => {
     });
     setAccountType('manual');
     setSelectedOauthEmail(null); // Clear OAuth account selection
+    setEditingAccount(null); // Clear editing state
   };
 
   const revokeGoogleOAuth = async () => {
