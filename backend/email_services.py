@@ -809,7 +809,20 @@ class EmailPollingService:
                 received_at = datetime.utcnow()
             
             # Extract body using existing method
-            connection = EmailConnection({'id': account_id, 'email': recipient})  # Dummy connection for method
+            # Create dummy connection with all required fields for OAuth parsing
+            dummy_account = {
+                'id': account_id,
+                'email': recipient or 'oauth@gmail.com',
+                'username': '',  # Not used for OAuth
+                'password': '',  # Not used for OAuth
+                'imap_server': '',
+                'imap_port': 0,
+                'smtp_server': '',
+                'smtp_port': 0,
+                'last_uid': 0,
+                'uidvalidity': None
+            }
+            connection = EmailConnection(dummy_account)
             body, body_html = connection._extract_body(email_message)
             
             # Clean body using email reply parser
