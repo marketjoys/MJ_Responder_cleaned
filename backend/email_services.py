@@ -242,6 +242,9 @@ class EmailConnection:
             # Parse date
             try:
                 received_at = email.utils.parsedate_to_datetime(date_str)
+                # Make timezone-naive for consistent comparison
+                if received_at.tzinfo is not None:
+                    received_at = received_at.replace(tzinfo=None)
             except:
                 received_at = datetime.utcnow()
             
@@ -805,6 +808,9 @@ class EmailPollingService:
             # Parse date
             try:
                 received_at = email.utils.parsedate_to_datetime(date_str)
+                # Make timezone-naive for consistent comparison
+                if received_at.tzinfo is not None:
+                    received_at = received_at.replace(tzinfo=None)
             except:
                 received_at = datetime.utcnow()
             
