@@ -1026,6 +1026,16 @@ const CalendarProviders = () => {
     setLoading(false);
   };
 
+  // Generic revoke function for backward compatibility
+  const revokeOAuth = async () => {
+    // Revoke Google OAuth by default (can be enhanced to detect which one is active)
+    if (oauthStatus?.is_authorized) {
+      await revokeGoogleOAuth();
+    } else if (microsoftOauthStatus?.is_authorized) {
+      await revokeMicrosoftOAuth();
+    }
+  };
+
   const renderCredentialsFields = () => {
     switch (formData.provider_type) {
       case 'google':
