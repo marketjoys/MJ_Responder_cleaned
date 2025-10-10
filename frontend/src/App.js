@@ -3286,6 +3286,24 @@ const EmailAccounts = () => {
                     </TabsContent>
                   </Tabs>
                 </div>
+                )}
+
+                {/* Show account info when editing OAuth account */}
+                {editingAccount && editingAccount.use_oauth && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-blue-900">OAuth Account</h4>
+                    </div>
+                    <div className="text-sm space-y-1 text-blue-700">
+                      <p><strong>Email:</strong> {editingAccount.email}</p>
+                      <p><strong>Provider:</strong> {editingAccount.provider}</p>
+                      <p className="text-xs mt-2 text-blue-600">
+                        Connection settings are managed automatically via OAuth. You can update the persona and signature below.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Email Persona Section */}
                 <div className="space-y-4">
