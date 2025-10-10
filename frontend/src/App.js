@@ -2925,6 +2925,7 @@ const EmailAccounts = () => {
         <Dialog open={isCreating} onOpenChange={(open) => {
           if (!open) {
             setIsCreating(false);
+            setEditingAccount(null);
             resetForm();
             setMessage('');
           }
