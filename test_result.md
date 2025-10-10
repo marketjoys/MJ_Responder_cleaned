@@ -94,17 +94,42 @@ This creates confusion because:
 - The manual "Add Account" step is not obvious
 - User may click multiple times trying to make it work (→ double request risk)
 
-### 🎯 Recommended Solution:
+### 🎯 Solution Implemented:
 
-**Option A: Auto-create email account after OAuth (BEST)**
-- Modify OAuth callback to auto-create email account
-- Seamless user experience
-- Eliminates double-request issue
-- Matches user expectations
+**✅ AUTO-CREATE EMAIL ACCOUNTS AFTER OAUTH**
 
-**Option B: Improve UI guidance (CURRENT)**
-- Add clear "Next Step: Add Email Account" message
-- Better visual flow after OAuth success
-- Prevent accidental double-clicks
+Modified OAuth callback handlers for both Google and Microsoft to automatically create email accounts:
+
+**Changes Made:**
+1. `handle_google_oauth_callback` - Auto-creates Gmail account after OAuth
+2. `handle_microsoft_oauth_callback` - Auto-creates Outlook account after OAuth
+
+**New Flow:**
+```
+User authorizes OAuth
+  ↓
+✅ OAuth token stored
+  ↓
+✅ Email account AUTO-CREATED
+  ↓
+✅ Account added to polling service
+  ↓
+✅ Polling starts immediately (next 60s cycle)
+```
+
+**Features:**
+- Email account created with correct OAuth fields
+- `last_oauth_sync` initialized to current time
+- Account marked as active by default
+- Provider field set correctly (gmail/outlook)
+- Idempotent: Won't create duplicates if account exists
+- Returns `email_account_created` and `email_account_id` in response
+
+**Testing Required:**
+1. Complete Google OAuth flow
+2. Verify email account appears in accounts list
+3. Check backend logs for "Auto-created Gmail email account"
+4. Wait 60 seconds for polling cycle
+5. Verify polling logs show OAuth account being polled
 
 **Detailed investigation report:** See `/app/OAUTH_INVESTIGATION_REPORT.md`
