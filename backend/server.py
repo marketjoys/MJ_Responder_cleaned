@@ -5446,22 +5446,30 @@ async def create_oauth_email_account(
             detail=f"Unsupported OAuth provider: {provider}. Use 'gmail', 'google', 'outlook', or 'microsoft'"
         )
     
-    # Check if email account already exists for this OAuth email
+    # Check if email account already exists for this OAuth email (with broader check)
+    # Check both by oauth_email and by email field to catch all cases
     existing_account = await db.email_accounts.find_one({
         'user_id': current_user.id,
-        'oauth_email': oauth_email,
-        'auth_type': 'oauth'
+        '$or': [
+            {'oauth_email': oauth_email},
+            {'email': oauth_email, 'auth_type': 'oauth'}
+        ]
     })
     
     if existing_account:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Email account already exists for {oauth_email}. Use a different OAuth account or update the existing one."
-        )
+        # Return the existing account instead of raising error (idempotent behavior)
+        logger.info(f"⚠️ OAuth email account already exists for {oauth_email}, returning existing account")
+        existing_dict = dict(existing_account)
+        existing_dict["_id"] = str(existing_dict.get("_id", ""))
+        existing_dict["oauth_user"] = oauth_user_name
+        return existing_dict
     
     try:
+        # Generate account ID
+        account_id = str(uuid.uuid4())
+        
         account = EmailAccount(
-            id=str(uuid.uuid4()),
+            id=account_id,
             user_id=current_user.id,
             name=account_data.name,
             email=oauth_email,
@@ -5477,8 +5485,8 @@ async def create_oauth_email_account(
             imap_port=0,
             smtp_server="",
             smtp_port=0,
-            signature=account_data.signature,
-            persona=account_data.persona,
+            signature=account_data.signature or "",
+            persona=account_data.persona or "",
             is_active=account_data.is_active,
             auto_send=account_data.auto_send,
             enable_follow_ups=account_data.enable_follow_ups,
@@ -5488,18 +5496,37 @@ async def create_oauth_email_account(
             last_uid=0,
             uidvalidity=None,
             last_polled=None,
-            last_oauth_sync=None
+            last_oauth_sync=datetime.utcnow()  # Initialize to current time
         )
         
-        # Insert into database
-        result = await db.email_accounts.insert_one(account.dict())
+        # Use insert_one with better error handling for duplicate key
+        try:
+            result = await db.email_accounts.insert_one(account.dict())
+            logger.info(f"✅ Created new OAuth email account for {oauth_email} (User: {current_user.id}, ID: {account_id})")
+        except Exception as insert_error:
+            # Check if it's a duplicate key error
+            if "duplicate" in str(insert_error).lower():
+                # Race condition occurred, fetch and return the existing account
+                logger.warning(f"⚠️ Race condition detected for {oauth_email}, fetching existing account")
+                existing_account = await db.email_accounts.find_one({
+                    'user_id': current_user.id,
+                    '$or': [
+                        {'oauth_email': oauth_email},
+                        {'email': oauth_email, 'auth_type': 'oauth'}
+                    ]
+                })
+                if existing_account:
+                    existing_dict = dict(existing_account)
+                    existing_dict["_id"] = str(existing_dict.get("_id", ""))
+                    existing_dict["oauth_user"] = oauth_user_name
+                    return existing_dict
+            raise
         
         # Return account without sensitive data
         account_dict = account.dict()
         account_dict["_id"] = str(result.inserted_id)
         account_dict["oauth_user"] = oauth_user_name
         
-        logger.info(f"✅ Created OAuth email account for {oauth_email} (User: {current_user.id})")
         return account_dict
         
     except HTTPException:
