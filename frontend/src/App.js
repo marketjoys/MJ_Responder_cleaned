@@ -2953,19 +2953,20 @@ const EmailAccounts = () => {
                 </div>
 
                 {/* Account Type Selection */}
-                <div>
-                  <Label>Account Type</Label>
-                  <Tabs value={accountType} onValueChange={(value) => { setAccountType(value); setSelectedOauthEmail(null); }} className="mt-2">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="oauth" className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        OAuth (Recommended)
-                      </TabsTrigger>
-                      <TabsTrigger value="manual" className="flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        Manual Setup
-                      </TabsTrigger>
-                    </TabsList>
+                {!editingAccount && (
+                  <div>
+                    <Label>Account Type</Label>
+                    <Tabs value={accountType} onValueChange={(value) => { setAccountType(value); setSelectedOauthEmail(null); }} className="mt-2">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="oauth" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          OAuth (Recommended)
+                        </TabsTrigger>
+                        <TabsTrigger value="manual" className="flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                          Manual Setup
+                        </TabsTrigger>
+                      </TabsList>
 
                     {/* OAuth-specific UI - Simplified Icon-Based */}
                     <TabsContent value="oauth" className="space-y-4 mt-4">
