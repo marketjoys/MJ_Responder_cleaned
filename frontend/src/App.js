@@ -3461,6 +3461,11 @@ const EmailAccounts = () => {
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                         Creating...
                       </>
+                    ) : editingAccount ? (
+                      <>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Update Account
+                      </>
                     ) : (
                       <>
                         <Plus className="h-4 w-4 mr-2" />
