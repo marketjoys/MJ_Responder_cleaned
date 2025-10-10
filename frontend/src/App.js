@@ -2489,7 +2489,15 @@ const EmailAccounts = () => {
   };
 
   const createOAuthAccount = async () => {
+    // Prevent double submission
+    if (loading) {
+      console.log('⚠️ Account creation already in progress, ignoring duplicate request');
+      return;
+    }
+    
     setLoading(true);
+    setMessage(''); // Clear any previous messages
+    
     try {
       const provider = oauthProvider === 'google' ? 'gmail' : 'outlook';
       
@@ -2516,6 +2524,14 @@ const EmailAccounts = () => {
         setLoading(false);
         return;
       }
+      
+      // Check if account already exists locally before making API call
+      const existingAccount = accounts.find(acc => acc.oauth_email === oauthEmail && acc.auth_type === 'oauth');
+      if (existingAccount) {
+        setMessage(`⚠️ Account for ${oauthEmail} already exists`);
+        setLoading(false);
+        return;
+      }
         
       const accountData = {
         name: formData.name,
@@ -2533,14 +2549,23 @@ const EmailAccounts = () => {
         custom_follow_up_template: formData.custom_follow_up_template
       };
 
-      await axios.post(`${API}/email-accounts/oauth`, accountData);
-      setMessage('✅ Email account and calendar successfully connected!');
+      console.log('📤 Creating OAuth account for:', oauthEmail);
+      const response = await axios.post(`${API}/email-accounts/oauth`, accountData);
+      console.log('✅ OAuth account created successfully:', response.data);
+      
+      setMessage(`✅ Email account ${oauthEmail} successfully connected!`);
       setIsCreating(false);
       resetForm();
-      fetchAccounts();
-      fetchOAuthStatus();
-      fetchMicrosoftOAuthStatus();
+      
+      // Refresh account list to show the new account
+      await fetchAccounts();
+      await fetchOAuthStatus();
+      if (oauthProvider === 'microsoft') {
+        await fetchMicrosoftOAuthStatus();
+      }
     } catch (error) {
+      console.error('❌ Error creating OAuth account:', error);
+      
       // Improved error handling for validation errors and other error objects
       let errorMessage = 'Error creating OAuth account';
       
@@ -2556,11 +2581,14 @@ const EmailAccounts = () => {
           // Handle string errors
           errorMessage = detail;
         }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
-      setMessage(errorMessage);
+      setMessage(`❌ ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCreateAccount = async (e) => {
