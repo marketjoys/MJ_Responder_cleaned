@@ -2930,9 +2930,9 @@ const EmailAccounts = () => {
         }}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add Email Account</DialogTitle>
+              <DialogTitle>{editingAccount ? 'Edit Email Account' : 'Add Email Account'}</DialogTitle>
               <DialogDescription>
-                Connect your email account for automated processing
+                {editingAccount ? 'Update your email account settings' : 'Connect your email account for automated processing'}
               </DialogDescription>
             </DialogHeader>
             
