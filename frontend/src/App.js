@@ -2604,6 +2604,12 @@ const EmailAccounts = () => {
   const handleCreateAccount = async (e) => {
     e.preventDefault();
     
+    // If editing an existing account, handle update instead
+    if (editingAccount) {
+      await handleUpdateAccount();
+      return;
+    }
+    
     if (accountType === 'oauth') {
       // Check account limits first
       const limitCheck = canAddAccount(oauthProvider);
@@ -2673,6 +2679,45 @@ const EmailAccounts = () => {
       }
       setLoading(false);
     }
+  };
+
+  const handleUpdateAccount = async () => {
+    setLoading(true);
+    setMessage('');
+
+    try {
+      // For OAuth accounts, only allow updating certain fields
+      const updateData = {
+        name: formData.name,
+        signature: formData.signature,
+        persona: formData.persona,
+        is_active: formData.is_active,
+        enable_follow_ups: formData.enable_follow_ups,
+        follow_up_hours_override: formData.follow_up_hours_override,
+        max_follow_ups_override: formData.max_follow_ups_override,
+        custom_follow_up_template: formData.custom_follow_up_template
+      };
+
+      // For manual accounts, include connection settings
+      if (!editingAccount.use_oauth) {
+        updateData.username = formData.username;
+        updateData.password = formData.password || undefined; // Only update if provided
+        updateData.imap_server = formData.imap_server;
+        updateData.imap_port = formData.imap_port;
+        updateData.smtp_server = formData.smtp_server;
+        updateData.smtp_port = formData.smtp_port;
+      }
+
+      await axios.put(`${API}/email-accounts/${editingAccount.id}`, updateData);
+      setMessage('✅ Email account updated successfully!');
+      setIsCreating(false);
+      setEditingAccount(null);
+      resetForm();
+      fetchAccounts();
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Error updating account');
+    }
+    setLoading(false);
   };
 
   const handleDeleteAccount = async (accountId) => {
