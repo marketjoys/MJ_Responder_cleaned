@@ -57,3 +57,54 @@ When testing frontend functionality:
 - Frontend improvements deployed
 - Redis and RQ workers operational
 - Email polling service active
+
+---
+
+## Investigation Update (After User Testing)
+
+### ✅ OAuth Flow Status:
+**OAuth authorization SUCCESSFUL for amits.joys@gmail.com:**
+- OAuth token stored correctly in database ✅
+- Refresh token obtained ✅
+- Authorized services: email + calendar ✅
+- Token valid until Oct 10, 2025 12:13 UTC ✅
+
+### 🔍 Root Cause Identified:
+
+**The "authorization failed" is NOT a technical failure.** The issue is:
+
+1. **OAuth callback completes successfully** ✅
+2. **OAuth token is stored** ✅
+3. **User is redirected to /accounts page**
+4. ❌ **Email account is NOT auto-created** 
+5. User must manually click "Add Account" → This step may not be obvious
+
+### 📊 Current State:
+- OAuth tokens in DB: amits.joys@gmail.com ✅
+- Email accounts in DB: amits.joys@gmail.com ❌ (NOT CREATED)
+- No POST requests to `/api/email-accounts/oauth` detected
+- No errors in backend logs after OAuth success
+
+### 💡 The Issue:
+**User expectation:** OAuth authorization → Email account ready to use
+**Current behavior:** OAuth authorization → User must manually add account
+
+This creates confusion because:
+- User thinks authorization failed (but it succeeded)
+- The manual "Add Account" step is not obvious
+- User may click multiple times trying to make it work (→ double request risk)
+
+### 🎯 Recommended Solution:
+
+**Option A: Auto-create email account after OAuth (BEST)**
+- Modify OAuth callback to auto-create email account
+- Seamless user experience
+- Eliminates double-request issue
+- Matches user expectations
+
+**Option B: Improve UI guidance (CURRENT)**
+- Add clear "Next Step: Add Email Account" message
+- Better visual flow after OAuth success
+- Prevent accidental double-clicks
+
+**Detailed investigation report:** See `/app/OAUTH_INVESTIGATION_REPORT.md`
