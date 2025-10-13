@@ -216,14 +216,42 @@ class GoogleCalendarService:
             return data.get('items', [])
     
     async def create_event(self, calendar_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create calendar event"""
+        """Create calendar event - supports both Google format and standard format"""
         headers = await self._get_headers()
+        
+        # Transform standard format to Google Calendar format if needed
+        google_event = {}
+        if 'summary' in event_data:
+            google_event = event_data  # Already in Google format
+        else:
+            # Transform from standard format
+            google_event['summary'] = event_data.get('title', 'No Title')
+            google_event['description'] = event_data.get('description', '')
+            google_event['location'] = event_data.get('location', '')
+            
+            # Handle start time
+            start_time = event_data.get('start_time')
+            if isinstance(start_time, str):
+                google_event['start'] = {'dateTime': start_time, 'timeZone': event_data.get('timezone', 'UTC')}
+            else:
+                google_event['start'] = {'dateTime': start_time.isoformat(), 'timeZone': event_data.get('timezone', 'UTC')}
+            
+            # Handle end time
+            end_time = event_data.get('end_time')
+            if isinstance(end_time, str):
+                google_event['end'] = {'dateTime': end_time, 'timeZone': event_data.get('timezone', 'UTC')}
+            else:
+                google_event['end'] = {'dateTime': end_time.isoformat(), 'timeZone': event_data.get('timezone', 'UTC')}
+            
+            # Handle attendees
+            if 'attendees' in event_data:
+                google_event['attendees'] = [{'email': email} for email in event_data['attendees']]
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/calendars/{calendar_id}/events",
                 headers=headers,
-                json=event_data
+                json=google_event
             )
             
             if response.status_code != 200:
@@ -232,7 +260,27 @@ class GoogleCalendarService:
                     detail=f"Failed to create event: {response.text}"
                 )
             
-            return response.json()
+            created = response.json()
+            
+            # Transform to standard format
+            start = created.get('start', {})
+            end = created.get('end', {})
+            
+            return {
+                'id': created.get('id'),
+                'title': created.get('summary', ''),
+                'description': created.get('description', ''),
+                'start_time': start.get('dateTime') or start.get('date'),
+                'end_time': end.get('dateTime') or end.get('date'),
+                'timezone': start.get('timeZone', 'UTC'),
+                'location': created.get('location', ''),
+                'attendees': [att.get('email') for att in created.get('attendees', [])],
+                'created': created.get('created'),
+                'updated': created.get('updated'),
+                'html_link': created.get('htmlLink'),
+                'recurrence': created.get('recurrence'),
+                'reminders': created.get('reminders')
+            }
     
     async def list_events(self, calendar_id: str = 'primary', 
                          time_min: str = None, time_max: str = None,
