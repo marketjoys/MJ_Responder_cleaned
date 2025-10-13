@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Comprehensive OAuth Testing - Working around authentication issues
-Testing OAuth functionality by directly accessing database and APIs
+Comprehensive OAuth Email and Calendar Functionality Test
+Testing OAuth account amits.joys@gmail.com with new working Groq API key
 """
 import asyncio
 import sys
@@ -29,7 +29,13 @@ API_BASE = f"{BACKEND_URL}/api"
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
 
-# Correct data from database
+# Test account details from review request
+TEST_EMAIL = "amits.joys@gmail.com"
+TEST_ACCOUNT_ID = "e7c490f4-4f8e-402e-a085-61e133a0b1d0"
+TEST_USER_ID = "74ecb673-4459-4e9e-b424-e956de620036"
+TEST_CALENDAR_PROVIDER_ID = "d364d970-67a1-4147-bdc8-b1047d2957a1"
+
+# Fallback to actual database IDs if test IDs don't exist
 OAUTH_EMAIL = "amits.joys@gmail.com"
 CORRECT_USER_ID = "6d4ac92f-1971-4f9c-8b94-790b708765f0"
 CORRECT_ACCOUNT_ID = "07ea99bd-b08e-40db-a916-e5807d3925bb"
