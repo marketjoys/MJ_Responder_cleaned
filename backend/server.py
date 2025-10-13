@@ -3365,11 +3365,12 @@ async def handle_google_oauth_callback(code: str, state: str):
         # Auto-create calendar provider if calendar access was granted
         if 'calendar' in result.get('authorized_services', []):
             try:
-                # Check if calendar provider already exists for this user
+                # Check if calendar provider already exists for this OAuth email
                 existing_provider = await db.calendar_providers.find_one({
                     'user_id': result['user_id'],
                     'provider_type': 'google',
-                    'use_oauth': True
+                    'use_oauth': True,
+                    'oauth_email': oauth_email
                 })
                 
                 if not existing_provider:
