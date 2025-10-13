@@ -3395,7 +3395,7 @@ async def handle_google_oauth_callback(code: str, state: str):
                     # Auto-fetch and store user's calendars
                     try:
                         from google_services import get_google_calendar_service
-                        calendar_service = await get_google_calendar_service(result['user_id'])
+                        calendar_service = await get_google_calendar_service(result['user_id'], oauth_email)
                         user_calendars = await calendar_service.list_calendars()
                         
                         # Store calendars in database
