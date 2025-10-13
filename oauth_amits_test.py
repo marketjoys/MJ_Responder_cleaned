@@ -83,6 +83,26 @@ class OAuthAmitsTester:
                             self.test_user_id = result.get('user', {}).get('id')
                             print(f"✅ Logged in as OAuth account owner: {oauth_user['email']}")
                             return
+                        else:
+                            print(f"⚠️ Failed to login as OAuth owner: Status {response.status_code}")
+                            # Check if user needs quota_reset_date field
+                            if 'quota_reset_date' in response.text:
+                                print("⚠️ User missing quota_reset_date field, updating...")
+                                from datetime import datetime, timedelta
+                                next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
+                                next_month = next_month.replace(day=1)
+                                await self.db.users.update_one(
+                                    {"id": oauth_user_id},
+                                    {"$set": {"quota_reset_date": next_month}}
+                                )
+                                # Try login again
+                                response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+                                if response.status_code == 200:
+                                    result = response.json()
+                                    self.auth_token = result.get('access_token')
+                                    self.test_user_id = result.get('user', {}).get('id')
+                                    print(f"✅ Logged in as OAuth account owner after fix: {oauth_user['email']}")
+                                    return
                     except Exception as e:
                         print(f"⚠️ Failed to login as OAuth owner: {str(e)}")
             
