@@ -92,7 +92,7 @@ class OAuthAmitsTester:
                                 next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
                                 next_month = next_month.replace(day=1)
                                 await self.db.users.update_one(
-                                    {"id": oauth_user_id},
+                                    {"id": oauth_user["id"]},
                                     {"$set": {"quota_reset_date": next_month}}
                                 )
                                 # Try login again
