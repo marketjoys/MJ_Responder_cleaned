@@ -3,10 +3,16 @@
 ## Problem Statement
 Currently we are not able to add two Gmail OAuth accounts even if accounts are added. The mailbox polling doesn't start, and without affecting any other functionality, need to enhance UI and backend so that we can poll and add multiple email accounts and start app with Redis.
 
+**NEW ISSUES ADDED:**
+- Calendar agent not able to fetch/create events for accounts added via OAuth
+- Cannot update email accounts added via OAuth (signature, persona, follow-ups)
+
 ## Issues Identified:
-1. Multiple Gmail OAuth accounts cannot be added properly
-2. Email polling doesn't start after adding OAuth accounts  
-3. Redis integration needed for proper background task processing
+1. Multiple Gmail OAuth accounts cannot be added properly ✅ FIXED
+2. Email polling doesn't start after adding OAuth accounts ✅ FIXED
+3. Redis integration needed for proper background task processing ✅ FIXED
+4. Calendar OAuth not working for multi-account support ✅ FIXED
+5. Cannot update OAuth email account settings ✅ FIXED
 
 ## Testing Protocol
 
