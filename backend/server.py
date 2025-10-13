@@ -1207,6 +1207,57 @@ async def update_email_account(account_id: str, account: EmailAccountCreate, cur
     updated_account["password"] = "***"
     return EmailAccount(**updated_account)
 
+# Add new model for OAuth account settings update
+class EmailAccountSettingsUpdate(BaseModel):
+    """Model for updating OAuth email account settings (signature, persona, follow-ups)"""
+    signature: Optional[str] = None
+    persona: Optional[str] = None
+    auto_send: Optional[bool] = None
+    enable_follow_ups: Optional[bool] = None
+    follow_up_hours_override: Optional[int] = None
+    max_follow_ups_override: Optional[int] = None
+    custom_follow_up_template: Optional[str] = None
+
+@api_router.patch("/email-accounts/{account_id}/settings")
+async def update_email_account_settings(
+    account_id: str, 
+    settings: EmailAccountSettingsUpdate, 
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update email account settings (signature, persona, follow-ups) for OAuth accounts
+    This endpoint allows updating account settings without requiring IMAP/SMTP credentials
+    """
+    # Check if account exists and belongs to user
+    existing_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
+    if not existing_account:
+        raise HTTPException(status_code=404, detail="Email account not found")
+    
+    # Prepare update data - only include fields that were provided
+    update_data = {}
+    for field, value in settings.dict(exclude_unset=True).items():
+        if value is not None:
+            update_data[field] = value
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No settings provided to update")
+    
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Update in database
+    await db.email_accounts.update_one(
+        {"id": account_id, "user_id": current_user.id},
+        {"$set": update_data}
+    )
+    
+    # Return updated account (without password)
+    updated_account = await db.email_accounts.find_one({"id": account_id, "user_id": current_user.id})
+    updated_account["password"] = "***"
+    
+    logger.info(f"✅ Updated settings for email account {account_id}: {list(update_data.keys())}")
+    
+    return EmailAccount(**updated_account)
+
 @api_router.delete("/email-accounts/{account_id}")
 async def delete_email_account(account_id: str, current_user: User = Depends(get_current_active_user)):
     # Check if account belongs to user first
