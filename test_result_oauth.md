@@ -125,12 +125,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Calendar Functionality via API"
-    - "Email Settings Update for OAuth Account"
-  stuck_tasks:
-    - "Calendar Functionality via API"
-    - "Email Settings Update for OAuth Account"
-    - "Google OAuth Status API"
+    - "OAuth Email Polling and Reply Processing"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
