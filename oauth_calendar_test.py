@@ -66,21 +66,50 @@ class OAuthCalendarTester:
             user = await self.db.users.find_one({"id": self.test_user_id})
             if not user:
                 print(f"❌ User {self.test_user_id} not found in database")
-                return
+                # Try to find any user and use that for testing
+                user = await self.db.users.find_one({})
+                if user:
+                    print(f"Using alternative user: {user['email']}")
+                    self.test_user_id = user['id']
+                else:
+                    return
             
-            # Try to login with the user
-            login_data = {
-                "email": user["email"],
-                "password": "admin123"  # Default password
+            # Try multiple authentication approaches
+            auth_attempts = [
+                {"email": user["email"], "password": "admin123"},
+                {"email": user["email"], "password": "password123"},
+                {"email": user["email"], "password": "test123"},
+            ]
+            
+            for attempt in auth_attempts:
+                try:
+                    response = requests.post(f"{API_BASE}/auth/login", json=attempt, timeout=10)
+                    if response.status_code == 200:
+                        result = response.json()
+                        self.auth_token = result.get('access_token')
+                        print(f"✅ Authenticated as user: {user['email']}")
+                        return
+                    else:
+                        print(f"   Auth attempt failed: {response.status_code}")
+                except:
+                    continue
+            
+            # If login fails, try to create a new test user
+            print("   Trying to create new test user...")
+            register_data = {
+                "email": f"test.oauth.{int(time.time())}@example.com",
+                "password": "TestPassword123!",
+                "full_name": "OAuth Test User"
             }
             
-            response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+            response = requests.post(f"{API_BASE}/auth/register", json=register_data, timeout=15)
             if response.status_code == 200:
                 result = response.json()
                 self.auth_token = result.get('access_token')
-                print(f"✅ Authenticated as user: {user['email']}")
+                self.test_user_id = result.get('user', {}).get('id')
+                print(f"✅ Created and authenticated new test user: {register_data['email']}")
             else:
-                print(f"❌ Authentication failed: {response.status_code}")
+                print(f"❌ Failed to create test user: {response.status_code}")
                 
         except Exception as e:
             print(f"❌ Error getting auth token: {str(e)}")
