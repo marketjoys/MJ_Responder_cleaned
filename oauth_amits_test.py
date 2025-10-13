@@ -56,9 +56,37 @@ class OAuthAmitsTester:
             return False
     
     async def setup_test_user(self):
-        """Setup test user for authentication"""
+        """Setup test user for authentication - use the user who owns the OAuth account"""
         try:
-            # Try to find existing user first
+            # Find the user who owns the OAuth account for amits.joys@gmail.com
+            oauth_account = await self.db.email_accounts.find_one({
+                "oauth_email": OAUTH_EMAIL,
+                "auth_type": "oauth"
+            })
+            
+            if oauth_account:
+                oauth_user_id = oauth_account.get('user_id')
+                oauth_user = await self.db.users.find_one({"id": oauth_user_id})
+                
+                if oauth_user:
+                    # Try to login with the OAuth account owner
+                    login_data = {
+                        "email": oauth_user["email"],
+                        "password": "admin123"  # Default password from migration
+                    }
+                    
+                    try:
+                        response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+                        if response.status_code == 200:
+                            result = response.json()
+                            self.auth_token = result.get('access_token')
+                            self.test_user_id = result.get('user', {}).get('id')
+                            print(f"✅ Logged in as OAuth account owner: {oauth_user['email']}")
+                            return
+                    except Exception as e:
+                        print(f"⚠️ Failed to login as OAuth owner: {str(e)}")
+            
+            # Fallback: Try to find any existing user
             existing_user = await self.db.users.find_one({}, sort=[("created_at", 1)])
             
             if existing_user:
