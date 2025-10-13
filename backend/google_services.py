@@ -306,6 +306,55 @@ class GoogleCalendarService:
                     status_code=response.status_code,
                     detail=f"Failed to delete event: {response.text}"
                 )
+    
+    # Adapter methods to match BaseCalendarService interface
+    async def get_calendars(self) -> List[Dict[str, Any]]:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        calendars = await self.list_calendars()
+        # Transform Google Calendar format to standard format
+        return [
+            {
+                'id': cal.get('id'),
+                'name': cal.get('summary', ''),
+                'description': cal.get('description', ''),
+                'timezone': cal.get('timeZone', 'UTC'),
+                'is_primary': cal.get('primary', False),
+                'access_role': cal.get('accessRole', '')
+            }
+            for cal in calendars
+        ]
+    
+    async def get_events(self, calendar_id: str, start_time: str = None, 
+                        end_time: str = None, max_results: int = 250) -> List[Dict[str, Any]]:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        events = await self.list_events(calendar_id, start_time, end_time, max_results)
+        # Transform Google Calendar event format to standard format
+        result = []
+        for event in events:
+            start = event.get('start', {})
+            end = event.get('end', {})
+            
+            # Handle all-day events and regular events
+            start_time = start.get('dateTime') or start.get('date')
+            end_time = end.get('dateTime') or end.get('date')
+            
+            result.append({
+                'id': event.get('id'),
+                'title': event.get('summary', 'No Title'),
+                'description': event.get('description', ''),
+                'start_time': start_time,
+                'end_time': end_time,
+                'timezone': start.get('timeZone', 'UTC'),
+                'location': event.get('location', ''),
+                'attendees': [att.get('email') for att in event.get('attendees', [])],
+                'created': event.get('created'),
+                'updated': event.get('updated'),
+                'html_link': event.get('htmlLink'),
+                'recurrence': event.get('recurrence'),
+                'reminders': event.get('reminders')
+            })
+        return result
+
 
 async def get_google_gmail_service(user_id: str, oauth_email: Optional[str] = None) -> GoogleGmailService:
     """Get Gmail service instance for user (supports multiple accounts)"""
