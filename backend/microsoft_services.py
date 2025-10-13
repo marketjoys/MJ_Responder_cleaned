@@ -264,35 +264,66 @@ class MicrosoftCalendarService:
     
     async def create_event(
         self,
-        subject: str,
-        start: datetime,
-        end: datetime,
+        subject: str = None,
+        start: datetime = None,
+        end: datetime = None,
         location: Optional[str] = None,
         attendees: Optional[List[str]] = None,
         body: Optional[str] = None,
-        timezone: str = 'UTC'
+        timezone: str = 'UTC',
+        calendar_id: str = None,
+        event_data: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Create a calendar event
         
+        Supports both direct parameters and event_data dict for UnifiedCalendarService compatibility
+        
         Args:
-            subject: Event title
-            start: Event start datetime
-            end: Event end datetime
+            subject: Event title (or use event_data['title'])
+            start: Event start datetime (or use event_data['start_time'])
+            end: Event end datetime (or use event_data['end_time'])
             location: Event location
             attendees: List of attendee email addresses
             body: Event description
             timezone: Timezone for the event
+            calendar_id: Calendar ID (ignored, Microsoft uses default calendar)
+            event_data: Dictionary with event data (for UnifiedCalendarService)
             
         Returns:
             Created event details
         """
+        # Support event_data dict format (for UnifiedCalendarService)
+        if event_data:
+            subject = event_data.get('title', subject)
+            body = event_data.get('description', body)
+            location = event_data.get('location', location)
+            attendees = event_data.get('attendees', attendees)
+            timezone = event_data.get('timezone', timezone)
+            
+            # Parse datetime strings if needed
+            if 'start_time' in event_data:
+                start_time_val = event_data['start_time']
+                if isinstance(start_time_val, str):
+                    from dateutil import parser as date_parser
+                    start = date_parser.parse(start_time_val)
+                else:
+                    start = start_time_val
+            
+            if 'end_time' in event_data:
+                end_time_val = event_data['end_time']
+                if isinstance(end_time_val, str):
+                    from dateutil import parser as date_parser
+                    end = date_parser.parse(end_time_val)
+                else:
+                    end = end_time_val
+        
         try:
             headers = await self._get_headers()
             
             # Build event structure
             event = {
-                'subject': subject,
+                'subject': subject or 'No Title',
                 'start': {
                     'dateTime': start.strftime('%Y-%m-%dT%H:%M:%S'),
                     'timeZone': timezone
@@ -335,7 +366,26 @@ class MicrosoftCalendarService:
                         detail=f"Failed to create event: {response.text}"
                     )
                 
-                return response.json()
+                # Transform response to standard format
+                created_event = response.json()
+                event_start = created_event.get('start', {})
+                event_end = created_event.get('end', {})
+                
+                return {
+                    'id': created_event.get('id'),
+                    'title': created_event.get('subject', ''),
+                    'description': created_event.get('body', {}).get('content', ''),
+                    'start_time': event_start.get('dateTime'),
+                    'end_time': event_end.get('dateTime'),
+                    'timezone': event_start.get('timeZone', 'UTC'),
+                    'location': created_event.get('location', {}).get('displayName', ''),
+                    'attendees': [att.get('emailAddress', {}).get('address') for att in created_event.get('attendees', [])],
+                    'created': created_event.get('createdDateTime'),
+                    'updated': created_event.get('lastModifiedDateTime'),
+                    'html_link': created_event.get('webLink'),
+                    'recurrence': created_event.get('recurrence'),
+                    'reminders': created_event.get('isReminderOn')
+                }
                 
         except HTTPException:
             raise
