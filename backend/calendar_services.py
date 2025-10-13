@@ -583,16 +583,38 @@ class UnifiedCalendarService:
                     detail="Calendar provider not found"
                 )
             
-            # Decrypt credentials
-            credentials = self.credential_manager.decrypt_credentials(
-                provider["encrypted_credentials"]
-            )
-            
-            # Create service instance
-            provider_type = CalendarProvider(provider["provider_type"])
-            service = self.factory.create_service(
-                provider_type, credentials, provider.get("provider_config", {})
-            )
+            # Check if this is an OAuth provider
+            if provider.get("use_oauth", False):
+                # For OAuth providers, use the OAuth-specific services
+                provider_type_str = provider["provider_type"].lower()
+                oauth_email = provider.get("oauth_email")
+                
+                if provider_type_str == "google":
+                    # Import and use GoogleCalendarService directly
+                    from google_services import GoogleCalendarService
+                    service = GoogleCalendarService(user_id, oauth_email)
+                    logger.info(f"Created Google OAuth calendar service for {oauth_email}")
+                elif provider_type_str == "microsoft":
+                    # Import and use MicrosoftCalendarService directly
+                    from microsoft_services import MicrosoftCalendarService
+                    service = MicrosoftCalendarService(user_id, oauth_email)
+                    logger.info(f"Created Microsoft OAuth calendar service for {oauth_email}")
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Unsupported OAuth provider type: {provider_type_str}"
+                    )
+            else:
+                # For non-OAuth providers, use the existing flow with encrypted credentials
+                credentials = self.credential_manager.decrypt_credentials(
+                    provider["encrypted_credentials"]
+                )
+                
+                # Create service instance
+                provider_type = CalendarProvider(provider["provider_type"])
+                service = self.factory.create_service(
+                    provider_type, credentials, provider.get("provider_config", {})
+                )
             
             self.active_services[cache_key] = service
         
