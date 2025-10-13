@@ -3738,7 +3738,7 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
                     # Auto-fetch and store user's calendars (Microsoft typically has one default calendar)
                     try:
                         from microsoft_services import MicrosoftCalendarService
-                        calendar_service = MicrosoftCalendarService(result['user_id'])
+                        calendar_service = MicrosoftCalendarService(result['user_id'], oauth_email)
                         # For Microsoft, we'll create a default calendar entry
                         calendar_doc = {
                             'id': str(uuid.uuid4()),
