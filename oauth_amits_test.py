@@ -553,7 +553,8 @@ class OAuthAmitsTester:
             # Check OAuth tokens in database
             oauth_tokens_valid = False
             try:
-                oauth_tokens = await self.db.oauth_tokens.find({"email": OAUTH_EMAIL}).to_list(10)
+                # OAuth tokens use 'user_email' field, not 'email'
+                oauth_tokens = await self.db.oauth_tokens.find({"user_email": OAUTH_EMAIL}).to_list(10)
                 
                 if oauth_tokens:
                     latest_token = max(oauth_tokens, key=lambda x: x.get('created_at', datetime.min))
