@@ -62,40 +62,59 @@ class OAuthCalendarTester:
     async def get_auth_token(self):
         """Get authentication token for the test user"""
         try:
-            # Find the user in database
-            user = await self.db.users.find_one({"id": self.test_user_id})
-            if not user:
-                print(f"❌ User {self.test_user_id} not found in database")
-                # Try to find any user and use that for testing
-                user = await self.db.users.find_one({})
-                if user:
-                    print(f"Using alternative user: {user['email']}")
-                    self.test_user_id = user['id']
-                else:
-                    return
+            # First, try to authenticate as the actual OAuth user (amits.joys@gmail.com)
+            oauth_user = await self.db.users.find_one({"email": TEST_ACCOUNT["email"]})
+            if oauth_user:
+                print(f"Found OAuth user: {oauth_user['email']}")
+                self.test_user_id = oauth_user['id']
+                
+                # Try multiple password attempts for the OAuth user
+                auth_attempts = [
+                    {"email": oauth_user["email"], "password": "admin123"},
+                    {"email": oauth_user["email"], "password": "password123"},
+                    {"email": oauth_user["email"], "password": "test123"},
+                ]
+                
+                for attempt in auth_attempts:
+                    try:
+                        response = requests.post(f"{API_BASE}/auth/login", json=attempt, timeout=10)
+                        if response.status_code == 200:
+                            result = response.json()
+                            self.auth_token = result.get('access_token')
+                            print(f"✅ Authenticated as OAuth user: {oauth_user['email']}")
+                            return
+                        else:
+                            print(f"   Auth attempt failed for OAuth user: {response.status_code}")
+                    except:
+                        continue
             
-            # Try multiple authentication approaches
-            auth_attempts = [
-                {"email": user["email"], "password": "admin123"},
-                {"email": user["email"], "password": "password123"},
-                {"email": user["email"], "password": "test123"},
-            ]
+            # If OAuth user auth fails, try any existing user
+            user = await self.db.users.find_one({})
+            if user:
+                print(f"Trying alternative user: {user['email']}")
+                self.test_user_id = user['id']
+                
+                auth_attempts = [
+                    {"email": user["email"], "password": "admin123"},
+                    {"email": user["email"], "password": "password123"},
+                    {"email": user["email"], "password": "test123"},
+                ]
+                
+                for attempt in auth_attempts:
+                    try:
+                        response = requests.post(f"{API_BASE}/auth/login", json=attempt, timeout=10)
+                        if response.status_code == 200:
+                            result = response.json()
+                            self.auth_token = result.get('access_token')
+                            print(f"✅ Authenticated as alternative user: {user['email']}")
+                            return
+                        else:
+                            print(f"   Auth attempt failed: {response.status_code}")
+                    except:
+                        continue
             
-            for attempt in auth_attempts:
-                try:
-                    response = requests.post(f"{API_BASE}/auth/login", json=attempt, timeout=10)
-                    if response.status_code == 200:
-                        result = response.json()
-                        self.auth_token = result.get('access_token')
-                        print(f"✅ Authenticated as user: {user['email']}")
-                        return
-                    else:
-                        print(f"   Auth attempt failed: {response.status_code}")
-                except:
-                    continue
-            
-            # If login fails, try to create a new test user
-            print("   Trying to create new test user...")
+            # If all fails, create a new test user
+            print("   Creating new test user...")
             register_data = {
                 "email": f"test.oauth.{int(time.time())}@example.com",
                 "password": "TestPassword123!",
