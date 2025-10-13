@@ -58,6 +58,23 @@ When testing frontend functionality:
    - Uses Microsoft Graph API for Microsoft OAuth accounts
    - Enhanced logging for OAuth routing and debugging
 
+5. **Calendar OAuth Multi-Account Support** ✅ NEW
+   - Added `oauth_email` field to calendar_providers for multi-account support
+   - OAuth callbacks now auto-create calendar providers with `oauth_email`
+   - Fixed UnifiedCalendarService to handle OAuth providers correctly
+   - GoogleCalendarService and MicrosoftCalendarService now properly integrated
+   - Added adapter methods to match BaseCalendarService interface
+   - Calendar providers no longer try to decrypt empty credentials for OAuth
+   
+6. **Email Account Settings Update for OAuth** ✅ NEW
+   - Added new endpoint `/api/email-accounts/{account_id}/settings` (PATCH)
+   - Allows updating signature, persona, auto_send, follow-ups without IMAP/SMTP credentials
+   - Works specifically for OAuth accounts
+   - Only updates fields that are provided (partial update support)
+   - Uses Gmail API for Google OAuth accounts
+   - Uses Microsoft Graph API for Microsoft OAuth accounts
+   - Enhanced logging for OAuth routing and debugging
+
 🔧 **READY FOR TESTING:**
 - Backend changes deployed and running
 - Frontend improvements deployed
