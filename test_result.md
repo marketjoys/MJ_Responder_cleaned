@@ -133,6 +133,93 @@ User authorizes OAuth
   ↓
 ✅ OAuth token stored
   ↓
+
+---
+
+## Latest Updates: Calendar OAuth & Email Settings Fix
+
+### 🔧 Calendar OAuth Multi-Account Support
+
+**Problem Identified:**
+1. Calendar providers were being auto-created after OAuth, but without `oauth_email` field
+2. UnifiedCalendarService was trying to decrypt empty credentials for OAuth providers (causing failures)
+3. GoogleCalendarService and MicrosoftCalendarService existed but weren't being used by UnifiedCalendarService
+4. No support for multiple OAuth accounts for calendar access
+
+**Solution Implemented:**
+
+**1. Added `oauth_email` to Calendar Providers**
+- Modified `handle_google_oauth_callback` to store `oauth_email` in calendar provider
+- Modified `handle_microsoft_oauth_callback` to store `oauth_email` in calendar provider
+- Calendar providers now check for existing providers by `oauth_email` (not just user_id)
+- Supports multiple OAuth accounts per user
+
+**2. Fixed UnifiedCalendarService**
+- Modified `get_service()` method in `/app/backend/calendar_services.py`
+- Now checks if provider has `use_oauth=True` flag
+- For OAuth providers, directly instantiates GoogleCalendarService or MicrosoftCalendarService
+- Passes `oauth_email` to service constructors for multi-account support
+- Only tries to decrypt credentials for non-OAuth providers
+
+**3. Added Adapter Methods**
+- GoogleCalendarService: Added `get_calendars()` and `get_events()` methods
+- MicrosoftCalendarService: Added `get_calendars()`, `get_events()`, `update_event()`, `delete_event()` methods
+- Both services now transform their API responses to standard format
+- `create_event()` methods updated to accept standard event_data format
+
+**Files Modified:**
+- `/app/backend/server.py` - OAuth callbacks
+- `/app/backend/calendar_services.py` - UnifiedCalendarService
+- `/app/backend/google_services.py` - GoogleCalendarService adapters
+- `/app/backend/microsoft_services.py` - MicrosoftCalendarService adapters
+
+### 📝 Email Account Settings Update for OAuth
+
+**Problem Identified:**
+- OAuth email accounts couldn't be updated for signature, persona, follow-ups
+- Existing PUT endpoint required IMAP/SMTP credentials (not applicable to OAuth)
+- No way to update settings without providing full account details
+
+**Solution Implemented:**
+
+**New Endpoint: PATCH `/api/email-accounts/{account_id}/settings`**
+- Allows partial updates of OAuth account settings
+- Supported fields:
+  - `signature`
+  - `persona`
+  - `auto_send`
+  - `enable_follow_ups`
+  - `follow_up_hours_override`
+  - `max_follow_ups_override`
+  - `custom_follow_up_template`
+- Only updates fields that are provided (using `exclude_unset=True`)
+- Works for both OAuth and manual accounts
+- No IMAP/SMTP credentials required
+
+**Files Modified:**
+- `/app/backend/server.py` - Added new endpoint and EmailAccountSettingsUpdate model
+
+### 🎯 Testing Instructions for User
+
+**Calendar OAuth Testing:**
+1. OAuth account `amits.joys@gmail.com` should already have calendar provider auto-created
+2. Test fetching calendars: GET `/api/calendar/calendars`
+3. Test creating event: POST `/api/calendar/providers/{provider_id}/calendars/{calendar_id}/events`
+4. Test fetching events: GET `/api/calendar/providers/{provider_id}/calendars/{calendar_id}/events`
+5. Verify events are created in Google Calendar
+
+**Email Settings Testing:**
+1. Update OAuth account settings: PATCH `/api/email-accounts/{account_id}/settings`
+2. Example payload: `{"signature": "Best regards,\nAmit", "persona": "Professional", "auto_send": false}`
+3. Verify settings are saved without needing IMAP/SMTP credentials
+
+**Backend Status:**
+✅ Backend restarted successfully
+✅ Email polling working for OAuth account `amits.joys@gmail.com`
+✅ No import errors or syntax issues
+✅ All services running
+
+
 ✅ Email account AUTO-CREATED
   ↓
 ✅ Account added to polling service
