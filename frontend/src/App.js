@@ -2824,6 +2824,7 @@ const EmailAccounts = () => {
       signature: account.signature || '',
       persona: account.persona || '',
       is_active: account.is_active,
+      auto_send: account.auto_send || false,
       enable_follow_ups: account.enable_follow_ups,
       follow_up_hours_override: account.follow_up_hours_override,
       max_follow_ups_override: account.max_follow_ups_override,
