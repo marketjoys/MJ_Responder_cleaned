@@ -382,3 +382,162 @@ class MicrosoftCalendarService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to get event: {str(e)}"
             )
+    
+    # Adapter methods to match BaseCalendarService interface
+    async def get_calendars(self) -> List[Dict[str, Any]]:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        # Microsoft typically has one default calendar per user
+        return [
+            {
+                'id': 'primary',
+                'name': 'Calendar',
+                'description': 'Microsoft Outlook Calendar',
+                'timezone': 'UTC',
+                'is_primary': True,
+                'access_role': 'owner'
+            }
+        ]
+    
+    async def get_events(self, calendar_id: str, start_time: str = None, 
+                        end_time: str = None, max_results: int = 250) -> List[Dict[str, Any]]:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        # Convert string dates to datetime if provided
+        start_dt = None
+        end_dt = None
+        if start_time:
+            from dateutil import parser as date_parser
+            start_dt = date_parser.parse(start_time)
+        if end_time:
+            from dateutil import parser as date_parser
+            end_dt = date_parser.parse(end_time)
+        
+        events = await self.list_events(start_dt, end_dt, max_results)
+        
+        # Transform Microsoft Graph event format to standard format
+        result = []
+        for event in events:
+            start = event.get('start', {})
+            end = event.get('end', {})
+            
+            result.append({
+                'id': event.get('id'),
+                'title': event.get('subject', 'No Title'),
+                'description': event.get('body', {}).get('content', ''),
+                'start_time': start.get('dateTime'),
+                'end_time': end.get('dateTime'),
+                'timezone': start.get('timeZone', 'UTC'),
+                'location': event.get('location', {}).get('displayName', ''),
+                'attendees': [att.get('emailAddress', {}).get('address') for att in event.get('attendees', [])],
+                'created': event.get('createdDateTime'),
+                'updated': event.get('lastModifiedDateTime'),
+                'html_link': event.get('webLink'),
+                'recurrence': event.get('recurrence'),
+                'reminders': event.get('isReminderOn')
+            })
+        return result
+    
+    async def update_event(self, calendar_id: str, event_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        try:
+            headers = await self._get_headers()
+            
+            # Transform standard format to Microsoft Graph format
+            update_payload = {}
+            if 'title' in event_data:
+                update_payload['subject'] = event_data['title']
+            if 'description' in event_data:
+                update_payload['body'] = {
+                    'contentType': 'HTML',
+                    'content': event_data['description']
+                }
+            if 'start_time' in event_data:
+                update_payload['start'] = {
+                    'dateTime': event_data['start_time'],
+                    'timeZone': event_data.get('timezone', 'UTC')
+                }
+            if 'end_time' in event_data:
+                update_payload['end'] = {
+                    'dateTime': event_data['end_time'],
+                    'timeZone': event_data.get('timezone', 'UTC')
+                }
+            if 'location' in event_data:
+                update_payload['location'] = {'displayName': event_data['location']}
+            if 'attendees' in event_data:
+                update_payload['attendees'] = [
+                    {
+                        'emailAddress': {'address': addr},
+                        'type': 'required'
+                    }
+                    for addr in event_data['attendees']
+                ]
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.patch(
+                    f"{self.base_url}/me/events/{event_id}",
+                    headers=headers,
+                    json=update_payload
+                )
+                
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Failed to update event: {response.text}"
+                    )
+                
+                # Get the updated event and transform it
+                updated_event = response.json()
+                start = updated_event.get('start', {})
+                end = updated_event.get('end', {})
+                
+                return {
+                    'id': updated_event.get('id'),
+                    'title': updated_event.get('subject', ''),
+                    'description': updated_event.get('body', {}).get('content', ''),
+                    'start_time': start.get('dateTime'),
+                    'end_time': end.get('dateTime'),
+                    'timezone': start.get('timeZone', 'UTC'),
+                    'location': updated_event.get('location', {}).get('displayName', ''),
+                    'attendees': [att.get('emailAddress', {}).get('address') for att in updated_event.get('attendees', [])],
+                    'created': updated_event.get('createdDateTime'),
+                    'updated': updated_event.get('lastModifiedDateTime'),
+                    'html_link': updated_event.get('webLink'),
+                    'recurrence': updated_event.get('recurrence'),
+                    'reminders': updated_event.get('isReminderOn')
+                }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error updating event: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update event: {str(e)}"
+            )
+    
+    async def delete_event(self, calendar_id: str, event_id: str) -> bool:
+        """Adapter method for UnifiedCalendarService compatibility"""
+        try:
+            headers = await self._get_headers()
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.delete(
+                    f"{self.base_url}/me/events/{event_id}",
+                    headers=headers
+                )
+                
+                if response.status_code == 204:
+                    return True
+                elif response.status_code == 404:
+                    return True  # Already deleted
+                else:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Failed to delete event: {response.text}"
+                    )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting event: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete event: {str(e)}"
+            )
