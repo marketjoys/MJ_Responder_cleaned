@@ -2686,30 +2686,46 @@ const EmailAccounts = () => {
     setMessage('');
 
     try {
-      // For OAuth accounts, only allow updating certain fields
-      const updateData = {
-        name: formData.name,
-        signature: formData.signature,
-        persona: formData.persona,
-        is_active: formData.is_active,
-        enable_follow_ups: formData.enable_follow_ups,
-        follow_up_hours_override: formData.follow_up_hours_override,
-        max_follow_ups_override: formData.max_follow_ups_override,
-        custom_follow_up_template: formData.custom_follow_up_template
-      };
+      // For OAuth accounts, use PATCH endpoint with only settings fields
+      if (editingAccount.use_oauth) {
+        const settingsUpdateData = {
+          signature: formData.signature,
+          persona: formData.persona,
+          auto_send: formData.auto_send,
+          enable_follow_ups: formData.enable_follow_ups,
+          follow_up_hours_override: formData.follow_up_hours_override,
+          max_follow_ups_override: formData.max_follow_ups_override,
+          custom_follow_up_template: formData.custom_follow_up_template
+        };
 
-      // For manual accounts, include connection settings
-      if (!editingAccount.use_oauth) {
-        updateData.username = formData.username;
-        updateData.password = formData.password || undefined; // Only update if provided
-        updateData.imap_server = formData.imap_server;
-        updateData.imap_port = formData.imap_port;
-        updateData.smtp_server = formData.smtp_server;
-        updateData.smtp_port = formData.smtp_port;
+        await axios.patch(`${API}/email-accounts/${editingAccount.id}/settings`, settingsUpdateData);
+        setMessage('✅ OAuth account settings updated successfully!');
+      } else {
+        // For manual accounts, use PUT endpoint with full account data
+        const updateData = {
+          name: formData.name,
+          email: formData.email,
+          provider: formData.provider,
+          username: formData.username,
+          password: formData.password || undefined, // Only update if provided
+          imap_server: formData.imap_server,
+          imap_port: formData.imap_port,
+          smtp_server: formData.smtp_server,
+          smtp_port: formData.smtp_port,
+          signature: formData.signature,
+          persona: formData.persona,
+          is_active: formData.is_active,
+          auto_send: formData.auto_send,
+          enable_follow_ups: formData.enable_follow_ups,
+          follow_up_hours_override: formData.follow_up_hours_override,
+          max_follow_ups_override: formData.max_follow_ups_override,
+          custom_follow_up_template: formData.custom_follow_up_template
+        };
+
+        await axios.put(`${API}/email-accounts/${editingAccount.id}`, updateData);
+        setMessage('✅ Email account updated successfully!');
       }
-
-      await axios.put(`${API}/email-accounts/${editingAccount.id}`, updateData);
-      setMessage('✅ Email account updated successfully!');
+      
       setIsCreating(false);
       setEditingAccount(null);
       resetForm();
