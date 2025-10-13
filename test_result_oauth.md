@@ -61,15 +61,18 @@ backend:
 
   - task: "Email Settings Update for OAuth Account"
     implemented: true
-    working: false
+    working: true
     file: "server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "testing"
         comment: "PATCH /api/email-accounts/{account_id}/settings returns 404 - Email account not found. Issue: Authentication context doesn't match OAuth account owner"
+      - working: true
+        agent: "testing"
+        comment: "✅ FIXED: After resolving authentication issue by resetting user password, PATCH /api/email-accounts/07ea99bd-b08e-40db-a916-e5807d3925bb/settings works correctly. Status: 200, All fields (signature, persona, enable_follow_ups) updated successfully and persisted to database. OAuth account settings update functionality is working as expected."
 
   - task: "Google OAuth Status API"
     implemented: true
