@@ -3374,6 +3374,30 @@ const EmailAccounts = () => {
                   </div>
                 </div>
 
+                {/* Auto-Send Settings Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Send className="h-5 w-5 text-green-600" />
+                    <h3 className="text-lg font-semibold text-slate-800">Auto-Send Settings</h3>
+                  </div>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="auto_send"
+                        checked={formData.auto_send}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, auto_send: checked }))}
+                      />
+                      <Label htmlFor="auto_send" className="text-sm font-medium">
+                        Automatically send approved replies
+                      </Label>
+                    </div>
+                    <p className="text-xs text-slate-500 ml-10">
+                      When enabled, AI-generated replies will be sent automatically after validation. When disabled, replies will be saved as drafts for your review.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Follow-up Settings Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
