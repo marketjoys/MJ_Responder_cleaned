@@ -3725,6 +3725,7 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
                         'provider_type': 'microsoft',
                         'provider_name': f"{result.get('user_name', 'Microsoft')} Calendar",
                         'use_oauth': True,
+                        'oauth_email': oauth_email,  # Store OAuth email for multi-account support
                         'encrypted_credentials': '',  # OAuth uses tokens, not stored credentials
                         'is_active': True,
                         'timezone': 'UTC',
@@ -3732,7 +3733,7 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
                         'updated_at': datetime.now(timezone.utc)
                     }
                     await db.calendar_providers.insert_one(calendar_provider)
-                    logger.info(f"✅ Auto-created Microsoft calendar provider for user {result['user_id']}")
+                    logger.info(f"✅ Auto-created Microsoft calendar provider for {oauth_email} (User: {result['user_id']})")
                     
                     # Auto-fetch and store user's calendars (Microsoft typically has one default calendar)
                     try:
