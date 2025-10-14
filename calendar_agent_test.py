@@ -344,15 +344,24 @@ class CalendarAgentTester:
                 self.log_test_result("Calendar Event Creation", False, "Cannot get calendars")
                 return
             
-            calendars = calendars_response.json()
-            if not calendars:
+            calendars_data = calendars_response.json()
+            if not calendars_data:
                 self.log_test_result("Calendar Event Creation", False, "No calendars found")
+                return
+            
+            # Extract calendars from the response structure
+            calendars = []
+            for provider_name, provider_calendars in calendars_data.items():
+                calendars.extend(provider_calendars)
+            
+            if not calendars:
+                self.log_test_result("Calendar Event Creation", False, "No calendars found in providers")
                 return
             
             # Use primary calendar
             calendar_id = None
             for cal in calendars:
-                if cal.get('primary', False):
+                if cal.get('is_primary', False):
                     calendar_id = cal['id']
                     break
             
