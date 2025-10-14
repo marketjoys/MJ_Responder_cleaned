@@ -19,17 +19,16 @@ logger = logging.getLogger(__name__)
 
 # Redis connections
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-# Separate connections needed: scheduler needs decode_responses=False, queues can use True
-redis_conn = Redis.from_url(REDIS_URL, decode_responses=True)
-redis_conn_scheduler = Redis.from_url(REDIS_URL, decode_responses=False)
+# RQ requires decode_responses=False to work properly with job serialization
+redis_conn = Redis.from_url(REDIS_URL, decode_responses=False)
 
 # Create queues with different priorities
 email_processing_queue = Queue('email-processing', connection=redis_conn)
 follow_up_queue = Queue('follow-up', connection=redis_conn)
 background_queue = Queue('background', connection=redis_conn)
 
-# Scheduler for periodic tasks (needs decode_responses=False)
-scheduler = Scheduler(connection=redis_conn_scheduler, queue=background_queue)
+# Scheduler for periodic tasks
+scheduler = Scheduler(connection=redis_conn, queue=background_queue)
 
 # MongoDB connection for tasks
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
