@@ -5962,54 +5962,55 @@ async def migrate_oauth_data_structure():
         logger.error(f"❌ Error during OAuth migration: {str(e)}")
         raise
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize application on startup"""
-    global polling_service
-    
-    try:
-        # Create unique index on email_accounts to prevent duplicate OAuth accounts
-        try:
-            await db.email_accounts.create_index(
-                [("user_id", 1), ("oauth_email", 1), ("auth_type", 1)],
-                unique=True,
-                partialFilterExpression={"auth_type": "oauth", "oauth_email": {"$exists": True}},
-                name="unique_oauth_email_per_user"
-            )
-            logger.info("✅ Created unique index for OAuth email accounts")
-        except Exception as idx_error:
-            # Index might already exist
-            logger.debug(f"Index creation note: {str(idx_error)}")
-        
-        # Run data migration to support multi-user and multi-OAuth structure
-        await migrate_existing_data_to_users()
-        await migrate_oauth_data_structure()
-        
-        # Initialize periodic tasks if Redis is available
-        if RQ_ENABLED:
-            try:
-                schedule_periodic_tasks()
-                logger.info("✅ Scheduled periodic tasks (follow-up processing, response detection)")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not schedule periodic tasks: {str(e)}")
-        
-        # Initialize polling service
-        polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
-        
-        # Start email polling in background
-        asyncio.create_task(polling_service.start_polling())
-        logger.info("🚀 Email polling service started")
-        
-        # Initialize default data if needed
-        # await initialize_default_intents()
-        # await initialize_default_accounts()
-        # await initialize_test_emails()
-        
-        logger.info("🎉 Application startup completed successfully!")
-        
-    except Exception as e:
-        logger.error(f"❌ Error during application startup: {str(e)}")
-        # Don't raise - let the app continue with partial functionality
+# Duplicate startup event removed - see line 4946 for the active startup event
+# @app.on_event("startup")
+# async def startup_event():
+#     """Initialize application on startup"""
+#     global polling_service
+#     
+#     try:
+#         # Create unique index on email_accounts to prevent duplicate OAuth accounts
+#         try:
+#             await db.email_accounts.create_index(
+#                 [("user_id", 1), ("oauth_email", 1), ("auth_type", 1)],
+#                 unique=True,
+#                 partialFilterExpression={"auth_type": "oauth", "oauth_email": {"$exists": True}},
+#                 name="unique_oauth_email_per_user"
+#             )
+#             logger.info("✅ Created unique index for OAuth email accounts")
+#         except Exception as idx_error:
+#             # Index might already exist
+#             logger.debug(f"Index creation note: {str(idx_error)}")
+#         
+#         # Run data migration to support multi-user and multi-OAuth structure
+#         await migrate_existing_data_to_users()
+#         await migrate_oauth_data_structure()
+#         
+#         # Initialize periodic tasks if Redis is available
+#         if RQ_ENABLED:
+#             try:
+#                 schedule_periodic_tasks()
+#                 logger.info("✅ Scheduled periodic tasks (follow-up processing, response detection)")
+#             except Exception as e:
+#                 logger.warning(f"⚠️ Could not schedule periodic tasks: {str(e)}")
+#         
+#         # Initialize polling service
+#         polling_service = get_polling_service(mongo_url, os.environ['DB_NAME'])
+#         
+#         # Start email polling in background
+#         asyncio.create_task(polling_service.start_polling())
+#         logger.info("🚀 Email polling service started")
+#         
+#         # Initialize default data if needed
+#         # await initialize_default_intents()
+#         # await initialize_default_accounts()
+#         # await initialize_test_emails()
+#         
+#         logger.info("🎉 Application startup completed successfully!")
+#         
+#     except Exception as e:
+#         logger.error(f"❌ Error during application startup: {str(e)}")
+#         # Don't raise - let the app continue with partial functionality
 
 # Include the router in the main app (after all endpoints are defined)
 app.include_router(api_router)
