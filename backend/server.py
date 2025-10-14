@@ -4956,8 +4956,22 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️ Date initialization warning: {e}")
     
+    # Create unique index on email_accounts to prevent duplicate OAuth accounts
+    try:
+        await db.email_accounts.create_index(
+            [("user_id", 1), ("oauth_email", 1), ("auth_type", 1)],
+            unique=True,
+            partialFilterExpression={"auth_type": "oauth", "oauth_email": {"$exists": True}},
+            name="unique_oauth_email_per_user"
+        )
+        logger.info("✅ Created unique index for OAuth email accounts")
+    except Exception as idx_error:
+        # Index might already exist
+        logger.debug(f"Index creation note: {str(idx_error)}")
+    
     # Run data migration first to assign user ownership
     await migrate_existing_data_to_users()
+    await migrate_oauth_data_structure()
     
     # Initialize all seed data
     await initialize_email_accounts()
