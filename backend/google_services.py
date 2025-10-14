@@ -399,7 +399,7 @@ class GoogleCalendarService:
                 'updated': event.get('updated'),
                 'html_link': event.get('htmlLink'),
                 'recurrence': event.get('recurrence'),
-                'reminders': event.get('reminders')
+                'reminders': self._format_reminders(event.get('reminders'))
             })
         return result
 
