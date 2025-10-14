@@ -4578,6 +4578,7 @@ async def generate_follow_up_draft(original_email: Dict[str, Any], follow_up_num
         follow_up_context = EmailMessage(
             id=str(uuid.uuid4()),
             account_id=original_email["account_id"],
+            user_id=original_email.get("user_id", ""),  # Include user_id from original email
             sender=original_email["sender"],
             recipient=original_email.get("recipient", ""),
             subject=f"Follow-up #{follow_up_number}: {original_email['subject']}",
