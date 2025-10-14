@@ -5378,8 +5378,9 @@ async def initialize_knowledge_base():
                 }
             ]
             
-            # Create knowledge base entries with embeddings
+            # Create knowledge base entries with embeddings for this user
             for kb_data in kb_entries:
+                kb_data["user_id"] = user_id  # Add user_id
                 kb_obj = KnowledgeBase(**kb_data)
                 
                 # Create embedding for content
@@ -5390,9 +5391,7 @@ async def initialize_knowledge_base():
                 doc["embedding"] = embedding
                 await db.knowledge_base.insert_one(doc)
                 
-            logger.info(f"✅ Created {len(kb_entries)} knowledge base entries")
-        else:
-            logger.info(f"ℹ️  Found {existing_kb} existing knowledge base entries")
+            logger.info(f"✅ Created {len(kb_entries)} knowledge base entries for user {user.get('email', user_id)}")
             
     except Exception as e:
         logger.error(f"❌ Error initializing knowledge base: {str(e)}")
