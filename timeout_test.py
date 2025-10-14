@@ -15,7 +15,7 @@ load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
 # Configuration
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://auth-calendar-fix.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://email-automation-hub.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 class EmailTestTimeoutTester:
