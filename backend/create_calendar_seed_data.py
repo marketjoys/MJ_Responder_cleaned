@@ -37,11 +37,13 @@ now = datetime.now(timezone.utc)
 meeting_emails = [
     {
         "id": str(uuid.uuid4()),
+        "message_id": f"<{str(uuid.uuid4())}@techcorp.com>",
         "user_id": USER_ID,
         "account_id": ACCOUNT_ID,
         "thread_id": str(uuid.uuid4()),
         "sender": "john.doe@techcorp.com",
         "sender_name": "John Doe",
+        "recipient": USER_EMAIL,
         "recipients": [USER_EMAIL],
         "subject": "Product Demo Meeting Request",
         "body": f"""Hi Amit,
