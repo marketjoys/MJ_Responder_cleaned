@@ -182,6 +182,7 @@ class CalendarAgentTester:
             try:
                 detection_data = {
                     "email_content": test_case["email_content"],
+                    "subject": test_case["subject"],
                     "sender": test_case["sender"],
                     "user_timezone": "UTC"
                 }
