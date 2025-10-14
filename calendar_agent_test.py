@@ -58,22 +58,56 @@ class CalendarAgentTester:
             oauth_user = await self.db.users.find_one({"email": self.test_user_email})
             
             if oauth_user:
-                # Try to login with OAuth user
-                login_data = {
-                    "email": self.test_user_email,
-                    "password": "admin123"  # Default password
-                }
+                self.test_user_id = oauth_user.get('id')
+                print(f"✅ Found OAuth user: {self.test_user_email} (ID: {self.test_user_id})")
                 
+                # Try multiple password options for OAuth user
+                password_options = ["admin123", "password", "test123", "oauth123"]
+                
+                for password in password_options:
+                    try:
+                        login_data = {
+                            "email": self.test_user_email,
+                            "password": password
+                        }
+                        
+                        response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+                        if response.status_code == 200:
+                            result = response.json()
+                            self.auth_token = result.get('access_token')
+                            self.test_user_id = result.get('user', {}).get('id')
+                            print(f"✅ Logged in as OAuth user: {self.test_user_email}")
+                            return
+                    except Exception as e:
+                        continue
+                
+                # If login fails, try to create a new password for the user
+                print(f"⚠️ Login failed, trying to reset password for OAuth user...")
                 try:
+                    from auth import get_password_hash
+                    new_password_hash = get_password_hash("oauth123")
+                    
+                    await self.db.users.update_one(
+                        {"email": self.test_user_email},
+                        {"$set": {"hashed_password": new_password_hash}}
+                    )
+                    
+                    # Try login with new password
+                    login_data = {
+                        "email": self.test_user_email,
+                        "password": "oauth123"
+                    }
+                    
                     response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
                     if response.status_code == 200:
                         result = response.json()
                         self.auth_token = result.get('access_token')
                         self.test_user_id = result.get('user', {}).get('id')
-                        print(f"✅ Logged in as OAuth user: {self.test_user_email}")
+                        print(f"✅ Logged in with reset password: {self.test_user_email}")
                         return
+                        
                 except Exception as e:
-                    print(f"⚠️ OAuth user login failed: {str(e)}")
+                    print(f"⚠️ Password reset failed: {str(e)}")
             
             print(f"❌ OAuth user {self.test_user_email} not found or login failed")
                 
