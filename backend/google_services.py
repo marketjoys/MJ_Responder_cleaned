@@ -37,6 +37,29 @@ class GoogleGmailService:
             'Content-Type': 'application/json'
         }
     
+    
+    def _format_reminders(self, reminders_data):
+        """Format Google Calendar reminders to expected list format"""
+        if not reminders_data:
+            return []
+        
+        # Handle Google Calendar's useDefault format
+        if isinstance(reminders_data, dict):
+            if reminders_data.get('useDefault'):
+                # Return default reminders format
+                return [
+                    {'method': 'email', 'minutes': 60},
+                    {'method': 'popup', 'minutes': 15}
+                ]
+            elif 'overrides' in reminders_data:
+                # Convert overrides to list format
+                return reminders_data['overrides']
+        
+        # If already a list, return as is
+        if isinstance(reminders_data, list):
+            return reminders_data
+        
+        return []
     async def get_profile(self) -> Dict[str, Any]:
         """Get Gmail profile information"""
         headers = await self._get_headers()
