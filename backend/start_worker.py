@@ -23,6 +23,7 @@ queues = ['email-processing', 'follow-up', 'background']
 worker = Worker(queues, connection=redis_conn)
 
 print(f"✅ RQ Worker starting - listening on queues: {queues}")
+print(f"🕐 Scheduler support: ENABLED")
 
-# Start working
-worker.work()
+# Start working with scheduler support
+worker.work(with_scheduler=True)
