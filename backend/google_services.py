@@ -279,7 +279,7 @@ class GoogleCalendarService:
                 'updated': created.get('updated'),
                 'html_link': created.get('htmlLink'),
                 'recurrence': created.get('recurrence'),
-                'reminders': created.get('reminders')
+                'reminders': self._format_reminders(created.get('reminders'))
             }
     
     async def list_events(self, calendar_id: str = 'primary', 
