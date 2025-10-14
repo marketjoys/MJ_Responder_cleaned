@@ -192,9 +192,9 @@ class CalendarAgentTester:
                 
                 if response.status_code == 200:
                     result = response.json()
-                    confidence = result.get('confidence', 0)
-                    meeting_type = result.get('meeting_type', 'unknown')
-                    datetime_info = result.get('datetime_info', {})
+                    confidence = result.get('confidence_score', 0)
+                    meeting_detected = result.get('meeting_detected', False)
+                    detected_datetime = result.get('detected_datetime')
                     
                     # Check if confidence meets expectations
                     confidence_ok = confidence >= test_case["expected_confidence"] if test_case["expected_confidence"] > 0.5 else confidence < 0.5
@@ -203,11 +203,11 @@ class CalendarAgentTester:
                         "case": test_case["name"],
                         "passed": True,
                         "confidence": confidence,
-                        "meeting_type": meeting_type,
+                        "meeting_detected": meeting_detected,
                         "confidence_ok": confidence_ok
                     })
                     
-                    print(f"   {test_case['name']}: Confidence={confidence:.2f}, Type={meeting_type}")
+                    print(f"   {test_case['name']}: Confidence={confidence:.2f}, Detected={meeting_detected}")
                     
                 else:
                     detection_results.append({
