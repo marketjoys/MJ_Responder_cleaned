@@ -5120,12 +5120,24 @@ async def initialize_email_accounts():
         logger.error(f"❌ Error initializing email accounts: {str(e)}")
 
 async def initialize_intents():
-    """Initialize default intents for email classification"""
+    """Initialize default intents for email classification for all users"""
     try:
-        existing_intents = await db.intents.count_documents({})
+        # Get all users
+        users = await db.users.find({}).to_list(100)
+        if not users:
+            logger.info("ℹ️  No users found - skipping intent initialization")
+            return
         
-        if existing_intents == 0:
-            logger.info("🎯 Initializing default intents...")
+        for user in users:
+            user_id = user['id']
+            # Check if this user already has intents
+            existing_intents = await db.intents.count_documents({"user_id": user_id})
+            
+            if existing_intents > 0:
+                logger.info(f"ℹ️  User {user.get('email', user_id)} already has {existing_intents} intents")
+                continue
+            
+            logger.info(f"🎯 Initializing default intents for user {user.get('email', user_id)}...")
             
             default_intents = [
                 {
