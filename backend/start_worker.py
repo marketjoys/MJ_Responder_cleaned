@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 # Load environment
 load_dotenv('/app/backend/.env')
 
-# Create Redis connection
-redis_conn = Redis.from_url('redis://localhost:6379/0', decode_responses=True)
+# Create Redis connection (decode_responses=False for RQ worker compatibility)
+redis_conn = Redis.from_url('redis://localhost:6379/0', decode_responses=False)
 
 # Create worker
 queues = ['email-processing', 'follow-up', 'background']
