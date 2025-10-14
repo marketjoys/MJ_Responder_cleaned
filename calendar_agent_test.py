@@ -148,24 +148,28 @@ class CalendarAgentTester:
         test_cases = [
             {
                 "name": "Direct Meeting Request",
+                "subject": "Meeting Request - Project Discussion",
                 "email_content": "Hi, I'd like to schedule a meeting with you tomorrow at 2 PM to discuss our project. Can you confirm if this time works for you?",
                 "sender": "client@example.com",
                 "expected_confidence": 0.7
             },
             {
                 "name": "Meeting Reschedule",
+                "subject": "Re: Meeting Request - Need to Reschedule",
                 "email_content": "Can we reschedule our meeting from 2 PM to 4 PM tomorrow? Something urgent came up.",
                 "sender": "client@example.com", 
                 "expected_confidence": 0.6
             },
             {
                 "name": "Meeting Cancellation",
+                "subject": "Meeting Cancellation",
                 "email_content": "I need to cancel our meeting scheduled for tomorrow at 2 PM. Sorry for the inconvenience.",
                 "sender": "client@example.com",
                 "expected_confidence": 0.6
             },
             {
                 "name": "Non-Meeting Email",
+                "subject": "Document Review Complete",
                 "email_content": "Thank you for your email. I have reviewed the documents and they look good.",
                 "sender": "client@example.com",
                 "expected_confidence": 0.3
