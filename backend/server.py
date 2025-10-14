@@ -5296,8 +5296,9 @@ async def initialize_intents():
                 }
             ]
             
-            # Create intents with embeddings
+            # Create intents with embeddings for this user
             for intent_data in default_intents:
+                intent_data["user_id"] = user_id  # Add user_id
                 intent_obj = Intent(**intent_data)
                 
                 # Create embedding for intent description + examples
@@ -5309,9 +5310,7 @@ async def initialize_intents():
                 doc["embedding"] = embedding
                 await db.intents.insert_one(doc)
                 
-            logger.info(f"✅ Created {len(default_intents)} default intents")
-        else:
-            logger.info(f"ℹ️  Found {existing_intents} existing intents")
+            logger.info(f"✅ Created {len(default_intents)} default intents for user {user.get('email', user_id)}")
             
     except Exception as e:
         logger.error(f"❌ Error initializing intents: {str(e)}")
