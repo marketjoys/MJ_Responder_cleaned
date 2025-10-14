@@ -5316,12 +5316,24 @@ async def initialize_intents():
         logger.error(f"❌ Error initializing intents: {str(e)}")
 
 async def initialize_knowledge_base():
-    """Initialize default knowledge base entries"""
+    """Initialize default knowledge base entries for all users"""
     try:
-        existing_kb = await db.knowledge_base.count_documents({})
+        # Get all users
+        users = await db.users.find({}).to_list(100)
+        if not users:
+            logger.info("ℹ️  No users found - skipping knowledge base initialization")
+            return
         
-        if existing_kb == 0:
-            logger.info("📚 Initializing knowledge base...")
+        for user in users:
+            user_id = user['id']
+            # Check if this user already has KB entries
+            existing_kb = await db.knowledge_base.count_documents({"user_id": user_id})
+            
+            if existing_kb > 0:
+                logger.info(f"ℹ️  User {user.get('email', user_id)} already has {existing_kb} KB entries")
+                continue
+            
+            logger.info(f"📚 Initializing knowledge base for user {user.get('email', user_id)}...")
             
             kb_entries = [
                 {
