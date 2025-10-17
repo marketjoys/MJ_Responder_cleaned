@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://reminder-sync-3.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://outlook-sync-fix.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_auto_send():
