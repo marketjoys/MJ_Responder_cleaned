@@ -2670,32 +2670,58 @@ async def auto_send_email(email_id: str):
         
         # Handle OAuth vs Manual accounts differently
         if account_doc.get('auth_type') == 'oauth' and account_doc.get('use_oauth'):
-            # OAuth account - use Gmail API
+            # OAuth account - determine provider type
             try:
                 oauth_email = account_doc.get('oauth_email')
                 if not oauth_email:
                     logger.error(f"OAuth account {account_doc['id']} missing oauth_email field")
                     return
                 
-                # Get Gmail service for this specific OAuth account
-                gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
+                provider = account_doc.get('provider', '').lower()
                 
                 # Get final content with signature (from validation)
                 final_body = email_doc.get('final_plain_text', email_doc.get('draft', ''))
                 final_html = email_doc.get('final_html', email_doc.get('draft_html', ''))
                 
-                # Send via Gmail API
-                result = await gmail_service.send_message(
-                    to_email=sender_email,
-                    subject=subject,
-                    body=final_body,
-                    body_html=final_html if final_html else None,
-                    in_reply_to=email_doc.get('message_id', '')
-                )
+                # Route to appropriate OAuth provider
+                if provider in ['gmail', 'google']:
+                    # Gmail OAuth - use Gmail API
+                    gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
+                    
+                    result = await gmail_service.send_message(
+                        to_email=sender_email,
+                        subject=subject,
+                        body=final_body,
+                        body_html=final_html if final_html else None,
+                        in_reply_to=email_doc.get('message_id', '')
+                    )
+                    
+                    if result:
+                        success = True
+                        logger.info(f"✅ Sent OAuth email via Gmail API from {oauth_email} to {sender_email}")
                 
-                if result:
-                    success = True
-                    logger.info(f"✅ Sent OAuth email via Gmail API from {oauth_email} to {sender_email}")
+                elif provider in ['outlook', 'microsoft']:
+                    # Microsoft OAuth - use Microsoft Graph API
+                    mail_service = MicrosoftMailService(account_doc['user_id'], oauth_email)
+                    
+                    # Determine body type based on whether HTML is available
+                    body_content = final_html if final_html else final_body
+                    body_type = 'HTML' if final_html else 'Text'
+                    
+                    result = await mail_service.send_message(
+                        to=[sender_email],
+                        subject=subject,
+                        body=body_content,
+                        body_type=body_type,
+                        reply_to=None  # Microsoft Graph automatically handles reply threading
+                    )
+                    
+                    if result and result.get('status') == 'sent':
+                        success = True
+                        logger.info(f"✅ Sent OAuth email via Microsoft Graph API from {oauth_email} to {sender_email}")
+                
+                else:
+                    logger.error(f"❌ Unsupported OAuth provider: {provider} for account {account_doc['id']}")
                 
             except Exception as e:
                 logger.error(f"❌ Failed to send OAuth email from {account_doc.get('oauth_email')}: {str(e)}")
