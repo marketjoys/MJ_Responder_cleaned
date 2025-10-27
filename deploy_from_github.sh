@@ -517,12 +517,11 @@ configure_frontend_env() {
     # Create .env.production
     echo -e "${YELLOW}Creating .env.production...${NC}"
     cat > .env.production << EOF
-# Backend API URL
-REACT_APP_BACKEND_URL=http://$DOMAIN:$BACKEND_PORT/api
+# Backend API URL - Via web server proxy (backend not publicly exposed)
+REACT_APP_BACKEND_URL=/api
 
-# Alternative configurations:
-# For local testing: http://localhost:$BACKEND_PORT/api
-# With web server proxy: http://$DOMAIN/api
+# The web server (Nginx/Apache) will proxy /api requests to localhost:$BACKEND_PORT
+# This keeps the backend secure and not directly accessible from the internet
 EOF
     
     echo -e "${GREEN}✅ Frontend environment configured${NC}"
