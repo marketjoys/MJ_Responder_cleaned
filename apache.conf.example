@@ -1,0 +1,138 @@
+# Apache Configuration for Email Automation App
+# File: /etc/apache2/sites-available/marketautomailer.conf
+#
+# After creating this file, enable required modules and the site:
+# sudo a2enmod proxy proxy_http headers rewrite ssl
+# sudo a2ensite marketautomailer
+# sudo systemctl restart apache2
+
+<VirtualHost *:80>
+    ServerName marketautomailer.mj.publicvm.com
+    ServerAdmin admin@marketautomailer.mj.publicvm.com
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/marketautomailer-error.log
+    CustomLog ${APACHE_LOG_DIR}/marketautomailer-access.log combined
+    
+    # Frontend - Static React build files
+    DocumentRoot /var/www/html/marketautomailer
+    
+    <Directory /var/www/html/marketautomailer>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+        
+        # React Router support - rewrite all routes to index.html
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.html$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteCond %{REQUEST_URI} !^/api/
+        RewriteCond %{REQUEST_URI} !^/oauth/
+        RewriteRule . /index.html [L]
+        
+        # Cache control for static assets
+        <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+            Header set Cache-Control "max-age=31536000, public, immutable"
+        </FilesMatch>
+        
+        # Don't cache index.html
+        <FilesMatch "index\.html$">
+            Header set Cache-Control "no-cache, no-store, must-revalidate"
+            Header set Pragma "no-cache"
+            Header set Expires 0
+        </FilesMatch>
+    </Directory>
+    
+    # Backend API Proxy to port 9000
+    ProxyPreserveHost On
+    ProxyRequests Off
+    
+    # Increase timeout for long-running requests
+    ProxyTimeout 300
+    
+    # API routes
+    <Location /api>
+        ProxyPass http://localhost:9000/api
+        ProxyPassReverse http://localhost:9000/api
+        
+        # CORS Headers
+        Header always set Access-Control-Allow-Origin "http://marketautomailer.mj.publicvm.com"
+        Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+        Header always set Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+        Header always set Access-Control-Allow-Credentials "true"
+        
+        # Handle OPTIONS preflight requests
+        RewriteEngine On
+        RewriteCond %{REQUEST_METHOD} OPTIONS
+        RewriteRule ^(.*)$ $1 [R=200,L]
+    </Location>
+    
+    # OAuth callback routes
+    <Location /oauth>
+        ProxyPass http://localhost:9000/oauth
+        ProxyPassReverse http://localhost:9000/oauth
+    </Location>
+    
+    # File upload size limit
+    LimitRequestBody 52428800
+</VirtualHost>
+
+# HTTPS Configuration (uncomment after setting up SSL with Let's Encrypt)
+# <IfModule mod_ssl.c>
+# <VirtualHost *:443>
+#     ServerName marketautomailer.mj.publicvm.com
+#     ServerAdmin admin@marketautomailer.mj.publicvm.com
+#     
+#     DocumentRoot /var/www/html/marketautomailer
+#     
+#     # SSL Configuration
+#     SSLEngine on
+#     SSLCertificateFile /etc/letsencrypt/live/marketautomailer.mj.publicvm.com/fullchain.pem
+#     SSLCertificateKeyFile /etc/letsencrypt/live/marketautomailer.mj.publicvm.com/privkey.pem
+#     Include /etc/letsencrypt/options-ssl-apache.conf
+#     
+#     # Same configuration as HTTP above
+#     <Directory /var/www/html/marketautomailer>
+#         Options -Indexes +FollowSymLinks
+#         AllowOverride All
+#         Require all granted
+#         
+#         RewriteEngine On
+#         RewriteBase /
+#         RewriteRule ^index\.html$ - [L]
+#         RewriteCond %{REQUEST_FILENAME} !-f
+#         RewriteCond %{REQUEST_FILENAME} !-d
+#         RewriteCond %{REQUEST_URI} !^/api/
+#         RewriteCond %{REQUEST_URI} !^/oauth/
+#         RewriteRule . /index.html [L]
+#     </Directory>
+#     
+#     ProxyPreserveHost On
+#     ProxyRequests Off
+#     
+#     <Location /api>
+#         ProxyPass http://localhost:9000/api
+#         ProxyPassReverse http://localhost:9000/api
+#         Header always set Access-Control-Allow-Origin "https://marketautomailer.mj.publicvm.com"
+#         Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+#         Header always set Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+#         Header always set Access-Control-Allow-Credentials "true"
+#     </Location>
+#     
+#     <Location /oauth>
+#         ProxyPass http://localhost:9000/oauth
+#         ProxyPassReverse http://localhost:9000/oauth
+#     </Location>
+#     
+#     ErrorLog ${APACHE_LOG_DIR}/marketautomailer-ssl-error.log
+#     CustomLog ${APACHE_LOG_DIR}/marketautomailer-ssl-access.log combined
+# </VirtualHost>
+# </IfModule>
+
+# Redirect HTTP to HTTPS (uncomment after SSL setup)
+# <VirtualHost *:80>
+#     ServerName marketautomailer.mj.publicvm.com
+#     Redirect permanent / https://marketautomailer.mj.publicvm.com/
+# </VirtualHost>
