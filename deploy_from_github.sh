@@ -590,15 +590,19 @@ Backend URL: http://$DOMAIN:$BACKEND_PORT/api
 DEPLOYMENT INSTRUCTIONS:
 ========================
 
+IMPORTANT: Backend runs on localhost:$BACKEND_PORT (NOT publicly exposed)
+
 1. Upload all files in this folder to your web server's public directory
    Example: /var/www/html/ or /usr/share/nginx/html/
 
-2. Ensure backend is running on port $BACKEND_PORT
-
-3. Configure web server (Nginx/Apache) to:
+2. Configure web server (Nginx/Apache) to:
    - Serve static files from this directory
    - Proxy /api requests to http://localhost:$BACKEND_PORT/api
+   - Proxy /oauth requests to http://localhost:$BACKEND_PORT/oauth
    - Support React Router (fallback to index.html)
+
+3. Backend will ONLY be accessible through the web server proxy
+   Direct access to port $BACKEND_PORT is blocked from public internet
 
 4. Verify CORS settings in backend .env file include your domain
 
