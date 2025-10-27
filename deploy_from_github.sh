@@ -435,9 +435,9 @@ start_backend() {
     
     sleep 2
     
-    # Start Backend on specified port
-    echo -e "${YELLOW}Starting Backend on port $BACKEND_PORT...${NC}"
-    nohup uvicorn server:app --host 0.0.0.0 --port $BACKEND_PORT > logs/backend.log 2>&1 &
+    # Start Backend on localhost only (not exposed publicly)
+    echo -e "${YELLOW}Starting Backend on localhost:$BACKEND_PORT (not publicly exposed)...${NC}"
+    nohup uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT > logs/backend.log 2>&1 &
     BACKEND_PID=$!
     echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}"
     
