@@ -130,6 +130,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
           {/* Formatting Toolbar */}
           <div className="flex flex-wrap gap-2 border-b pb-2">
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('bold')}
@@ -139,6 +140,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               <Bold className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('italic')}
@@ -148,6 +150,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               <Italic className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => handleFormat('underline')}
@@ -157,6 +160,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               <Underline className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => {
