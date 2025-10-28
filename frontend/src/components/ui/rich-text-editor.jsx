@@ -115,6 +115,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
             {commonSignatureTemplates.map((template) => (
               <Button
                 key={template.name}
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => insertTemplate(template.content)}
