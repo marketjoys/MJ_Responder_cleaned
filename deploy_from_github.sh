@@ -397,77 +397,167 @@ EOF
 }
 
 ################################################################################
-# Function: Start backend services
+# Function: Create systemd service files
 ################################################################################
-start_backend() {
-    print_section "🚀 Starting Backend Services"
+create_systemd_services() {
+    print_section "🔧 Creating Systemd Service Files"
     
-    cd "$BACKEND_DIR"
-    
-    # Activate virtual environment if exists
-    if [ -d "venv" ]; then
-        source venv/bin/activate
+    # Detect Python path
+    if [ -d "$BACKEND_DIR/venv" ]; then
+        PYTHON_PATH="$BACKEND_DIR/venv/bin/python"
+    else
+        PYTHON_PATH=$(which python3)
     fi
     
-    # Create logs directory
-    mkdir -p logs
+    echo -e "${BLUE}Python path: $PYTHON_PATH${NC}"
+    echo -e "${BLUE}Backend directory: $BACKEND_DIR${NC}\n"
     
-    # Kill existing processes
-    pkill -f "start_worker.py" 2>/dev/null || true
-    pkill -f "start_scheduler.py" 2>/dev/null || true
-    pkill -f "uvicorn server:app.*$BACKEND_PORT" 2>/dev/null || true
+    # Create Redis service
+    echo -e "${YELLOW}Creating redis-mj-responder.service...${NC}"
+    sudo tee /etc/systemd/system/redis-mj-responder.service > /dev/null << EOF
+[Unit]
+Description=Redis Server for MJ Responder
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/redis-server --bind 127.0.0.1 --port 6379
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
     
+    # Create RQ Worker service
+    echo -e "${YELLOW}Creating rq-worker-mj-responder.service...${NC}"
+    sudo tee /etc/systemd/system/rq-worker-mj-responder.service > /dev/null << EOF
+[Unit]
+Description=RQ Worker for MJ Responder
+After=redis-mj-responder.service
+Requires=redis-mj-responder.service
+
+[Service]
+Type=simple
+WorkingDirectory=$BACKEND_DIR
+ExecStart=$PYTHON_PATH $BACKEND_DIR/start_worker.py
+Restart=always
+RestartSec=5
+User=root
+Environment="PATH=$BACKEND_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # Create RQ Scheduler service
+    echo -e "${YELLOW}Creating rq-scheduler-mj-responder.service...${NC}"
+    sudo tee /etc/systemd/system/rq-scheduler-mj-responder.service > /dev/null << EOF
+[Unit]
+Description=RQ Scheduler for MJ Responder
+After=redis-mj-responder.service
+Requires=redis-mj-responder.service
+
+[Service]
+Type=simple
+WorkingDirectory=$BACKEND_DIR
+ExecStart=$PYTHON_PATH $BACKEND_DIR/start_scheduler.py
+Restart=always
+RestartSec=5
+User=root
+Environment="PATH=$BACKEND_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # Create Backend service
+    echo -e "${YELLOW}Creating backend-mj-responder.service...${NC}"
+    sudo tee /etc/systemd/system/backend-mj-responder.service > /dev/null << EOF
+[Unit]
+Description=Backend API for MJ Responder
+After=redis-mj-responder.service mongodb.service
+Requires=redis-mj-responder.service
+
+[Service]
+Type=simple
+WorkingDirectory=$BACKEND_DIR
+ExecStart=$PYTHON_PATH -m uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT
+Restart=always
+RestartSec=5
+User=root
+Environment="PATH=$BACKEND_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    echo -e "\n${GREEN}✅ Systemd service files created${NC}"
+    
+    # Reload systemd
+    echo -e "${YELLOW}Reloading systemd daemon...${NC}"
+    sudo systemctl daemon-reload
+    
+    # Enable services to start on boot
+    echo -e "${YELLOW}Enabling services to start on boot...${NC}"
+    sudo systemctl enable redis-mj-responder.service
+    sudo systemctl enable rq-worker-mj-responder.service
+    sudo systemctl enable rq-scheduler-mj-responder.service
+    sudo systemctl enable backend-mj-responder.service
+    
+    echo -e "${GREEN}✅ Services enabled to start on boot${NC}"
+    
+    # Start services
+    echo -e "\n${YELLOW}Starting services...${NC}"
+    sudo systemctl start redis-mj-responder.service
     sleep 2
-    
-    # Start RQ Worker
-    echo -e "${YELLOW}Starting RQ Worker...${NC}"
-    nohup python start_worker.py > logs/rq_worker.log 2>&1 &
-    RQ_WORKER_PID=$!
-    echo -e "${GREEN}✅ RQ Worker started (PID: $RQ_WORKER_PID)${NC}"
-    
-    sleep 2
-    
-    # Start RQ Scheduler
-    echo -e "${YELLOW}Starting RQ Scheduler...${NC}"
-    nohup python start_scheduler.py > logs/rq_scheduler.log 2>&1 &
-    RQ_SCHEDULER_PID=$!
-    echo -e "${GREEN}✅ RQ Scheduler started (PID: $RQ_SCHEDULER_PID)${NC}"
-    
-    sleep 2
-    
-    # Start Backend on localhost only (not exposed publicly)
-    echo -e "${YELLOW}Starting Backend on localhost:$BACKEND_PORT (not publicly exposed)...${NC}"
-    nohup uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT > logs/backend.log 2>&1 &
-    BACKEND_PID=$!
-    echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}"
+    sudo systemctl start rq-worker-mj-responder.service
+    sudo systemctl start rq-scheduler-mj-responder.service
+    sudo systemctl start backend-mj-responder.service
     
     sleep 3
     
-    # Verify services are running
-    echo -e "\n${BLUE}Verifying services...${NC}"
+    # Verify services
+    echo -e "\n${BLUE}Verifying services status...${NC}"
     
-    if pgrep -f "start_worker.py" > /dev/null; then
+    if sudo systemctl is-active --quiet redis-mj-responder.service; then
+        echo -e "${GREEN}✅ Redis is running${NC}"
+    else
+        echo -e "${RED}❌ Redis failed to start${NC}"
+    fi
+    
+    if sudo systemctl is-active --quiet rq-worker-mj-responder.service; then
         echo -e "${GREEN}✅ RQ Worker is running${NC}"
     else
         echo -e "${RED}❌ RQ Worker failed to start${NC}"
     fi
     
-    if pgrep -f "start_scheduler.py" > /dev/null; then
+    if sudo systemctl is-active --quiet rq-scheduler-mj-responder.service; then
         echo -e "${GREEN}✅ RQ Scheduler is running${NC}"
     else
         echo -e "${RED}❌ RQ Scheduler failed to start${NC}"
     fi
     
-    if lsof -i:$BACKEND_PORT > /dev/null 2>&1; then
-        echo -e "${GREEN}✅ Backend is running on port $BACKEND_PORT${NC}"
+    if sudo systemctl is-active --quiet backend-mj-responder.service; then
+        echo -e "${GREEN}✅ Backend is running${NC}"
     else
-        echo -e "${RED}❌ Backend failed to start on port $BACKEND_PORT${NC}"
+        echo -e "${RED}❌ Backend failed to start${NC}"
     fi
     
-    # Save PIDs for later management
-    echo "$RQ_WORKER_PID" > logs/rq_worker.pid
-    echo "$RQ_SCHEDULER_PID" > logs/rq_scheduler.pid
-    echo "$BACKEND_PID" > logs/backend.pid
+    echo -e "\n${BLUE}Service Management Commands:${NC}"
+    echo -e "  Start all:   ${YELLOW}sudo systemctl start redis-mj-responder rq-worker-mj-responder rq-scheduler-mj-responder backend-mj-responder${NC}"
+    echo -e "  Stop all:    ${YELLOW}sudo systemctl stop redis-mj-responder rq-worker-mj-responder rq-scheduler-mj-responder backend-mj-responder${NC}"
+    echo -e "  Status:      ${YELLOW}sudo systemctl status redis-mj-responder rq-worker-mj-responder rq-scheduler-mj-responder backend-mj-responder${NC}"
+    echo -e "  View logs:   ${YELLOW}sudo journalctl -u <service-name> -f${NC}"
+}
+
+################################################################################
+# Function: Start backend services (Legacy - uses systemd now)
+################################################################################
+start_backend() {
+    # This function now calls create_systemd_services instead
+    create_systemd_services
 }
 
 ################################################################################
