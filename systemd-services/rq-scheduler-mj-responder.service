@@ -1,0 +1,16 @@
+[Unit]
+Description=RQ Scheduler for MJ Responder Email Automation
+After=redis-mj-responder.service network.target
+Requires=redis-mj-responder.service
+
+[Service]
+Type=simple
+WorkingDirectory=/app/backend
+ExecStart=/root/.venv/bin/python /app/backend/start_scheduler.py
+Restart=always
+RestartSec=5
+User=root
+Environment="PATH=/root/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
