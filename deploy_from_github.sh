@@ -824,63 +824,91 @@ create_management_scripts() {
     
     cd "$INSTALL_DIR"
     
-    # Create start script
+    # Create start script (systemd version)
     cat > start_services.sh << EOF
 #!/bin/bash
-# Start all services
+# Start all services using systemd
 
-cd "$BACKEND_DIR"
+echo "Starting MJ Responder services..."
+sudo systemctl start redis-mj-responder.service
+sudo systemctl start rq-worker-mj-responder.service
+sudo systemctl start rq-scheduler-mj-responder.service
+sudo systemctl start backend-mj-responder.service
 
-# Activate venv if exists
-[ -d "venv" ] && source venv/bin/activate
+sleep 2
 
-# Start Redis if not running
-redis-cli ping >/dev/null 2>&1 || redis-server --daemonize yes
-
-# Start services
-nohup python start_worker.py > logs/rq_worker.log 2>&1 &
-nohup python start_scheduler.py > logs/rq_scheduler.log 2>&1 &
-nohup uvicorn server:app --host 0.0.0.0 --port $BACKEND_PORT > logs/backend.log 2>&1 &
-
+echo ""
 echo "✅ Services started"
-echo "Backend: http://localhost:$BACKEND_PORT"
+echo ""
+echo "Service Status:"
+sudo systemctl status redis-mj-responder.service --no-pager -l | grep Active
+sudo systemctl status rq-worker-mj-responder.service --no-pager -l | grep Active
+sudo systemctl status rq-scheduler-mj-responder.service --no-pager -l | grep Active
+sudo systemctl status backend-mj-responder.service --no-pager -l | grep Active
 EOF
     
-    # Create stop script
+    # Create stop script (systemd version)
     cat > stop_services.sh << EOF
 #!/bin/bash
-# Stop all services
+# Stop all services using systemd
 
-pkill -f "start_worker.py"
-pkill -f "start_scheduler.py"
-pkill -f "uvicorn server:app.*$BACKEND_PORT"
+echo "Stopping MJ Responder services..."
+sudo systemctl stop backend-mj-responder.service
+sudo systemctl stop rq-scheduler-mj-responder.service
+sudo systemctl stop rq-worker-mj-responder.service
+sudo systemctl stop redis-mj-responder.service
 
 echo "✅ Services stopped"
 EOF
     
-    # Create status script
+    # Create status script (systemd version)
     cat > check_status.sh << EOF
 #!/bin/bash
-# Check services status
+# Check services status using systemd
 
-echo "Services Status:"
-echo "================"
+echo "MJ Responder Services Status:"
+echo "=============================="
+echo ""
+
 echo -n "Redis: "
-redis-cli ping 2>/dev/null || echo "NOT RUNNING"
+if sudo systemctl is-active --quiet redis-mj-responder.service; then
+    echo "✅ RUNNING"
+else
+    echo "❌ NOT RUNNING"
+fi
 
 echo -n "RQ Worker: "
-pgrep -f "start_worker.py" >/dev/null && echo "RUNNING" || echo "NOT RUNNING"
+if sudo systemctl is-active --quiet rq-worker-mj-responder.service; then
+    echo "✅ RUNNING"
+else
+    echo "❌ NOT RUNNING"
+fi
 
 echo -n "RQ Scheduler: "
-pgrep -f "start_scheduler.py" >/dev/null && echo "RUNNING" || echo "NOT RUNNING"
+if sudo systemctl is-active --quiet rq-scheduler-mj-responder.service; then
+    echo "✅ RUNNING"
+else
+    echo "❌ NOT RUNNING"
+fi
 
 echo -n "Backend: "
-lsof -i:$BACKEND_PORT >/dev/null 2>&1 && echo "RUNNING on port $BACKEND_PORT" || echo "NOT RUNNING"
+if sudo systemctl is-active --quiet backend-mj-responder.service; then
+    echo "✅ RUNNING on port $BACKEND_PORT"
+else
+    echo "❌ NOT RUNNING"
+fi
+
+echo ""
+echo "For detailed logs, run:"
+echo "  sudo journalctl -u redis-mj-responder.service -f"
+echo "  sudo journalctl -u rq-worker-mj-responder.service -f"
+echo "  sudo journalctl -u rq-scheduler-mj-responder.service -f"
+echo "  sudo journalctl -u backend-mj-responder.service -f"
 EOF
     
     chmod +x start_services.sh stop_services.sh check_status.sh
     
-    echo -e "${GREEN}✅ Management scripts created${NC}"
+    echo -e "${GREEN}✅ Management scripts created (systemd-based)${NC}"
     echo -e "${BLUE}Start: ./start_services.sh${NC}"
     echo -e "${BLUE}Stop: ./stop_services.sh${NC}"
     echo -e "${BLUE}Status: ./check_status.sh${NC}"
