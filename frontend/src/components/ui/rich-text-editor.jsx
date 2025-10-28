@@ -177,6 +177,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
           {/* Editor Tabs */}
           <div className="flex gap-2 border-b">
             <Button
+              type="button"
               variant={!isEditing ? "default" : "ghost"}
               size="sm"
               onClick={() => handleModeToggle(false)}
@@ -185,6 +186,7 @@ const RichTextEditor = ({ value = "", onChange, placeholder = "Enter text...", c
               Visual
             </Button>
             <Button
+              type="button"
               variant={isEditing ? "default" : "ghost"}
               size="sm"
               onClick={() => handleModeToggle(true)}
