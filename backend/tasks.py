@@ -309,6 +309,16 @@ def schedule_periodic_tasks():
     )
     logger.info("✅ Scheduled: Detect responses (every 5 minutes)")
     
+    # Schedule stuck auto-send email processing every 5 minutes
+    scheduler.schedule(
+        scheduled_time=datetime.utcnow(),
+        func=process_stuck_auto_send_emails_task,
+        interval=300,  # 5 minutes
+        repeat=None,  # Repeat indefinitely
+        result_ttl=3600
+    )
+    logger.info("✅ Scheduled: Process stuck auto-send emails (every 5 minutes)")
+    
     logger.info("🎉 All periodic tasks scheduled successfully!")
 
 
