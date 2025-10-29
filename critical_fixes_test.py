@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Critical Backend Fixes Testing for Email Assistant System
-Tests signature attachment, validation agent updates, automatic response mechanism, and follow-up system
+Critical Fixes Testing for OAuth Email Sending, Meeting Detection, and Threading
+Testing the three specific fixes requested in the review:
+1. OAuth Email Sending (with proper threading)
+2. Meeting Detection and Calendar Event Creation  
+3. Email Threading with proper References and threadId
 """
 import asyncio
 import sys
@@ -27,6 +30,12 @@ BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://component-check-2
 API_BASE = f"{BACKEND_URL}/api"
 MONGO_URL = os.environ['MONGO_URL']
 DB_NAME = os.environ['DB_NAME']
+
+# Test data from review request
+TEST_EMAIL_ID = "0829a464-4f93-4a6b-beca-c2f420f775b1"
+TEST_MEETING_INTENT_ID = "3375f79a-9258-40db-87e1-61e87e96578c"
+TEST_USER_EMAIL = "amits.joys@gmail.com"
+TEST_OAUTH_EMAIL = "sharinara68@gmail.com"
 
 class CriticalFixesTester:
     def __init__(self):
