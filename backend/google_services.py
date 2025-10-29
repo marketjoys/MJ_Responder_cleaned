@@ -101,8 +101,9 @@ class GoogleGmailService:
             return response.json()
     
     async def send_message(self, to_email: str, subject: str, body: str, 
-                          body_html: str = None, in_reply_to: str = None) -> Dict[str, Any]:
-        """Send email through Gmail API"""
+                          body_html: str = None, in_reply_to: str = None, 
+                          references: str = None, thread_id: str = None) -> Dict[str, Any]:
+        """Send email through Gmail API with proper threading support"""
         headers = await self._get_headers()
         
         # Create message
@@ -113,6 +114,12 @@ class GoogleGmailService:
             msg['Subject'] = subject
             if in_reply_to:
                 msg['In-Reply-To'] = in_reply_to
+                # Add References header for proper threading
+                if references:
+                    msg['References'] = references
+                else:
+                    # If no references provided, use in_reply_to as reference
+                    msg['References'] = in_reply_to
             
             # Add text part
             text_part = MIMEText(body, 'plain', 'utf-8')
@@ -127,6 +134,11 @@ class GoogleGmailService:
             msg['Subject'] = subject
             if in_reply_to:
                 msg['In-Reply-To'] = in_reply_to
+                # Add References header for proper threading
+                if references:
+                    msg['References'] = references
+                else:
+                    msg['References'] = in_reply_to
         
         # Encode message
         raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
@@ -134,6 +146,10 @@ class GoogleGmailService:
         message_data = {
             'raw': raw_message
         }
+        
+        # Add threadId if provided for Gmail conversation threading
+        if thread_id:
+            message_data['threadId'] = thread_id
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
