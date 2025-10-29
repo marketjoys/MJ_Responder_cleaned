@@ -207,7 +207,7 @@ class CriticalFixesTester:
         except:
             return "Unable to check threading headers"
     
-    async def test_signature_attachment_bug_fix(self):
+    async def test_2_meeting_detection_and_calendar_creation(self):
         """Test 1: Signature Attachment Bug Fix - HTML conversion and proper formatting"""
         print("\n📝 Testing Signature Attachment Bug Fix...")
         
