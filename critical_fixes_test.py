@@ -144,7 +144,7 @@ class CriticalFixesTester:
             # Check OAuth token exists
             oauth_token = await self.db.oauth_tokens.find_one({
                 "user_id": account.get('user_id'),
-                "email": account.get('oauth_email')
+                "user_email": account.get('oauth_email')
             })
             
             if not oauth_token:
