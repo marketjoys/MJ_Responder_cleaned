@@ -391,17 +391,30 @@ class CriticalFixesTester:
         
         except Exception as e:
             self.log_test_result("OAuth Infrastructure", False, f"Exception: {str(e)}")
-                
-                # Additional detailed logging
-                print(f"   Intent classification: {[i.get('name', 'Unknown') for i in intents[:3]]}")
-                print(f"   Validation status: {processed_email.get('validation_result', {}).get('status', 'None')}")
-                print(f"   Response addresses key points: Urgency={addresses_urgency}, Technical={addresses_technical_issues}, Next steps={provides_next_steps}")
-                
-            else:
-                self.log_test_result("Automatic Response Mechanism", False, f"API call failed: {response.status_code}, Response: {response.text[:200]}")
-                
-        except Exception as e:
-            self.log_test_result("Automatic Response Mechanism", False, f"Exception: {str(e)}")
+    
+    def print_summary(self):
+        """Print test summary"""
+        print("\n" + "="*60)
+        print("CRITICAL FIXES TEST SUMMARY")
+        print("="*60)
+        
+        passed_tests = [r for r in self.test_results if r['passed']]
+        failed_tests = [r for r in self.test_results if not r['passed']]
+        
+        print(f"Total Tests: {len(self.test_results)}")
+        print(f"Passed: {len(passed_tests)}")
+        print(f"Failed: {len(failed_tests)}")
+        print(f"Success Rate: {len(passed_tests)/len(self.test_results)*100:.1f}%")
+        
+        if failed_tests:
+            print("\n❌ FAILED TESTS:")
+            for test in failed_tests:
+                print(f"  - {test['test']}: {test['details']}")
+        
+        if passed_tests:
+            print("\n✅ PASSED TESTS:")
+            for test in passed_tests:
+                print(f"  - {test['test']}: {test['details']}")
     
     async def test_follow_up_system(self):
         """Test 4: Follow-up System - Follow-up email creation and management"""
