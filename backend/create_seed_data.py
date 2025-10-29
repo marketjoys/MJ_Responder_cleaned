@@ -243,7 +243,7 @@ if __name__ == "__main__":
         print("   Please create the user first using create_user.py")
         exit(1)
     
-    user_id = user["user_id"]
+    user_id = user.get("user_id") or user.get("id")
     print(f"👤 Found user: {user['email']} (ID: {user_id})")
     print()
     
