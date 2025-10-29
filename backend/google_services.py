@@ -270,6 +270,13 @@ class GoogleCalendarService:
             # Handle attendees
             if 'attendees' in event_data:
                 google_event['attendees'] = [{'email': email} for email in event_data['attendees']]
+            
+            # Handle reminders
+            if 'reminders' in event_data:
+                google_event['reminders'] = {
+                    'useDefault': False,
+                    'overrides': event_data['reminders']
+                }
         
         async with httpx.AsyncClient() as client:
             # Add sendUpdates parameter to ensure invites are sent
