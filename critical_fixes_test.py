@@ -42,17 +42,51 @@ class CriticalFixesTester:
         self.client = None
         self.db = None
         self.test_results = []
-        self.test_account_id = None
+        self.auth_token = None
+        self.test_user_id = None
         
     async def setup(self):
-        """Setup database connection"""
+        """Setup database connection and authentication"""
         try:
             self.client = AsyncIOMotorClient(MONGO_URL)
             self.db = self.client[DB_NAME]
             print("✅ Database connection established")
+            
+            # Authenticate as the test user
+            await self.authenticate_test_user()
             return True
         except Exception as e:
             print(f"❌ Database connection failed: {str(e)}")
+            return False
+    
+    async def authenticate_test_user(self):
+        """Authenticate as the test user amits.joys@gmail.com"""
+        try:
+            # Try to find the user in database
+            user = await self.db.users.find_one({"email": TEST_USER_EMAIL})
+            if not user:
+                print(f"❌ Test user {TEST_USER_EMAIL} not found in database")
+                return False
+            
+            # Try to login (assuming password is admin123 or similar)
+            login_data = {
+                "email": TEST_USER_EMAIL,
+                "password": "admin123"
+            }
+            
+            response = requests.post(f"{API_BASE}/auth/login", json=login_data, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                self.auth_token = result.get('access_token')
+                self.test_user_id = result.get('user', {}).get('id')
+                print(f"✅ Authenticated as user: {TEST_USER_EMAIL}")
+                return True
+            else:
+                print(f"❌ Authentication failed for {TEST_USER_EMAIL}: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error authenticating test user: {str(e)}")
             return False
     
     async def cleanup(self):
