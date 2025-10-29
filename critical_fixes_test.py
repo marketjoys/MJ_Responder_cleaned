@@ -289,13 +289,9 @@ class CriticalFixesTester:
         except Exception as e:
             self.log_test_result("Meeting Detection & Calendar Creation", False, f"Exception: {str(e)}")
     
-    async def test_validation_agent_update(self):
-        """Test 2: Validation Agent Update - validate_final_email vs validate_draft"""
-        print("\n🔍 Testing Validation Agent Update...")
-        
-        if not self.test_account_id:
-            self.log_test_result("Validation Agent Update", False, "No test account available")
-            return
+    async def test_3_email_threading_verification(self):
+        """TEST 3: Verify threading headers in sent emails"""
+        print("\n🔍 TEST 3: Email Threading Headers Verification...")
         
         try:
             # Test email that should trigger validation
