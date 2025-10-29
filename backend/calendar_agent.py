@@ -100,7 +100,7 @@ class CalendarAgent:
                 detected_location=combined_detection.get('location'),
                 detected_attendees=combined_detection.get('attendees', [sender]),
                 suggested_duration=combined_detection.get('duration', 30),
-                needs_confirmation=combined_detection['confidence'] < 0.8
+                needs_confirmation=combined_detection['confidence'] < 0.7  # Lowered from 0.8 for production
             )
             
         except Exception as e:
