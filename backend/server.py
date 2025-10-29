@@ -2690,17 +2690,31 @@ async def auto_send_email(email_id: str):
                     # Gmail OAuth - use Gmail API
                     gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
                     
+                    # Extract thread_id from email document for proper threading
+                    thread_id = email_doc.get('thread_id', '')
+                    references = email_doc.get('references', '')
+                    message_id = email_doc.get('message_id', '')
+                    
+                    # If no references but have message_id, use message_id as reference
+                    if not references and message_id:
+                        references = message_id
+                    
                     result = await gmail_service.send_message(
                         to_email=sender_email,
                         subject=subject,
                         body=final_body,
                         body_html=final_html if final_html else None,
-                        in_reply_to=email_doc.get('message_id', '')
+                        in_reply_to=message_id,
+                        references=references,
+                        thread_id=thread_id
                     )
                     
-                    if result:
+                    # Gmail API returns dict with 'id' field on success
+                    if result and result.get('id'):
                         success = True
-                        logger.info(f"✅ Sent OAuth email via Gmail API from {oauth_email} to {sender_email}")
+                        logger.info(f"✅ Sent OAuth email via Gmail API from {oauth_email} to {sender_email} (Message ID: {result.get('id')}, Thread ID: {result.get('threadId')})")
+                    else:
+                        logger.error(f"❌ Gmail API returned no message ID for email from {oauth_email}")
                 
                 elif provider in ['outlook', 'microsoft']:
                     # Microsoft OAuth - use Microsoft Graph API
