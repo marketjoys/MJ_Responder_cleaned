@@ -152,6 +152,26 @@ def detect_and_cancel_follow_ups_task():
         return {"status": "error", "error": str(e)}
 
 
+def process_stuck_auto_send_emails_task():
+    """
+    Background task to process stuck ready_to_send emails
+    Runs periodically (every 5 minutes)
+    """
+    logger.info(f"📤 [RQ Task] Processing stuck auto-send emails")
+    
+    try:
+        from server import process_stuck_auto_send_emails_workflow
+        
+        result = run_async_task(process_stuck_auto_send_emails_workflow())
+        
+        logger.info(f"✅ [RQ Task] Stuck emails processed: {result}")
+        return {"status": "success", "result": result}
+    
+    except Exception as e:
+        logger.error(f"❌ [RQ Task] Error processing stuck emails: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
+
 # Queue helper functions
 def enqueue_email_processing(email_id: str, delay: int = 0) -> Job:
     """
