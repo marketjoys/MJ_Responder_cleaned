@@ -2937,29 +2937,17 @@ async def process_email_async(email_id: str):
             logger.error(f"Account not found for email {email_id}")
             return
         
-        # Find user associated with this account (for now, create a default user)
-        user_doc = await db.users.find_one({"email": account_doc["email"]})
+        # Find user associated with this account using account's user_id field
+        # This is the correct way as email accounts are linked to users via user_id
+        user_doc = await db.users.find_one({"id": account_doc["user_id"]})
         if not user_doc:
-            # Create a default user for this email account
-            user_id = str(uuid.uuid4())
-            next_month = datetime.utcnow().replace(day=1) + timedelta(days=32)
-            next_month = next_month.replace(day=1)
-            
-            default_user = {
-                "id": user_id,
-                "email": account_doc["email"],
-                "full_name": account_doc.get("name", ""),
-                "hashed_password": "default",  # This should be set properly
-                "is_active": True,
-                "email_quota": 100,
-                "emails_used": 0,
-                "quota_reset_date": next_month,
-                "timezone": "UTC",
-                "created_at": datetime.utcnow()
-            }
-            
-            await db.users.insert_one(default_user)
-            user_doc = default_user
+            logger.error(f"User not found for email account {email_message.account_id}. User ID: {account_doc['user_id']}")
+            # Update email status to indicate user issue
+            await db.emails.update_one(
+                {"id": email_id},
+                {"$set": {"status": "error", "error": "User not found for email account"}}
+            )
+            return
         
         # Step 1: Check if this is a delivery error - skip processing if so
         if is_bounce_or_delivery_error(email_message):
