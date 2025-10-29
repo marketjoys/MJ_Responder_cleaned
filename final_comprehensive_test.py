@@ -21,7 +21,7 @@ load_dotenv('/app/backend/.env')
 load_dotenv('/app/frontend/.env')
 
 # Configuration
-BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://redis-worker-setup.preview.emergentagent.com')
+BACKEND_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://knowledge-base-init.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 # Expected API Keys from review request

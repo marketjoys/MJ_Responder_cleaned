@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta
 
 # Configuration
-BACKEND_URL = "https://redis-worker-setup.preview.emergentagent.com"
+BACKEND_URL = "https://knowledge-base-init.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_specific_endpoints():

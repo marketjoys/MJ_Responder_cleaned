@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://redis-worker-setup.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://knowledge-base-init.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 async def test_oauth_endpoints():
