@@ -2643,6 +2643,73 @@ async def detect_and_cancel_follow_ups_workflow() -> Dict[str, Any]:
         logger.error(f"Error in detect_and_cancel_follow_ups_workflow: {str(e)}")
         return {"status": "error", "error": str(e)}
 
+
+async def process_stuck_auto_send_emails_workflow() -> Dict[str, Any]:
+    """
+    Workflow function for processing stuck ready_to_send emails (called from RQ task)
+    Handles emails that got stuck in ready_to_send status due to failed auto-send
+    """
+    try:
+        # Find emails stuck in ready_to_send status for more than 5 minutes
+        five_minutes_ago = get_current_utc_time() - timedelta(minutes=5)
+        
+        stuck_emails = await db.emails.find({
+            "status": "ready_to_send",
+            "processed_at": {"$lt": five_minutes_ago}
+        }).to_list(50)
+        
+        logger.info(f"📤 Found {len(stuck_emails)} stuck ready_to_send emails")
+        
+        sent_count = 0
+        failed_count = 0
+        
+        for email_doc in stuck_emails:
+            try:
+                email_id = email_doc['id']
+                account_id = email_doc.get('account_id')
+                
+                # Get account
+                account_doc = await db.email_accounts.find_one({"id": account_id})
+                
+                # Check if account is still active and has auto_send enabled
+                if not account_doc or not account_doc.get('is_active'):
+                    logger.info(f"⏭️ Skipping {email_id} - account inactive")
+                    continue
+                
+                if not account_doc.get('auto_send', True):
+                    logger.info(f"⏭️ Skipping {email_id} - auto_send disabled")
+                    continue
+                
+                # Attempt to send
+                logger.info(f"🔄 Retrying stuck email: {email_id}")
+                await auto_send_email(email_id)
+                
+                # Check if it was sent successfully
+                updated_email = await db.emails.find_one({"id": email_id})
+                if updated_email and updated_email['status'] == 'sent':
+                    sent_count += 1
+                    logger.info(f"✅ Successfully sent stuck email: {email_id}")
+                else:
+                    failed_count += 1
+                    logger.warning(f"⚠️ Failed to send stuck email: {email_id}")
+                    
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"❌ Error processing stuck email {email_doc.get('id')}: {str(e)}")
+        
+        result = {
+            "total_stuck": len(stuck_emails),
+            "sent": sent_count,
+            "failed": failed_count
+        }
+        
+        logger.info(f"✅ Stuck email processing complete: {result}")
+        return {"status": "success", "result": result}
+        
+    except Exception as e:
+        logger.error(f"Error in process_stuck_auto_send_emails_workflow: {str(e)}")
+        return {"status": "error", "error": str(e)}
+
 # ============================================================================
 
 async def auto_send_email(email_id: str):
