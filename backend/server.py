@@ -3500,8 +3500,8 @@ async def handle_google_oauth_callback(code: str, state: str):
                         signature='',
                         persona='',
                         is_active=True,
-                        auto_send=False,
-                        enable_follow_ups=False,
+                        auto_send=True,  # Enable auto-send by default for production
+                        enable_follow_ups=True,  # Enable follow-ups by default
                         follow_up_hours_override=None,
                         max_follow_ups_override=None,
                         custom_follow_up_template=None,
@@ -3842,8 +3842,8 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
                         signature='',
                         persona='',
                         is_active=True,
-                        auto_send=False,
-                        enable_follow_ups=False,
+                        auto_send=True,  # Enable auto-send by default for production
+                        enable_follow_ups=True,  # Enable follow-ups by default
                         follow_up_hours_override=None,
                         max_follow_ups_override=None,
                         custom_follow_up_template=None,
