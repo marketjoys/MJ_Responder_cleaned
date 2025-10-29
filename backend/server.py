@@ -2757,8 +2757,7 @@ async def auto_send_email(email_id: str):
                     # Gmail OAuth - use Gmail API
                     gmail_service = await get_google_gmail_service(account_doc['user_id'], oauth_email)
                     
-                    # Extract thread_id from email document for proper threading
-                    thread_id = email_doc.get('thread_id', '')
+                    # Get threading info from email document
                     references = email_doc.get('references', '')
                     message_id = email_doc.get('message_id', '')
                     
@@ -2766,6 +2765,7 @@ async def auto_send_email(email_id: str):
                     if not references and message_id:
                         references = message_id
                     
+                    # Don't pass custom thread_id - let Gmail handle threading via In-Reply-To/References headers
                     result = await gmail_service.send_message(
                         to_email=sender_email,
                         subject=subject,
@@ -2773,7 +2773,7 @@ async def auto_send_email(email_id: str):
                         body_html=final_html if final_html else None,
                         in_reply_to=message_id,
                         references=references,
-                        thread_id=thread_id
+                        thread_id=None  # Let Gmail handle threading automatically
                     )
                     
                     # Gmail API returns dict with 'id' field on success
