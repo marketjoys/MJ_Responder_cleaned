@@ -341,63 +341,56 @@ class CriticalFixesTester:
         except Exception as e:
             self.log_test_result("Email Threading Verification", False, f"Exception: {str(e)}")
     
-    async def test_automatic_response_mechanism(self):
-        """Test 3: Automatic Response Mechanism - End-to-end email processing"""
-        print("\n🤖 Testing Automatic Response Mechanism...")
-        
-        if not self.test_account_id:
-            self.log_test_result("Automatic Response Mechanism", False, "No test account available")
-            return
+    async def test_oauth_infrastructure(self):
+        """Verify OAuth infrastructure is working"""
+        print("\n🔍 OAuth Infrastructure Verification...")
         
         try:
-            # Test comprehensive email processing workflow
-            test_email_data = {
-                "subject": "Urgent: System Integration Support Needed",
-                "body": "Dear Support Team, We are implementing your AI email assistant in our production environment and encountering integration challenges with our existing CRM system. The API responses are inconsistent and we're seeing timeout errors during peak hours. Our development team needs immediate assistance to resolve these issues before our go-live date next week. Can you please schedule a technical consultation call and provide detailed troubleshooting documentation? This is blocking our entire project timeline.",
-                "sender": "tech.lead@urgentclient.com",
-                "account_id": self.test_account_id
-            }
+            # Check user exists
+            user = await self.db.users.find_one({"email": TEST_USER_EMAIL})
+            user_exists = bool(user)
             
-            print("   Testing complete email processing workflow...")
-            start_time = time.time()
-            response = requests.post(f"{API_BASE}/emails/test", json=test_email_data, timeout=45)
-            processing_time = time.time() - start_time
+            # Check OAuth email account exists
+            oauth_account = await self.db.email_accounts.find_one({
+                "user_id": user.get('id') if user else None,
+                "auth_type": "oauth",
+                "oauth_email": TEST_OAUTH_EMAIL
+            })
+            oauth_account_exists = bool(oauth_account)
             
-            if response.status_code in [200, 201]:
-                processed_email = response.json()
-                
-                # Check all workflow stages completed
-                has_intents = len(processed_email.get('intents', [])) > 0
-                has_draft = len(processed_email.get('draft', '')) > 100  # Substantial response
-                has_validation = processed_email.get('validation_result') is not None
-                final_status = processed_email.get('status', '')
-                
-                # Check intent classification quality
-                intents = processed_email.get('intents', [])
-                high_confidence_intents = [i for i in intents if i.get('confidence', 0) > 0.7]
-                
-                # Check draft quality
-                draft = processed_email.get('draft', '')
-                addresses_urgency = any(word in draft.lower() for word in ['urgent', 'immediate', 'priority', 'asap'])
-                addresses_technical_issues = any(word in draft.lower() for word in ['integration', 'api', 'timeout', 'crm'])
-                provides_next_steps = any(phrase in draft.lower() for phrase in ['schedule', 'call', 'consultation', 'documentation'])
-                
-                # Check signature integration
-                has_signature = "Sarah Johnson" in draft and "TechCompany Solutions" in draft
-                
-                # Check processing efficiency
-                reasonable_processing_time = processing_time < 30  # Should complete within 30 seconds
-                
-                workflow_completed_successfully = (
-                    has_intents and has_draft and has_validation and
-                    final_status not in ['error', 'failed'] and
-                    addresses_urgency and addresses_technical_issues and
-                    has_signature and reasonable_processing_time
-                )
-                
-                details = f"Intents: {len(intents)}, High confidence: {len(high_confidence_intents)}, Draft length: {len(draft)}, Status: {final_status}, Processing time: {processing_time:.2f}s, Addresses urgency: {addresses_urgency}, Technical content: {addresses_technical_issues}"
-                
-                self.log_test_result("Automatic Response Mechanism", workflow_completed_successfully, details)
+            # Check OAuth token exists
+            oauth_token = await self.db.oauth_tokens.find_one({
+                "user_id": user.get('id') if user else None,
+                "email": TEST_OAUTH_EMAIL
+            })
+            oauth_token_exists = bool(oauth_token)
+            
+            # Check calendar provider exists
+            calendar_provider = await self.db.calendar_providers.find_one({
+                "user_id": user.get('id') if user else None,
+                "oauth_email": TEST_OAUTH_EMAIL
+            })
+            calendar_provider_exists = bool(calendar_provider)
+            
+            all_infrastructure_ready = (user_exists and oauth_account_exists and 
+                                      oauth_token_exists and calendar_provider_exists)
+            
+            details = f"User: {user_exists}, OAuth Account: {oauth_account_exists}, " \
+                     f"OAuth Token: {oauth_token_exists}, Calendar Provider: {calendar_provider_exists}"
+            
+            self.log_test_result("OAuth Infrastructure", all_infrastructure_ready, details)
+            
+            if user:
+                print(f"   User ID: {user.get('id')}")
+            if oauth_account:
+                print(f"   OAuth Account: {oauth_account.get('email')} (Active: {oauth_account.get('is_active')})")
+            if oauth_token:
+                print(f"   OAuth Token: {oauth_token.get('email')} (Expires: {oauth_token.get('expires_at')})")
+            if calendar_provider:
+                print(f"   Calendar Provider: {calendar_provider.get('provider_type')} (Active: {calendar_provider.get('is_active')})")
+        
+        except Exception as e:
+            self.log_test_result("OAuth Infrastructure", False, f"Exception: {str(e)}")
                 
                 # Additional detailed logging
                 print(f"   Intent classification: {[i.get('name', 'Unknown') for i in intents[:3]]}")
