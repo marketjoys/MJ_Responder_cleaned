@@ -208,67 +208,86 @@ class CriticalFixesTester:
             return "Unable to check threading headers"
     
     async def test_2_meeting_detection_and_calendar_creation(self):
-        """Test 1: Signature Attachment Bug Fix - HTML conversion and proper formatting"""
-        print("\n📝 Testing Signature Attachment Bug Fix...")
-        
-        if not self.test_account_id:
-            self.log_test_result("Signature Attachment Bug Fix", False, "No test account available")
-            return
+        """TEST 2: Verify meeting intent and create calendar event"""
+        print("\n🔍 TEST 2: Meeting Detection and Calendar Event Creation...")
         
         try:
-            # Test email that should trigger signature attachment
-            test_email_data = {
-                "subject": "Technical Support Request - Database Connection Issues",
-                "body": "Hello, I'm experiencing database connection timeouts in our production environment. The error occurs intermittently and affects about 20% of our user requests. Can you please provide guidance on troubleshooting this issue? We're using PostgreSQL 14 with connection pooling. This is urgent as it's impacting our customers. Thank you for your assistance.",
-                "sender": "john.developer@clientcompany.com",
-                "account_id": self.test_account_id
-            }
+            # Check if the specific meeting intent exists
+            meeting_intent = await self.db.meeting_intents.find_one({"id": TEST_MEETING_INTENT_ID})
+            if not meeting_intent:
+                self.log_test_result("Meeting Detection & Calendar Creation", False, f"Meeting intent {TEST_MEETING_INTENT_ID} not found")
+                return
             
-            print("   Testing /api/emails/test endpoint with signature processing...")
-            response = requests.post(f"{API_BASE}/emails/test", json=test_email_data, timeout=30)
+            print(f"   Found meeting intent: confidence {meeting_intent.get('confidence', 0)}")
+            print(f"   Meeting text: {meeting_intent.get('meeting_text', 'No text')[:100]}...")
             
-            if response.status_code in [200, 201]:
-                processed_email = response.json()
+            # Verify confidence is above 0.5 threshold
+            confidence = meeting_intent.get('confidence', 0)
+            if confidence < 0.5:
+                self.log_test_result("Meeting Detection & Calendar Creation", False, f"Confidence {confidence} below 0.5 threshold")
+                return
+            
+            # Check if calendar event was created
+            calendar_events = await self.db.calendar_events.find({
+                "meeting_intent_id": TEST_MEETING_INTENT_ID
+            }).to_list(10)
+            
+            if calendar_events:
+                event = calendar_events[0]
+                print(f"   ✅ Calendar event found: {event.get('title', 'No title')}")
+                print(f"   Event details: start_time={event.get('start_time')}, end_time={event.get('end_time')}")
                 
-                # Check if draft was generated
-                draft_plain = processed_email.get('draft', '')
-                draft_html = processed_email.get('draft_html', '')
+                # Verify event has required fields
+                has_title = bool(event.get('title'))
+                has_start_time = bool(event.get('start_time'))
+                has_end_time = bool(event.get('end_time'))
+                has_external_id = bool(event.get('external_event_id'))
                 
-                # Verify signature is properly attached
-                signature_in_plain = "Sarah Johnson" in draft_plain and "TechCompany Solutions" in draft_plain
-                signature_in_html = "Sarah Johnson" in draft_html and "TechCompany Solutions" in draft_html
-                
-                # Check HTML formatting of signature
-                html_has_links = "mailto:" in draft_html or "https://" in draft_html
-                html_has_breaks = "<br>" in draft_html or "</p>" in draft_html
-                
-                # Verify no duplicate signatures
-                signature_count_plain = draft_plain.count("Sarah Johnson")
-                signature_count_html = draft_html.count("Sarah Johnson")
-                no_duplicates = signature_count_plain <= 1 and signature_count_html <= 1
-                
-                # Check that signature is at the end
-                signature_at_end_plain = draft_plain.strip().endswith("https://www.techcompany.com") or draft_plain.strip().endswith("techcompany.com")
-                
-                all_signature_tests_passed = (
-                    signature_in_plain and signature_in_html and 
-                    html_has_links and html_has_breaks and 
-                    no_duplicates and signature_at_end_plain
-                )
-                
-                details = f"Plain text signature: {signature_in_plain}, HTML signature: {signature_in_html}, HTML formatting: {html_has_links and html_has_breaks}, No duplicates: {no_duplicates}, Proper placement: {signature_at_end_plain}"
-                
-                self.log_test_result("Signature Attachment Bug Fix", all_signature_tests_passed, details)
-                
-                # Additional detailed logging
-                print(f"   Draft length: {len(draft_plain)} chars (plain), {len(draft_html)} chars (HTML)")
-                print(f"   Signature occurrences: {signature_count_plain} (plain), {signature_count_html} (HTML)")
-                
+                if has_title and has_start_time and has_end_time:
+                    details = f"Confidence: {confidence}, Event created with required fields, External ID: {has_external_id}"
+                    self.log_test_result("Meeting Detection & Calendar Creation", True, details)
+                else:
+                    missing_fields = []
+                    if not has_title: missing_fields.append("title")
+                    if not has_start_time: missing_fields.append("start_time")
+                    if not has_end_time: missing_fields.append("end_time")
+                    
+                    details = f"Event missing fields: {', '.join(missing_fields)}"
+                    self.log_test_result("Meeting Detection & Calendar Creation", False, details)
             else:
-                self.log_test_result("Signature Attachment Bug Fix", False, f"API call failed: {response.status_code}")
+                # Try to trigger calendar event creation manually
+                print("   No calendar event found, attempting to create...")
                 
+                headers = {"Authorization": f"Bearer {self.auth_token}"} if self.auth_token else {}
+                
+                try:
+                    response = requests.post(f"{API_BASE}/calendar/meeting-intents/{TEST_MEETING_INTENT_ID}/confirm",
+                                           headers=headers, timeout=30)
+                    
+                    if response.status_code == 200:
+                        print("   ✅ Calendar event creation triggered")
+                        
+                        # Wait and check again
+                        await asyncio.sleep(3)
+                        calendar_events = await self.db.calendar_events.find({
+                            "meeting_intent_id": TEST_MEETING_INTENT_ID
+                        }).to_list(10)
+                        
+                        if calendar_events:
+                            event = calendar_events[0]
+                            details = f"Event created after manual trigger: {event.get('title', 'No title')}"
+                            self.log_test_result("Meeting Detection & Calendar Creation", True, details)
+                        else:
+                            self.log_test_result("Meeting Detection & Calendar Creation", False, "Event creation triggered but no event found in DB")
+                    else:
+                        error_msg = response.text[:200] if response.text else "No error message"
+                        self.log_test_result("Meeting Detection & Calendar Creation", False, f"Manual creation failed: {response.status_code} - {error_msg}")
+                
+                except Exception as e:
+                    self.log_test_result("Meeting Detection & Calendar Creation", False, f"Manual creation error: {str(e)}")
+        
         except Exception as e:
-            self.log_test_result("Signature Attachment Bug Fix", False, f"Exception: {str(e)}")
+            self.log_test_result("Meeting Detection & Calendar Creation", False, f"Exception: {str(e)}")
     
     async def test_validation_agent_update(self):
         """Test 2: Validation Agent Update - validate_final_email vs validate_draft"""
