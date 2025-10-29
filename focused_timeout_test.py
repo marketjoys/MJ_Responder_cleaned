@@ -7,7 +7,7 @@ import time
 import json
 
 # Configuration
-BACKEND_URL = "https://knowledge-base-init.preview.emergentagent.com"
+BACKEND_URL = "https://component-check-2.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_api_timeout_fix():
