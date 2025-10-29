@@ -390,8 +390,15 @@ EMAIL TO ANALYZE:
                 return None
             
             # Check user quota
-            user = await db.users.find_one({"id": user_id})
-            if not user or not await check_email_quota(user):
+            user_data = await db.users.find_one({"id": user_id})
+            if not user_data:
+                logger.warning(f"User {user_id} not found")
+                return None
+            
+            # Convert dict to User object for quota check
+            from auth import User
+            user_obj = User(**user_data)
+            if not await check_email_quota(user_obj):
                 logger.warning(f"User {user_id} exceeded email quota")
                 return None
             
