@@ -7,7 +7,7 @@ import time
 import json
 
 # Configuration
-BACKEND_URL = "https://redis-rq-setup.preview.emergentagent.com"
+BACKEND_URL = "https://codebase-sync-33.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 def test_api_timeout_fix():
