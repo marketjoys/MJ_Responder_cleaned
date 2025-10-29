@@ -272,8 +272,9 @@ class GoogleCalendarService:
                 google_event['attendees'] = [{'email': email} for email in event_data['attendees']]
         
         async with httpx.AsyncClient() as client:
+            # Add sendUpdates parameter to ensure invites are sent
             response = await client.post(
-                f"{self.base_url}/calendars/{calendar_id}/events",
+                f"{self.base_url}/calendars/{calendar_id}/events?sendUpdates=all",
                 headers=headers,
                 json=google_event
             )
