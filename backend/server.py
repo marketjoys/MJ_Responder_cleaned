@@ -2988,9 +2988,9 @@ async def process_email_async(email_id: str):
                     # Add meeting confirmation to intents for better response generation
                     meeting_intent = {
                         "name": "Meeting Confirmation",
-                        "description": "Confirm meeting details and provide clear next steps",
+                        "description": "Confirm meeting details naturally",
                         "confidence": 0.95,
-                        "system_prompt": "Include meeting confirmation details with date, time, and any relevant logistics in the response."
+                        "system_prompt": "Naturally confirm that you'll send a calendar invite with the meeting details. Keep it warm and conversational - write like a real person confirming a meeting with a colleague. For example: 'I'll send you a calendar invite for [date/time]' or 'Perfect! I've got you on the calendar for [details]'. Never mention 'calendar agent' or automated systems."
                     }
                     intents.append(meeting_intent)
                     
