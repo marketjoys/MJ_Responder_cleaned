@@ -987,6 +987,8 @@ class EmailPollingService:
                 body=email_data['body'],
                 body_html=email_data['body_html'],
                 received_at=email_data['received_at'],
+                in_reply_to=email_data.get('in_reply_to', ''),
+                references=email_data.get('references', ''),
                 status="new"
             )
             
