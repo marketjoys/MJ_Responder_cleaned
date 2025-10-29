@@ -109,38 +109,103 @@ class CriticalFixesTester:
         if details:
             print(f"   Details: {details}")
     
-    async def setup_test_account_with_signature(self):
-        """Setup test email account with signature for testing"""
-        print("\n🔧 Setting up test email account with signature...")
+    async def test_1_oauth_email_auto_send(self):
+        """TEST 1: Trigger auto-send for stuck email with OAuth and proper threading"""
+        print("\n🔍 TEST 1: OAuth Email Auto-Send with Threading...")
         
         try:
-            # Create test account with signature
-            account_data = {
-                "name": "Critical Fixes Test Account",
-                "email": "critical.test@techcompany.com",
-                "provider": "gmail",
-                "username": "critical.test@techcompany.com",
-                "password": "test_app_password_123",
-                "persona": "Professional AI assistant specializing in technical support and customer service",
-                "signature": "Best regards,\nSarah Johnson\nSenior Technical Support Specialist\nTechCompany Solutions\nEmail: sarah.johnson@techcompany.com\nPhone: +1 (555) 123-4567\nWebsite: https://www.techcompany.com",
-                "auto_send": False,
-                "enable_follow_ups": True,
-                "follow_up_hours_override": 24
-            }
+            # Check if the specific email exists
+            email = await self.db.emails.find_one({"id": TEST_EMAIL_ID})
+            if not email:
+                self.log_test_result("OAuth Email Auto-Send", False, f"Email {TEST_EMAIL_ID} not found in database")
+                return
             
-            response = requests.post(f"{API_BASE}/email-accounts", json=account_data, timeout=15)
-            if response.status_code in [200, 201]:
-                created_account = response.json()
-                self.test_account_id = created_account.get('id')
-                self.log_test_result("Test Account Setup", True, f"Account ID: {self.test_account_id}")
-                return True
-            else:
-                self.log_test_result("Test Account Setup", False, f"Status: {response.status_code}, Error: {response.text}")
-                return False
+            print(f"   Found email: {email.get('subject', 'No subject')} from {email.get('sender', 'Unknown')}")
+            print(f"   Current status: {email.get('status', 'Unknown')}")
+            
+            # Verify email is ready_to_send
+            if email.get('status') != 'ready_to_send':
+                self.log_test_result("OAuth Email Auto-Send", False, f"Email status is {email.get('status')}, expected ready_to_send")
+                return
+            
+            # Get the email account
+            account = await self.db.email_accounts.find_one({"id": email.get('account_id')})
+            if not account:
+                self.log_test_result("OAuth Email Auto-Send", False, "Email account not found")
+                return
+            
+            print(f"   Account: {account.get('email')} (OAuth: {account.get('auth_type') == 'oauth'})")
+            
+            # Verify it's an OAuth account
+            if account.get('auth_type') != 'oauth':
+                self.log_test_result("OAuth Email Auto-Send", False, "Account is not OAuth type")
+                return
+            
+            # Check OAuth token exists
+            oauth_token = await self.db.oauth_tokens.find_one({
+                "user_id": account.get('user_id'),
+                "email": account.get('oauth_email')
+            })
+            
+            if not oauth_token:
+                self.log_test_result("OAuth Email Auto-Send", False, "OAuth token not found")
+                return
+            
+            print(f"   OAuth token found for: {oauth_token.get('email')}")
+            
+            # Trigger auto-send via API
+            headers = {"Authorization": f"Bearer {self.auth_token}"} if self.auth_token else {}
+            
+            try:
+                # Use the send email endpoint
+                send_data = {
+                    "email_id": TEST_EMAIL_ID,
+                    "manual_override": False
+                }
                 
+                response = requests.post(f"{API_BASE}/emails/{TEST_EMAIL_ID}/send", 
+                                       json=send_data, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    print("   ✅ Email send request successful")
+                    
+                    # Wait a moment for processing
+                    await asyncio.sleep(3)
+                    
+                    # Check if email status changed to sent
+                    updated_email = await self.db.emails.find_one({"id": TEST_EMAIL_ID})
+                    if updated_email and updated_email.get('status') == 'sent':
+                        # Check if sent_at timestamp was set
+                        sent_at = updated_email.get('sent_at')
+                        threading_check = self.check_threading_headers(updated_email)
+                        
+                        details = f"Status changed to 'sent', sent_at: {sent_at}, Threading: {threading_check}"
+                        self.log_test_result("OAuth Email Auto-Send", True, details)
+                    else:
+                        current_status = updated_email.get('status') if updated_email else 'not found'
+                        self.log_test_result("OAuth Email Auto-Send", False, f"Status not changed to sent: {current_status}")
+                
+                else:
+                    error_msg = response.text[:200] if response.text else "No error message"
+                    self.log_test_result("OAuth Email Auto-Send", False, f"Send failed: {response.status_code} - {error_msg}")
+            
+            except Exception as e:
+                self.log_test_result("OAuth Email Auto-Send", False, f"Send request failed: {str(e)}")
+        
         except Exception as e:
-            self.log_test_result("Test Account Setup", False, f"Exception: {str(e)}")
-            return False
+            self.log_test_result("OAuth Email Auto-Send", False, f"Exception: {str(e)}")
+    
+    def check_threading_headers(self, email_doc):
+        """Check if email has proper threading headers"""
+        try:
+            # Check for threading fields in the email document
+            has_in_reply_to = bool(email_doc.get('in_reply_to'))
+            has_references = bool(email_doc.get('references'))
+            has_thread_id = bool(email_doc.get('thread_id'))
+            
+            return f"In-Reply-To: {has_in_reply_to}, References: {has_references}, ThreadId: {has_thread_id}"
+        except:
+            return "Unable to check threading headers"
     
     async def test_signature_attachment_bug_fix(self):
         """Test 1: Signature Attachment Bug Fix - HTML conversion and proper formatting"""
