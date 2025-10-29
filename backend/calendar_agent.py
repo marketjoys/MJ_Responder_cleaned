@@ -500,7 +500,7 @@ EMAIL TO ANALYZE:
                 ]
             }
             
-            # Create the event
+            # Create the event in external calendar (Google/Microsoft)
             event_response = await calendar_service.create_event(
                 default_provider["id"],
                 default_calendar['id'],
@@ -509,6 +509,36 @@ EMAIL TO ANALYZE:
             )
             
             logger.info(f"Created calendar event: {event_response.id}")
+            
+            # CRITICAL FIX: Store event in calendar_events collection for tracking
+            calendar_event_doc = {
+                'id': str(uuid.uuid4()),
+                'user_id': user_id,
+                'provider_id': default_provider["id"],
+                'calendar_id': default_calendar['id'],
+                'external_event_id': event_response.id,  # ID from Google/Microsoft
+                'meeting_intent_id': meeting_intent.id,
+                'thread_id': meeting_intent.thread_id,
+                'title': meeting_intent.detected_title or "Meeting",
+                'description': event_data.get('description', ''),
+                'start_time': start_time,
+                'end_time': end_time,
+                'timezone': meeting_intent.detected_timezone or "UTC",
+                'location': meeting_intent.detected_location or "",
+                'attendees': meeting_intent.detected_attendees,
+                'status': 'confirmed',
+                'reminder_sent': False,
+                'created_at': datetime.now(timezone.utc),
+                'updated_at': datetime.now(timezone.utc)
+            }
+            
+            try:
+                await db.calendar_events.insert_one(calendar_event_doc)
+                logger.info(f"✅ Stored calendar event in DB: {calendar_event_doc['id']}")
+            except Exception as db_error:
+                logger.error(f"❌ Failed to store calendar event in DB: {db_error}")
+                # Don't fail the whole operation, event is still created externally
+            
             return event_response.id
             
         except Exception as e:
