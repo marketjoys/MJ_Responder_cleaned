@@ -294,64 +294,52 @@ class CriticalFixesTester:
         print("\n🔍 TEST 3: Email Threading Headers Verification...")
         
         try:
-            # Test email that should trigger validation
-            test_email_data = {
-                "subject": "Product Inquiry - Enterprise License Pricing",
-                "body": "Hi there, I'm interested in your enterprise AI email assistant solution for our company of 500+ employees. Could you please provide detailed pricing information, implementation timeline, and available support options? We need to make a decision by next month. Also, do you offer custom integrations with Salesforce and HubSpot?",
-                "sender": "procurement@enterprise.com",
-                "account_id": self.test_account_id
-            }
+            # Get the test email again to check final state
+            email = await self.db.emails.find_one({"id": TEST_EMAIL_ID})
+            if not email:
+                self.log_test_result("Email Threading Verification", False, f"Email {TEST_EMAIL_ID} not found")
+                return
             
-            print("   Testing validation of final email (draft + signature)...")
-            response = requests.post(f"{API_BASE}/emails/test", json=test_email_data, timeout=30)
+            print(f"   Email status: {email.get('status', 'Unknown')}")
             
-            if response.status_code in [200, 201]:
-                processed_email = response.json()
-                
-                # Check validation result
-                validation_result = processed_email.get('validation_result', {})
-                validation_status = validation_result.get('status', 'NONE')
-                validation_feedback = validation_result.get('feedback', '')
-                
-                # Verify validation was performed
-                validation_performed = validation_status in ['PASS', 'FAIL', 'NEEDS_IMPROVEMENT']
-                
-                # Check if validation considered the final email (should mention signature or final content)
-                validation_considers_signature = (
-                    'signature' in validation_feedback.lower() or 
-                    'final email' in validation_feedback.lower() or
-                    'complete response' in validation_feedback.lower()
-                )
-                
-                # Verify validation provides meaningful feedback
-                meaningful_feedback = len(validation_feedback) > 50
-                
-                # Check that validation result affects email status
-                email_status = processed_email.get('status', '')
-                status_reflects_validation = (
-                    (validation_status == 'PASS' and email_status in ['ready_to_send', 'sent']) or
-                    (validation_status in ['FAIL', 'NEEDS_IMPROVEMENT'] and email_status in ['needs_redraft', 'error'])
-                )
-                
-                all_validation_tests_passed = (
-                    validation_performed and meaningful_feedback and 
-                    (validation_considers_signature or validation_status == 'PASS')
-                )
-                
-                details = f"Validation performed: {validation_performed}, Status: {validation_status}, Considers final email: {validation_considers_signature}, Meaningful feedback: {meaningful_feedback}"
-                
-                self.log_test_result("Validation Agent Update", all_validation_tests_passed, details)
-                
-                # Additional logging
-                print(f"   Validation status: {validation_status}")
-                print(f"   Email final status: {email_status}")
-                print(f"   Feedback length: {len(validation_feedback)} chars")
-                
+            # Check threading headers
+            in_reply_to = email.get('in_reply_to', '')
+            references = email.get('references', '')
+            thread_id = email.get('thread_id', '')
+            message_id = email.get('message_id', '')
+            
+            print(f"   In-Reply-To: {in_reply_to[:50]}..." if in_reply_to else "   In-Reply-To: Not set")
+            print(f"   References: {references[:50]}..." if references else "   References: Not set")
+            print(f"   Thread ID: {thread_id}")
+            print(f"   Message ID: {message_id}")
+            
+            # For OAuth/Gmail API, check if threadId parameter would be included
+            has_proper_threading = bool(in_reply_to) and bool(thread_id)
+            
+            if email.get('status') == 'sent':
+                # Check if the email was sent with proper threading
+                if has_proper_threading:
+                    details = f"Sent with threading - In-Reply-To: {bool(in_reply_to)}, References: {bool(references)}, ThreadId: {bool(thread_id)}"
+                    self.log_test_result("Email Threading Verification", True, details)
+                else:
+                    missing = []
+                    if not in_reply_to: missing.append("In-Reply-To")
+                    if not references: missing.append("References")
+                    if not thread_id: missing.append("ThreadId")
+                    
+                    details = f"Email sent but missing threading headers: {', '.join(missing)}"
+                    self.log_test_result("Email Threading Verification", False, details)
             else:
-                self.log_test_result("Validation Agent Update", False, f"API call failed: {response.status_code}")
-                
+                # Email not sent yet, check if threading headers are prepared
+                if has_proper_threading:
+                    details = f"Threading headers prepared - In-Reply-To: {bool(in_reply_to)}, ThreadId: {bool(thread_id)}"
+                    self.log_test_result("Email Threading Verification", True, details)
+                else:
+                    details = f"Email not sent and threading headers not properly set"
+                    self.log_test_result("Email Threading Verification", False, details)
+        
         except Exception as e:
-            self.log_test_result("Validation Agent Update", False, f"Exception: {str(e)}")
+            self.log_test_result("Email Threading Verification", False, f"Exception: {str(e)}")
     
     async def test_automatic_response_mechanism(self):
         """Test 3: Automatic Response Mechanism - End-to-end email processing"""
