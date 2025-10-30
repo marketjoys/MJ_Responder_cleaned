@@ -817,6 +817,93 @@ async def get_all_calendars(current_user: User = Depends(get_current_active_user
             detail=f"Failed to retrieve calendars: {str(e)}"
         )
 
+@api_router.get("/calendar/events")
+async def get_all_calendar_events(
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all calendar events from all providers and calendars"""
+    
+    try:
+        all_events = []
+        
+        # Get all active calendar providers for user
+        providers = await db.calendar_providers.find({
+            "user_id": current_user.id,
+            "is_active": True
+        }).to_list(100)
+        
+        if not providers:
+            return []
+        
+        # Fetch events from each provider's calendars
+        for provider in providers:
+            try:
+                service = await calendar_service.get_service(provider["id"], current_user.id)
+                calendars = await service.get_calendars()
+                
+                for calendar in calendars:
+                    try:
+                        events = await calendar_service.get_events(
+                            provider["id"],
+                            calendar['id'],
+                            start_time,
+                            end_time,
+                            100,
+                            current_user.id
+                        )
+                        
+                        # Add provider and calendar info to each event
+                        for event in events:
+                            event_dict = event.dict() if hasattr(event, 'dict') else event
+                            event_dict['provider_id'] = provider["id"]
+                            event_dict['provider_name'] = provider.get("provider_name", "")
+                            event_dict['calendar_id'] = calendar['id']
+                            event_dict['calendar_name'] = calendar.get('name', '')
+                            all_events.append(event_dict)
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch events from calendar {calendar.get('id')}: {e}")
+                        continue
+            except Exception as e:
+                logger.warning(f"Failed to fetch events from provider {provider.get('id')}: {e}")
+                continue
+        
+        # Also fetch events from database (calendar_events collection)
+        db_events = await db.calendar_events.find({
+            "user_id": current_user.id
+        }).to_list(1000)
+        
+        for db_event in db_events:
+            # Check if this event is already in the list (by external_event_id)
+            external_id = db_event.get('external_event_id')
+            if external_id and not any(e.get('id') == external_id for e in all_events):
+                # Add DB event if not already present
+                all_events.append({
+                    'id': db_event.get('external_event_id') or db_event.get('id'),
+                    'title': db_event.get('title'),
+                    'description': db_event.get('description', ''),
+                    'start_time': db_event.get('start_time'),
+                    'end_time': db_event.get('end_time'),
+                    'timezone': db_event.get('timezone', 'UTC'),
+                    'location': db_event.get('location', ''),
+                    'attendees': db_event.get('attendees', []),
+                    'reminders': db_event.get('reminders', []),
+                    'provider_id': db_event.get('provider_id', ''),
+                    'calendar_id': db_event.get('calendar_id', ''),
+                    'meeting_intent_id': db_event.get('meeting_intent_id'),
+                    'source': 'database'
+                })
+        
+        return all_events
+        
+    except Exception as e:
+        logger.error(f"Error fetching all calendar events: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to retrieve calendar events: {str(e)}"
+        )
+
 @api_router.post("/calendar/providers/{provider_id}/calendars/{calendar_id}/events", response_model=EventResponse)
 async def create_calendar_event(
     provider_id: str,
