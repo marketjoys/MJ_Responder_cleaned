@@ -3025,15 +3025,29 @@ async def process_email_async(email_id: str):
         # Step 3: Generate draft
         draft = await generate_draft(email_message, intents)
         
-        # Step 4: Update email with draft
+        # Step 4: Update email with draft and meeting detection results
+        update_draft_data = {
+            "draft": draft["plain_text"],
+            "draft_html": draft["html"],
+            "status": "drafting",
+            "calendar_action": calendar_action  # Store calendar action info
+        }
+        
+        # Add meeting detection results if detection was performed
+        if 'meeting_detection' in locals() and meeting_detection:
+            update_draft_data.update({
+                "meeting_detected": meeting_detection.meeting_detected,
+                "meeting_confidence": meeting_detection.confidence_score,
+                "meeting_datetime": meeting_detection.detected_datetime.isoformat() if meeting_detection.detected_datetime else None,
+                "meeting_title": meeting_detection.detected_title,
+                "meeting_location": meeting_detection.detected_location,
+                "meeting_attendees": meeting_detection.detected_attendees,
+                "meeting_duration": meeting_detection.suggested_duration
+            })
+        
         await db.emails.update_one(
             {"id": email_id},
-            {"$set": {
-                "draft": draft["plain_text"],
-                "draft_html": draft["html"],
-                "status": "drafting",
-                "calendar_action": calendar_action  # Store calendar action info
-            }}
+            {"$set": update_draft_data}
         )
         
         # Step 5: Validate final email with signature
