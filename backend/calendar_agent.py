@@ -183,9 +183,9 @@ RESPONSE FORMAT (JSON):
 
 ENHANCED DETECTION RULES:
 - Set detected=true for ANY clear meeting intent, even with partial date/time info
-- High confidence (>0.8): Specific date, time, and clear meeting purpose
-- Medium confidence (0.6-0.8): Clear meeting intent with date OR time
-- Low confidence (0.3-0.6): Meeting keywords present but vague timing
+- High confidence (>0.7): Specific date, time, and clear meeting purpose
+- Medium confidence (0.4-0.7): Clear meeting intent with date OR time
+- Low confidence (0.2-0.4): Meeting keywords present but vague timing
 - Consider conversation context - if previous emails mentioned dates/times
 - If current email is a reply to meeting discussion, inherit context
 - Convert all times to user's timezone
