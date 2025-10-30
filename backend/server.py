@@ -2984,16 +2984,37 @@ async def process_email_async(email_id: str):
                 
                 if calendar_action:
                     logger.info(f"📅 Parlant-Enhanced Calendar Action: {calendar_action}")
-                    logger.info(f"📅 Looking up event with external_event_id={calendar_action}, user_id={user_doc['id']}")
+                    logger.info(f"📅 Step 1: Looking up calendar event with external_event_id={calendar_action}")
                     
                     # Retrieve created calendar event details
                     calendar_event_details = None
+                    
+                    # FIRST: Try direct event lookup
                     created_event = await db.calendar_events.find_one({
                         "external_event_id": calendar_action,
                         "user_id": user_doc["id"]
                     })
                     
-                    logger.info(f"📅 Calendar event lookup result: {'FOUND' if created_event else 'NOT FOUND'}")
+                    logger.info(f"📅 Direct event lookup: {'FOUND' if created_event else 'NOT FOUND'}")
+                    
+                    # SECOND: If not found, check if calendar_action is a meeting_intent_id
+                    if not created_event:
+                        logger.info(f"📅 Step 2: Checking if {calendar_action} is a meeting_intent_id")
+                        meeting_intent_doc = await db.meeting_intents.find_one({
+                            "id": calendar_action,
+                            "user_id": user_doc["id"]
+                        })
+                        
+                        logger.info(f"📅 Meeting intent lookup: {'FOUND' if meeting_intent_doc else 'NOT FOUND'}")
+                        
+                        # If meeting intent has created_event_id, try to get the event
+                        if meeting_intent_doc and meeting_intent_doc.get('created_event_id'):
+                            logger.info(f"📅 Step 3: Meeting intent has created_event_id={meeting_intent_doc['created_event_id']}")
+                            created_event = await db.calendar_events.find_one({
+                                "external_event_id": meeting_intent_doc['created_event_id'],
+                                "user_id": user_doc["id"]
+                            })
+                            logger.info(f"📅 Event lookup via intent.created_event_id: {'FOUND' if created_event else 'NOT FOUND'}")
                     
                     if created_event:
                         # Format event details for inclusion in draft
