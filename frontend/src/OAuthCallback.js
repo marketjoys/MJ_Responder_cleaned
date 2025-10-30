@@ -45,20 +45,12 @@ const OAuthCallback = ({ provider = 'google' }) => {
 
         setStatus('success');
         setResult(response.data);
-        setMessage(`Successfully authorized ${response.data.authorized_services?.join(' and ')} services!`);
+        setMessage(`Successfully authorized ${response.data.authorized_services?.join(' and ')} services! Please add your email account.`);
 
-        // Redirect to appropriate page after 3 seconds
+        // Always redirect to accounts page after OAuth success
+        // User needs to manually add email account using the OAuth token
         setTimeout(() => {
-          const services = response.data.authorized_services || [];
-          if (services.includes('email') && services.includes('calendar')) {
-            navigate('/dashboard');
-          } else if (services.includes('email')) {
-            navigate('/accounts');
-          } else if (services.includes('calendar')) {
-            navigate('/calendar-providers');
-          } else {
-            navigate('/dashboard');
-          }
+          navigate('/accounts');
         }, 3000);
 
       } catch (error) {
