@@ -407,6 +407,7 @@ EMAIL TO ANALYZE:
                 email_id=email_id,
                 user_id=user_id,
                 thread_id=thread_id,
+                detected_meeting=meeting_detection.meeting_detected,
                 detected_datetime=meeting_detection.detected_datetime,
                 detected_timezone=meeting_detection.detected_timezone,
                 detected_duration=meeting_detection.suggested_duration,
