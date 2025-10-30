@@ -32,8 +32,9 @@ scheduler = Scheduler(connection=redis_conn, queue=background_queue)
 
 # MongoDB connection for tasks
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+DB_NAME = os.environ.get('DB_NAME', 'email_response_system')
 mongo_client = pymongo.MongoClient(MONGO_URL)
-db = mongo_client['email_assistant']
+db = mongo_client[DB_NAME]
 
 # Import after MongoDB is set up
 import sys
