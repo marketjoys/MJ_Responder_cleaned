@@ -3659,68 +3659,11 @@ async def handle_microsoft_oauth_callback(code: str, state: str):
         
         oauth_email = result.get('user_email', '')
         user_name = result.get('user_name', 'Microsoft User')
-        created_email_account = None
         
-        # Auto-create email account if email access was granted
-        if 'email' in result.get('authorized_services', []):
-            try:
-                # Check if email account already exists for this OAuth email
-                existing_account = await db.email_accounts.find_one({
-                    'user_id': result['user_id'],
-                    '$or': [
-                        {'oauth_email': oauth_email},
-                        {'email': oauth_email, 'auth_type': 'oauth'}
-                    ]
-                })
-                
-                if not existing_account:
-                    # Auto-create email account
-                    account_id = str(uuid.uuid4())
-                    oauth_token = await db.oauth_tokens_microsoft.find_one({
-                        'user_id': result['user_id'],
-                        'user_email': oauth_email
-                    })
-                    
-                    email_account = EmailAccount(
-                        id=account_id,
-                        user_id=result['user_id'],
-                        name=f"{user_name}'s Outlook",
-                        email=oauth_email,
-                        provider='outlook',
-                        auth_type='oauth',
-                        use_oauth=True,
-                        oauth_token_id=oauth_token.get('id') if oauth_token else '',
-                        oauth_email=oauth_email,
-                        username='',
-                        password='',
-                        imap_server='',
-                        imap_port=0,
-                        smtp_server='',
-                        smtp_port=0,
-                        signature='',
-                        persona='',
-                        is_active=True,
-                        auto_send=False,
-                        enable_follow_ups=False,
-                        follow_up_hours_override=None,
-                        max_follow_ups_override=None,
-                        custom_follow_up_template=None,
-                        last_uid=0,
-                        uidvalidity=None,
-                        last_polled=None,
-                        last_oauth_sync=datetime.utcnow()
-                    )
-                    
-                    await db.email_accounts.insert_one(email_account.dict())
-                    created_email_account = email_account.dict()
-                    logger.info(f"✅ Auto-created Outlook email account for {oauth_email} (User: {result['user_id']})")
-                else:
-                    logger.info(f"ℹ️  Email account already exists for {oauth_email}")
-                    created_email_account = dict(existing_account)
-                    
-            except Exception as email_error:
-                logger.error(f"Error auto-creating email account: {str(email_error)}")
-                # Don't fail the OAuth flow if email account creation fails
+        # Note: Email accounts are NOT auto-created via OAuth
+        # Users must manually add email accounts from the accounts page
+        # OAuth only stores access tokens for Outlook/Calendar APIs
+        logger.info(f"✅ OAuth token stored for {oauth_email} (User: {result['user_id']})")
         
         # Auto-create calendar provider if calendar access was granted
         if 'calendar' in result.get('authorized_services', []):
