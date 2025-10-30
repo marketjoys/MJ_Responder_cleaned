@@ -3,11 +3,11 @@
 ## Current Configuration
 
 ### Domain
-**Application URL:** `https://component-audit-1.preview.emergentagent.com`
+**Application URL:** `https://code-redis-sync.preview.emergentagent.com`
 
 ### OAuth Redirect URIs
-- **Google OAuth:** `https://component-audit-1.preview.emergentagent.com/oauth/google/callback`
-- **Microsoft OAuth:** `https://component-audit-1.preview.emergentagent.com/oauth/microsoft/callback`
+- **Google OAuth:** `https://code-redis-sync.preview.emergentagent.com/oauth/google/callback`
+- **Microsoft OAuth:** `https://code-redis-sync.preview.emergentagent.com/oauth/microsoft/callback`
 
 ---
 
@@ -21,7 +21,7 @@
 4. Click on **Authentication** in the left sidebar
 5. Under **Platform configurations** → **Web**, add/update the redirect URI:
    ```
-   https://component-audit-1.preview.emergentagent.com/oauth/microsoft/callback
+   https://code-redis-sync.preview.emergentagent.com/oauth/microsoft/callback
    ```
 6. Remove any old redirect URIs (like `dev-restart-setup.preview.emergentagent.com`)
 7. Click **Save**
@@ -61,7 +61,7 @@ If any are missing:
 4. Click to edit the OAuth client
 5. Under **Authorized redirect URIs**, add/update:
    ```
-   https://component-audit-1.preview.emergentagent.com/oauth/google/callback
+   https://code-redis-sync.preview.emergentagent.com/oauth/google/callback
    ```
 6. Remove any old redirect URIs
 7. Click **Save**
@@ -165,12 +165,12 @@ Located in `/app/backend/.env`:
 MICROSOFT_CLIENT_ID="41370f61-416c-4f33-ae52-70468b1c1927"
 MICROSOFT_CLIENT_SECRET="ZA-8Q~HalBnl3OkxnxyrDjqnzDheedqc-Z6fvc74"
 MICROSOFT_TENANT_ID="cf93f5c7-89b8-4808-b550-b61a85422828"
-MICROSOFT_REDIRECT_URI="https://component-audit-1.preview.emergentagent.com/oauth/microsoft/callback"
+MICROSOFT_REDIRECT_URI="https://code-redis-sync.preview.emergentagent.com/oauth/microsoft/callback"
 
 # Google OAuth
 GOOGLE_CLIENT_ID="691413402120-tlhotgqvkpevgvaaaff8h1r8t7lk0k9i.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="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"
-GOOGLE_REDIRECT_URI="https://component-audit-1.preview.emergentagent.com/oauth/google/callback"
+GOOGLE_REDIRECT_URI="https://code-redis-sync.preview.emergentagent.com/oauth/google/callback"
 ```
 
 ---
