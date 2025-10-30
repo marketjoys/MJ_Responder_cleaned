@@ -2984,6 +2984,7 @@ async def process_email_async(email_id: str):
                 
                 if calendar_action:
                     logger.info(f"📅 Parlant-Enhanced Calendar Action: {calendar_action}")
+                    logger.info(f"📅 Looking up event with external_event_id={calendar_action}, user_id={user_doc['id']}")
                     
                     # Retrieve created calendar event details
                     calendar_event_details = None
@@ -2991,6 +2992,8 @@ async def process_email_async(email_id: str):
                         "external_event_id": calendar_action,
                         "user_id": user_doc["id"]
                     })
+                    
+                    logger.info(f"📅 Calendar event lookup result: {'FOUND' if created_event else 'NOT FOUND'}")
                     
                     if created_event:
                         # Format event details for inclusion in draft
