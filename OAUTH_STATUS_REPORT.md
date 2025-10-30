@@ -95,7 +95,7 @@ INFO:email_services:✅ Poll cycle #3 completed. Active connections: 1
 
 **Issue Reported:**
 ```
-PATCH https://redis-workers.preview.emergentagent.com/api/email-accounts/e7c490f4-4f8e-402e-a085-61e133a0b1d0/settings 404 (Not Found)
+PATCH https://sync-and-review.preview.emergentagent.com/api/email-accounts/e7c490f4-4f8e-402e-a085-61e133a0b1d0/settings 404 (Not Found)
 ```
 
 **Investigation Results:**
