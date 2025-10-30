@@ -5858,6 +5858,46 @@ async def create_oauth_email_account(
                     return existing_dict
             raise
         
+        # Auto-create calendar provider if calendar access was granted in OAuth
+        # This ensures calendar provider exists even if it wasn't created during OAuth callback
+        try:
+            # Check if calendar access is authorized
+            calendar_authorized = "calendar" in oauth_token.get("authorized_services", [])
+            
+            if calendar_authorized:
+                # Check if calendar provider already exists for this OAuth email
+                existing_provider = await db.calendar_providers.find_one({
+                    'user_id': current_user.id,
+                    'provider_type': provider if provider != 'gmail' else 'google',
+                    'use_oauth': True,
+                    'oauth_email': oauth_email
+                })
+                
+                if not existing_provider:
+                    # Auto-create calendar provider
+                    provider_id = str(uuid.uuid4())
+                    provider_type = 'google' if provider in ['gmail', 'google'] else 'microsoft'
+                    calendar_provider = {
+                        'id': provider_id,
+                        'user_id': current_user.id,
+                        'provider_type': provider_type,
+                        'provider_name': f"{oauth_user_name or oauth_email.split('@')[0].title()} Calendar",
+                        'use_oauth': True,
+                        'oauth_email': oauth_email,
+                        'encrypted_credentials': '',  # OAuth uses tokens, not stored credentials
+                        'is_active': True,
+                        'timezone': 'UTC',
+                        'created_at': datetime.now(timezone.utc),
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                    await db.calendar_providers.insert_one(calendar_provider)
+                    logger.info(f"✅ Auto-created calendar provider for OAuth email account: {oauth_email}")
+                else:
+                    logger.info(f"✅ Calendar provider already exists for {oauth_email}")
+        except Exception as cal_error:
+            # Don't fail email account creation if calendar provider creation fails
+            logger.error(f"⚠️ Error auto-creating calendar provider (non-fatal): {str(cal_error)}")
+        
         # Return account without sensitive data
         account_dict = account.dict()
         account_dict["_id"] = str(result.inserted_id)
