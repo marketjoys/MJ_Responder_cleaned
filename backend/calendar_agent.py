@@ -384,7 +384,7 @@ EMAIL TO ANALYZE:
             # Check if meeting has clear datetime and high confidence
             if (not meeting_detection.meeting_detected or 
                 not meeting_detection.detected_datetime or 
-                meeting_detection.confidence_score < 0.6):
+                meeting_detection.confidence_score < 0.4):
                 
                 logger.info(f"Meeting intent not processed - insufficient confidence or missing datetime")
                 return None
