@@ -456,9 +456,14 @@ EMAIL TO ANALYZE:
             return None
     
     async def _create_calendar_event(self, meeting_intent: MeetingIntent, user_id: str) -> Optional[str]:
-        """Create calendar event from meeting intent"""
+        """Create calendar event from meeting intent with detailed logging"""
         
         try:
+            logger.info(f"🔧 Starting calendar event creation for meeting intent {meeting_intent.id}")
+            logger.info(f"   User ID: {user_id}")
+            logger.info(f"   Meeting title: {meeting_intent.detected_title}")
+            logger.info(f"   Meeting datetime: {meeting_intent.detected_datetime}")
+            
             # Get user's default calendar provider
             default_provider = await db.calendar_providers.find_one({
                 "user_id": user_id,
@@ -466,24 +471,51 @@ EMAIL TO ANALYZE:
             })
             
             if not default_provider:
-                logger.warning(f"No calendar provider found for user {user_id}")
+                logger.error(f"❌ No calendar provider found for user {user_id}")
+                logger.error(f"   Cannot create calendar event without provider")
                 return None
             
+            logger.info(f"✅ Found calendar provider: {default_provider.get('provider_name')} (ID: {default_provider['id']})")
+            
             # Get default calendar
-            service = await calendar_service.get_service(default_provider["id"], user_id)
-            calendars = await service.get_calendars()
+            try:
+                service = await calendar_service.get_service(default_provider["id"], user_id)
+                logger.info(f"✅ Calendar service initialized successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize calendar service: {e}")
+                return None
+            
+            try:
+                calendars = await service.get_calendars()
+                logger.info(f"✅ Retrieved {len(calendars)} calendars")
+            except Exception as e:
+                logger.error(f"❌ Failed to retrieve calendars: {e}")
+                return None
             
             default_calendar = next((cal for cal in calendars if cal.get('is_primary')), calendars[0] if calendars else None)
             
             if not default_calendar:
-                logger.warning(f"No calendars found for provider {default_provider['id']}")
+                logger.error(f"❌ No calendars found for provider {default_provider['id']}")
                 return None
+            
+            logger.info(f"✅ Selected calendar: {default_calendar.get('name')} (ID: {default_calendar['id']})")
             
             # Calculate end time
             start_time = meeting_intent.detected_datetime
             end_time = start_time + timedelta(minutes=meeting_intent.detected_duration)
             
-            # Prepare event data
+            logger.info(f"⏰ Event timing:")
+            logger.info(f"   Start: {start_time}")
+            logger.info(f"   End: {end_time}")
+            logger.info(f"   Duration: {meeting_intent.detected_duration} minutes")
+            logger.info(f"   Timezone: {meeting_intent.detected_timezone or 'UTC'}")
+            
+            # Prepare event data with reminders
+            reminders = [
+                {'method': 'email', 'minutes': 60},  # 1 hour before
+                {'method': 'popup', 'minutes': 15}   # 15 minutes before
+            ]
+            
             event_data = {
                 'title': meeting_intent.detected_title or "Meeting",
                 'description': f"Meeting scheduled automatically from email conversation.",
@@ -493,25 +525,58 @@ EMAIL TO ANALYZE:
                 'location': meeting_intent.detected_location or "",
                 'attendees': meeting_intent.detected_attendees,
                 'meeting_intent_id': meeting_intent.id,
-                'reminders': [
-                    {'method': 'email', 'minutes': 60},  # 1 hour before
-                    {'method': 'popup', 'minutes': 15}   # 15 minutes before
-                ]
+                'reminders': reminders
             }
             
-            # Create the event
-            event_response = await calendar_service.create_event(
-                default_provider["id"],
-                default_calendar['id'],
-                event_data,
-                user_id
-            )
+            logger.info(f"📋 Event data prepared:")
+            logger.info(f"   Title: {event_data['title']}")
+            logger.info(f"   Location: {event_data['location']}")
+            logger.info(f"   Attendees: {event_data['attendees']}")
+            logger.info(f"   Reminders: {reminders}")
             
-            logger.info(f"Created calendar event: {event_response.id}")
-            return event_response.id
+            # Create the event
+            try:
+                logger.info(f"🚀 Creating calendar event...")
+                event_response = await calendar_service.create_event(
+                    default_provider["id"],
+                    default_calendar['id'],
+                    event_data,
+                    user_id
+                )
+                
+                logger.info(f"✅ Calendar event created successfully!")
+                logger.info(f"   Event ID: {event_response.id}")
+                logger.info(f"   External Event ID: {event_response.id}")
+                logger.info(f"   Title: {event_response.title}")
+                logger.info(f"   Start: {event_response.start_time}")
+                logger.info(f"   Reminders stored: {event_response.reminders}")
+                
+                # Verify event was stored in database
+                stored_event = await db.calendar_events.find_one({
+                    "external_event_id": event_response.id,
+                    "user_id": user_id
+                })
+                
+                if stored_event:
+                    logger.info(f"✅ Event verified in database")
+                    logger.info(f"   Database ID: {stored_event.get('id')}")
+                    logger.info(f"   Reminders in DB: {stored_event.get('reminders', [])}")
+                else:
+                    logger.warning(f"⚠️  Event not found in database after creation")
+                
+                return event_response.id
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to create calendar event: {e}")
+                logger.error(f"   Event data: {event_data}")
+                import traceback
+                logger.error(f"   Traceback: {traceback.format_exc()}")
+                return None
             
         except Exception as e:
-            logger.error(f"Error creating calendar event: {e}")
+            logger.error(f"❌ Unexpected error in _create_calendar_event: {e}")
+            import traceback
+            logger.error(f"   Traceback: {traceback.format_exc()}")
             return None
     
     async def update_meeting_from_email(self, email_content: str, thread_id: str, 
