@@ -47,8 +47,9 @@ async def test_reminders():
                 print(f"   Response: {login_response.text}")
                 return
             
-            token = login_response.json()['access_token']
-            user_id = login_response.json()['user_id']
+            login_data = login_response.json()
+            token = login_data['access_token']
+            user_id = login_data['user']['id']
             print(f"✅ Logged in successfully (User ID: {user_id})")
             
             headers = {"Authorization": f"Bearer {token}"}
