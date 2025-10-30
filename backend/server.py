@@ -2985,12 +2985,74 @@ async def process_email_async(email_id: str):
                 if calendar_action:
                     logger.info(f"📅 Parlant-Enhanced Calendar Action: {calendar_action}")
                     
+                    # Retrieve created calendar event details
+                    calendar_event_details = None
+                    created_event = await db.calendar_events.find_one({
+                        "external_event_id": calendar_action,
+                        "user_id": user_doc["id"]
+                    })
+                    
+                    if created_event:
+                        # Format event details for inclusion in draft
+                        event_start = created_event['start_time']
+                        event_end = created_event['end_time']
+                        event_location = created_event.get('location', 'Not specified')
+                        
+                        # Format datetime for display
+                        if isinstance(event_start, str):
+                            from dateutil import parser as date_parser
+                            event_start = date_parser.parse(event_start)
+                        if isinstance(event_end, str):
+                            event_end = date_parser.parse(event_end)
+                        
+                        # Format in user-friendly way
+                        formatted_date = event_start.strftime("%A, %B %d, %Y")
+                        formatted_time = event_start.strftime("%I:%M %p")
+                        formatted_end_time = event_end.strftime("%I:%M %p")
+                        
+                        calendar_event_details = f"""
+**CALENDAR EVENT CREATED - MUST MENTION IN RESPONSE:**
+- Title: {created_event['title']}
+- Date: {formatted_date}
+- Time: {formatted_time} - {formatted_end_time} ({created_event.get('timezone', 'UTC')})
+- Location: {event_location}
+- Calendar event has been automatically created and saved"""
+                        
+                        logger.info(f"📅 Retrieved calendar event details for draft: {created_event['title']}")
+                    else:
+                        # Try to get meeting intent details
+                        meeting_intent_doc = await db.meeting_intents.find_one({
+                            "id": calendar_action,
+                            "user_id": user_doc["id"]
+                        })
+                        
+                        if meeting_intent_doc and meeting_intent_doc.get('detected_datetime'):
+                            event_datetime = meeting_intent_doc['detected_datetime']
+                            if isinstance(event_datetime, str):
+                                from dateutil import parser as date_parser
+                                event_datetime = date_parser.parse(event_datetime)
+                            
+                            formatted_date = event_datetime.strftime("%A, %B %d, %Y")
+                            formatted_time = event_datetime.strftime("%I:%M %p")
+                            
+                            calendar_event_details = f"""
+**MEETING DETECTED - MUST ACKNOWLEDGE IN RESPONSE:**
+- Title: {meeting_intent_doc.get('detected_title', 'Meeting')}
+- Date: {formatted_date}
+- Time: {formatted_time} ({meeting_intent_doc.get('detected_timezone', 'UTC')})
+- Duration: {meeting_intent_doc.get('detected_duration', 30)} minutes
+- Status: Meeting intent created, calendar event pending confirmation"""
+                    
                     # Add meeting confirmation to intents for better response generation
+                    meeting_intent_prompt = "Include meeting confirmation details with date, time, and any relevant logistics in the response."
+                    if calendar_event_details:
+                        meeting_intent_prompt = f"{calendar_event_details}\n\nIMPORTANT: You MUST explicitly confirm these meeting details in your response. Mention the date, time, and that the calendar event has been created/scheduled."
+                    
                     meeting_intent = {
                         "name": "Meeting Confirmation",
                         "description": "Confirm meeting details and provide clear next steps",
                         "confidence": 0.95,
-                        "system_prompt": "Include meeting confirmation details with date, time, and any relevant logistics in the response."
+                        "system_prompt": meeting_intent_prompt
                     }
                     intents.append(meeting_intent)
                     
