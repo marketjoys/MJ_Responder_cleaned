@@ -169,6 +169,7 @@ class CalendarEvent(BaseModel):
     timezone: str
     location: str = ""
     attendees: List[str] = []
+    reminders: List[Dict[str, Any]] = []  # Store reminder configurations
     meeting_intent_id: Optional[str] = None  # Link to meeting intent if created by email
     reminder_sent: bool = False
     last_reminder_sent: Optional[datetime] = None
