@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional
 
 # Configuration
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://outlook-sync-fix.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://sync-analyze.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 class MultiAccountOAuthTester:
