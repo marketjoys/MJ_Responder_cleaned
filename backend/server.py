@@ -3050,11 +3050,18 @@ async def process_email_async(email_id: str):
 - Time: {formatted_time} ({meeting_intent_doc.get('detected_timezone', 'UTC')})
 - Duration: {meeting_intent_doc.get('detected_duration', 30)} minutes
 - Status: Meeting intent created, calendar event pending confirmation"""
+                            
+                            logger.info(f"📅 Using meeting intent details for draft")
+                            logger.info(f"📅 Intent details string length: {len(calendar_event_details)}")
                     
                     # Add meeting confirmation to intents for better response generation
                     meeting_intent_prompt = "Include meeting confirmation details with date, time, and any relevant logistics in the response."
                     if calendar_event_details:
                         meeting_intent_prompt = f"{calendar_event_details}\n\nIMPORTANT: You MUST explicitly confirm these meeting details in your response. Mention the date, time, and that the calendar event has been created/scheduled."
+                        logger.info(f"📅 INJECTING EVENT DETAILS INTO SYSTEM PROMPT")
+                        logger.info(f"📅 System prompt includes: Date, Time, Title, Location/Duration")
+                    else:
+                        logger.warning(f"⚠️  NO EVENT DETAILS FOUND - Using generic prompt")
                     
                     meeting_intent = {
                         "name": "Meeting Confirmation",
