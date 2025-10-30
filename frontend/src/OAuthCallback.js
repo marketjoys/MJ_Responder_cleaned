@@ -145,7 +145,7 @@ const OAuthCallback = ({ provider = 'google' }) => {
           {status === 'success' && (
             <div className="mt-4 text-center">
               <div className="text-sm text-slate-600">
-                Redirecting you automatically in a few seconds...
+                Redirecting to accounts page where you can add your email account...
               </div>
             </div>
           )}
