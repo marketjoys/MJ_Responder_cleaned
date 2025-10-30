@@ -2961,7 +2961,7 @@ async def process_email_async(email_id: str):
             
             logger.info(f"🔍 Parlant-Enhanced Meeting Detection: detected={meeting_detection.meeting_detected}, confidence={meeting_detection.confidence_score}, conflicts={has_conflicts}")
             
-            if meeting_detection.meeting_detected and meeting_detection.confidence_score >= 0.6:
+            if meeting_detection.meeting_detected and meeting_detection.confidence_score >= 0.4:
                 # Parlant guideline: Handle conflicts appropriately
                 if has_conflicts:
                     logger.warning(f"📅 Calendar conflicts detected - applying Parlant conflict resolution guidelines")
