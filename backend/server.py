@@ -3449,9 +3449,7 @@ async def handle_google_oauth_callback(code: str, state: str):
             "authorized_services": result["authorized_services"],
             "requested_services": result["requested_services"],
             "user_info": result["user_info"],
-            "email_account_created": created_email_account is not None,
-            "email_account_id": created_email_account.get('id') if created_email_account else None,
-            "message": f"Successfully authorized {', '.join(result['authorized_services'])} services"
+            "message": f"Successfully authorized {', '.join(result['authorized_services'])} services. Please add your email account from the accounts page."
         }
         
     except HTTPException:
