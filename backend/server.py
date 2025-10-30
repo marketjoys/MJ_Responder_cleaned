@@ -3042,18 +3042,21 @@ async def process_email_async(email_id: str):
 - Location: {event_location}
 - Calendar event has been automatically created and saved"""
                         
-                        logger.info(f"📅 Retrieved calendar event details for draft: {created_event['title']}")
+                        logger.info(f"📅 ✅ FOUND calendar event details")
+                        logger.info(f"📅 Event title: {created_event['title']}")
+                        logger.info(f"📅 Event start: {created_event['start_time']}")
                         logger.info(f"📅 Event details string length: {len(calendar_event_details)}")
-                        logger.info(f"📅 Event details preview: {calendar_event_details[:200]}")
                     else:
-                        logger.info(f"📅 Calendar event not found, checking meeting intent...")
-                        # Try to get meeting intent details
-                        meeting_intent_doc = await db.meeting_intents.find_one({
-                            "id": calendar_action,
-                            "user_id": user_doc["id"]
-                        })
+                        logger.info(f"📅 Step 4: No calendar event found, using meeting intent details if available")
                         
-                        logger.info(f"📅 Meeting intent lookup result: {'FOUND' if meeting_intent_doc else 'NOT FOUND'}")
+                        # If we don't have meeting_intent_doc yet, look it up
+                        if 'meeting_intent_doc' not in locals() or not meeting_intent_doc:
+                            meeting_intent_doc = await db.meeting_intents.find_one({
+                                "id": calendar_action,
+                                "user_id": user_doc["id"]
+                            })
+                        
+                        logger.info(f"📅 Final meeting intent check: {'FOUND' if meeting_intent_doc else 'NOT FOUND'}")
                         
                         if meeting_intent_doc and meeting_intent_doc.get('detected_datetime'):
                             event_datetime = meeting_intent_doc['detected_datetime']
