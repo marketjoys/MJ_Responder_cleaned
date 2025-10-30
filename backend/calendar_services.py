@@ -679,9 +679,11 @@ class UnifiedCalendarService:
                 timezone=event_data.get('timezone', 'UTC'),
                 location=created_event.get('location', ''),
                 attendees=created_event.get('attendees', []),
+                reminders=event_data.get('reminders', []),  # Store reminders from event_data
                 meeting_intent_id=event_data.get('meeting_intent_id')
             )
             
+            logger.info(f"Storing calendar event with reminders: {calendar_event.reminders}")
             await db.calendar_events.insert_one(calendar_event.dict())
             
             # Get provider info for response
