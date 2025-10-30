@@ -17,20 +17,26 @@ const OAuthCallback = ({ provider = 'google' }) => {
   const providerName = provider === 'google' ? 'Google' : 'Microsoft';
 
   useEffect(() => {
+    let cancelled = false; // Prevent race conditions and double execution
+    
     const handleCallback = async () => {
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
 
       if (error) {
-        setStatus('error');
-        setMessage(`OAuth error: ${error}`);
+        if (!cancelled) {
+          setStatus('error');
+          setMessage(`OAuth error: ${error}`);
+        }
         return;
       }
 
       if (!code || !state) {
-        setStatus('error');
-        setMessage('Missing required OAuth parameters');
+        if (!cancelled) {
+          setStatus('error');
+          setMessage('Missing required OAuth parameters');
+        }
         return;
       }
 
@@ -43,23 +49,32 @@ const OAuthCallback = ({ provider = 'google' }) => {
           params: { code, state }
         });
 
-        setStatus('success');
-        setResult(response.data);
-        setMessage(`Successfully authorized ${response.data.authorized_services?.join(' and ')} services! Please add your email account.`);
+        if (!cancelled) {
+          setStatus('success');
+          setResult(response.data);
+          setMessage(`Successfully authorized ${response.data.authorized_services?.join(' and ')} services! Please add your email account.`);
 
-        // Always redirect to accounts page after OAuth success
-        // User needs to manually add email account using the OAuth token
-        setTimeout(() => {
-          navigate('/accounts');
-        }, 3000);
+          // Always redirect to accounts page after OAuth success
+          // User needs to manually add email account using the OAuth token
+          setTimeout(() => {
+            navigate('/accounts');
+          }, 3000);
+        }
 
       } catch (error) {
-        setStatus('error');
-        setMessage(error.response?.data?.detail || 'OAuth callback failed');
+        if (!cancelled) {
+          setStatus('error');
+          setMessage(error.response?.data?.detail || 'OAuth callback failed');
+        }
       }
     };
 
     handleCallback();
+    
+    // Cleanup function to prevent state updates if component unmounts or re-renders
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams, navigate, provider]);
 
   return (
