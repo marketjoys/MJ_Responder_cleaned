@@ -421,7 +421,7 @@ EMAIL TO ANALYZE:
             await db.meeting_intents.insert_one(meeting_intent.dict())
             
             # If confidence is high enough, create calendar event immediately
-            if meeting_detection.confidence_score >= 0.8 and not meeting_detection.needs_confirmation:
+            if meeting_detection.confidence_score >= 0.4 and not meeting_detection.needs_confirmation:
                 event_id = await self._create_calendar_event(meeting_intent, user_id)
                 
                 if event_id:
