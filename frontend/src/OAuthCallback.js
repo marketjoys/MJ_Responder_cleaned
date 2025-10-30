@@ -88,7 +88,7 @@ const OAuthCallback = ({ provider = 'google' }) => {
           </CardTitle>
           <CardDescription>
             {status === 'processing' && `Please wait while we complete your ${providerName} OAuth authorization.`}
-            {status === 'success' && 'You will be redirected automatically.'}
+            {status === 'success' && 'OAuth connected! Add your email account to start using it.'}
             {status === 'error' && 'There was an issue with the authorization process.'}
           </CardDescription>
         </CardHeader>
