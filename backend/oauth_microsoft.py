@@ -156,7 +156,6 @@ class MicrosoftOAuthService:
         # Validate state parameter
         oauth_state = await db.oauth_states_microsoft.find_one({
             'state': state,
-            'used': False,
             'expires_at': {'$gt': datetime.now(timezone.utc)}
         })
         
@@ -165,6 +164,35 @@ class MicrosoftOAuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state"
             )
+        
+        # Check if state was already used (duplicate callback)
+        if oauth_state.get('used'):
+            logger.warning(f"⚠️ Microsoft OAuth state already used for user {oauth_state['user_id']}")
+            # Check if user already has a recent valid OAuth token
+            recent_token = await db.oauth_tokens.find_one({
+                'user_id': oauth_state['user_id'],
+                'created_at': {'$gte': datetime.now(timezone.utc) - timedelta(minutes=5)}
+            })
+            
+            if recent_token:
+                # Return success response since authorization was already successful
+                logger.info(f"✅ Returning existing Microsoft OAuth result for duplicate callback (user {oauth_state['user_id']})")
+                user_info = {
+                    'email': recent_token.get('user_email', ''),
+                    'name': recent_token.get('user_name', ''),
+                    'id': recent_token.get('user_email', '').split('@')[0]
+                }
+                return {
+                    'user_id': oauth_state['user_id'],
+                    'authorized_services': recent_token.get('authorized_services', []),
+                    'requested_services': oauth_state.get('requested_services', []),
+                    'user_info': user_info
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="OAuth state already used. Please start a new authorization."
+                )
         
         # Mark state as used
         await db.oauth_states_microsoft.update_one(
