@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
@@ -15,11 +15,18 @@ const OAuthCallback = ({ provider = 'google' }) => {
   const [message, setMessage] = useState('Processing OAuth callback...');
   const [result, setResult] = useState(null);
   const providerName = provider === 'google' ? 'Google' : 'Microsoft';
+  const hasProcessed = useRef(false); // Track if we've already processed this callback
 
   useEffect(() => {
     let cancelled = false; // Prevent race conditions and double execution
     
     const handleCallback = async () => {
+      // Prevent duplicate processing (important for React Strict Mode)
+      if (hasProcessed.current) {
+        console.log('OAuth callback already processed, skipping...');
+        return;
+      }
+      
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
@@ -39,6 +46,9 @@ const OAuthCallback = ({ provider = 'google' }) => {
         }
         return;
       }
+
+      // Mark as processing to prevent duplicate calls
+      hasProcessed.current = true;
 
       try {
         const callbackUrl = provider === 'google' 
@@ -63,8 +73,22 @@ const OAuthCallback = ({ provider = 'google' }) => {
 
       } catch (error) {
         if (!cancelled) {
-          setStatus('error');
-          setMessage(error.response?.data?.detail || 'OAuth callback failed');
+          // Check if the error is due to state already being used (duplicate call)
+          const errorMsg = error.response?.data?.detail || 'OAuth callback failed';
+          
+          if (errorMsg.includes('Invalid or expired OAuth state') || 
+              errorMsg.includes('already completed')) {
+            // This is likely a duplicate call - redirect to accounts page
+            console.warn('OAuth state already used, likely duplicate call. Redirecting...');
+            setStatus('success');
+            setMessage('Authorization already completed! Redirecting to accounts...');
+            setTimeout(() => {
+              navigate('/accounts');
+            }, 2000);
+          } else {
+            setStatus('error');
+            setMessage(errorMsg);
+          }
         }
       }
     };
